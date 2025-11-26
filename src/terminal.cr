@@ -1,0 +1,118 @@
+# Terminal control utilities for advanced terminal features
+module Term2
+  {% if flag?(:unix) %}
+    lib LibC
+      struct Winsize
+        ws_row : UInt16
+        ws_col : UInt16
+        ws_xpixel : UInt16
+        ws_ypixel : UInt16
+      end
+
+      {% if flag?(:darwin) %}
+        TIOCGWINSZ = 0x40087468_u64
+      {% else %}
+        TIOCGWINSZ = 0x5413_u64
+      {% end %}
+
+      fun ioctl(fd : Int32, request : UInt64, ...) : Int32
+    end
+  {% end %}
+
+  # Terminal provides utilities for controlling terminal behavior
+  module Terminal
+    # Enter alternate screen mode
+    def self.enter_alt_screen(io : IO = STDOUT)
+      io.print "\033[?1049h"
+    end
+
+    # Exit alternate screen mode
+    def self.exit_alt_screen(io : IO = STDOUT)
+      io.print "\033[?1049l"
+    end
+
+    # Clear the screen and move cursor to home position
+    def self.clear(io : IO = STDOUT)
+      io.print "\033[2J\033[H"
+    end
+
+    # Hide the cursor
+    def self.hide_cursor(io : IO = STDOUT)
+      io.print "\033[?25l"
+    end
+
+    # Show the cursor
+    def self.show_cursor(io : IO = STDOUT)
+      io.print "\033[?25h"
+    end
+
+    # Enable bracketed paste mode
+    def self.enable_bracketed_paste(io : IO = STDOUT)
+      io.print "\033[?2004h"
+    end
+
+    # Disable bracketed paste mode
+    def self.disable_bracketed_paste(io : IO = STDOUT)
+      io.print "\033[?2004l"
+    end
+
+    # Enable focus reporting
+    def self.enable_focus_reporting(io : IO = STDOUT)
+      io.print "\033[?1004h"
+    end
+
+    # Disable focus reporting
+    def self.disable_focus_reporting(io : IO = STDOUT)
+      io.print "\033[?1004l"
+    end
+
+    # Save terminal state (cursor position, attributes, etc.)
+    def self.save_state(io : IO = STDOUT)
+      io.print "\e7"
+    end
+
+    # Restore terminal state
+    def self.restore_state(io : IO = STDOUT)
+      io.print "\e8"
+    end
+
+    # Release terminal (restore original state)
+    def self.release_terminal(io : IO = STDOUT)
+      show_cursor(io)
+      exit_alt_screen(io)
+      disable_focus_reporting(io)
+      enable_bracketed_paste(io)
+      io.print "\033[0m" # Reset all attributes
+    end
+
+    # Restore terminal to program state
+    def self.restore_terminal(io : IO = STDOUT)
+      hide_cursor(io)
+      clear(io)
+    end
+
+    # Get terminal size using ioctl
+    def self.size : {Int32, Int32}
+      {% if flag?(:unix) %}
+        # Use ioctl to get terminal size on Unix systems
+        if STDOUT.tty?
+          begin
+            ws = uninitialized LibC::Winsize
+            if LibC.ioctl(STDOUT.fd, LibC::TIOCGWINSZ, pointerof(ws)) == 0
+              return {ws.ws_col.to_i32, ws.ws_row.to_i32}
+            end
+          rescue
+            # Fall through to default
+          end
+        end
+      {% end %}
+      # Default fallback
+      {80, 24}
+    end
+
+    # Check if output is a terminal
+    def self.tty?(io : IO = STDOUT) : Bool
+      io.tty?
+    end
+  end
+end
