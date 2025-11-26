@@ -583,7 +583,7 @@ module Term2
     end
 
     # Set the terminal window title
-    def self.set_window_title(title : String) : self
+    def self.window_title=(title : String) : self
       message(SetWindowTitleMsg.new(title))
     end
 
@@ -645,7 +645,7 @@ module Term2
 
   # Applications describe the high-level Elm-style lifecycle.
   abstract class Application(M)
-    abstract def init : M
+    abstract def init
     abstract def update(msg : Message, model : M)
     abstract def view(model : M) : String
 

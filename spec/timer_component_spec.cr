@@ -1,29 +1,29 @@
 require "./spec_helper"
 
-private class TimerHarness < Term2::Application
-  getter finished_count : Int32
+private class TimerModelWrapper < Term2::Model
+  getter timer : Term2::Components::CountdownTimer::Model
 
-  class ModelWrapper < Term2::Model
-    getter timer : Term2::Components::CountdownTimer::Model
-
-    def initialize(@timer : Term2::Components::CountdownTimer::Model)
-    end
+  def initialize(@timer : Term2::Components::CountdownTimer::Model)
   end
+end
+
+private class TimerHarness < Term2::Application(TimerModelWrapper)
+  getter finished_count : Int32
 
   def initialize(@duration : Time::Span)
     @timer = Term2::Components::CountdownTimer.new(interval: 5.milliseconds)
     @finished_count = 0
   end
 
-  def init
+  def init : {TimerModelWrapper, Term2::Cmd}
     timer_model, cmd = @timer.init(@duration)
-    {ModelWrapper.new(timer_model), cmd}
+    {TimerModelWrapper.new(timer_model), cmd}
   end
 
-  def update(msg : Term2::Message, model : Term2::Model)
-    wrapper = model.as(ModelWrapper)
+  def update(msg : Term2::Message, model : TimerModelWrapper)
+    wrapper = model
     timer_model, cmd = @timer.update(msg, wrapper.timer)
-    new_wrapper = ModelWrapper.new(timer_model)
+    new_wrapper = TimerModelWrapper.new(timer_model)
     extra = Term2::Cmd.none
 
     if msg.is_a?(Term2::Components::CountdownTimer::Finished)
@@ -34,9 +34,8 @@ private class TimerHarness < Term2::Application
     {new_wrapper, Term2::Cmd.batch(cmd, extra)}
   end
 
-  def view(model : Term2::Model) : String
-    timer_model = model.as(ModelWrapper).timer
-    "#{@timer.view(timer_model)}\n"
+  def view(model : TimerModelWrapper) : String
+    @timer.view(model.timer)
   end
 end
 
@@ -56,7 +55,7 @@ describe Term2::Components::CountdownTimer do
     app.finished_count.should eq(1)
     output.to_s.should contain("finished")
 
-    timer_model = result[0].as(TimerHarness::ModelWrapper).timer
+    timer_model = result[0].as(TimerModelWrapper).timer
     timer_model.remaining.should be <= Time::Span.zero
     timer_model.running?.should be_false
   end

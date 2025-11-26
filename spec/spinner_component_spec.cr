@@ -1,27 +1,27 @@
 require "./spec_helper"
 
-private class SpinnerHarness < Term2::Application
-  getter tick_count : Int32
+private class SpinnerModelWrapper < Term2::Model
+  getter spinner : Term2::Components::Spinner::Model
 
-  class ModelWrapper < Term2::Model
-    getter spinner : Term2::Components::Spinner::Model
-
-    def initialize(@spinner : Term2::Components::Spinner::Model)
-    end
+  def initialize(@spinner : Term2::Components::Spinner::Model)
   end
+end
+
+private class SpinnerHarness < Term2::Application(SpinnerModelWrapper)
+  getter tick_count : Int32
 
   def initialize(@limit : Int32 = 3)
     @spinner = Term2::Components::Spinner.new(frames: ["1", "2"], interval: 5.milliseconds)
     @tick_count = 0
   end
 
-  def init
+  def init : {SpinnerModelWrapper, Term2::Cmd}
     spinner_model, cmd = @spinner.init("Loading")
-    {ModelWrapper.new(spinner_model), cmd}
+    {SpinnerModelWrapper.new(spinner_model), cmd}
   end
 
-  def update(msg : Term2::Message, model : Term2::Model)
-    wrapper = model.as(ModelWrapper)
+  def update(msg : Term2::Message, model : SpinnerModelWrapper)
+    wrapper = model
     spinner_model, cmd = @spinner.update(msg, wrapper.spinner)
     extra = Term2::Cmd.none
 
@@ -29,19 +29,15 @@ private class SpinnerHarness < Term2::Application
     when Term2::Components::Spinner::Tick
       @tick_count += 1
       if @tick_count >= @limit
-        extra = Term2::Cmd.batch(
-          Term2::Cmd.message(Term2::Components::Spinner::Stop.new),
-          Term2::Cmd.quit
-        )
+        extra = Term2::Cmd.quit
       end
     end
 
-    {ModelWrapper.new(spinner_model), Term2::Cmd.batch(cmd, extra)}
+    {SpinnerModelWrapper.new(spinner_model), Term2::Cmd.batch(cmd, extra)}
   end
 
-  def view(model : Term2::Model) : String
-    spinner_model = model.as(ModelWrapper).spinner
-    "#{@spinner.view(spinner_model)}\n"
+  def view(model : SpinnerModelWrapper) : String
+    @spinner.view(model.spinner)
   end
 end
 

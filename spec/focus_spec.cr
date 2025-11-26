@@ -1,31 +1,31 @@
 require "./spec_helper"
 
-private class FocusTestApp < Term2::Application
-  class Model < Term2::Model
-    getter focused : Bool = false
-    getter blurred : Bool = false
+private class FocusSpecModel < Term2::Model
+  getter? focused : Bool = false
+  getter? blurred : Bool = false
 
-    def initialize(@focused : Bool = false, @blurred : Bool = false)
-    end
+  def initialize(@focused : Bool = false, @blurred : Bool = false)
+  end
+end
+
+private class FocusTestApp < Term2::Application(FocusSpecModel)
+  def init : FocusSpecModel
+    FocusSpecModel.new
   end
 
-  def init
-    Model.new
-  end
-
-  def update(msg : Term2::Message, model : Term2::Model)
-    m = model.as(Model)
+  def update(msg : Term2::Message, model : FocusSpecModel)
+    m = model
     case msg
     when Term2::FocusMsg
-      {Model.new(focused: true, blurred: m.blurred), Term2::Cmd.none}
+      {FocusSpecModel.new(focused: true, blurred: m.blurred?), Term2::Cmd.none}
     when Term2::BlurMsg
-      {Model.new(focused: m.focused, blurred: true), Term2::Cmd.quit}
+      {FocusSpecModel.new(focused: m.focused?, blurred: true), Term2::Cmd.quit}
     else
       {model, Term2::Cmd.none}
     end
   end
 
-  def view(model : Term2::Model) : String
+  def view(model : FocusSpecModel) : String
     ""
   end
 end
@@ -45,9 +45,9 @@ describe "Focus Reporting" do
     program.enable_focus_reporting
 
     # Run program
-    final_model = program.run.as(FocusTestApp::Model)
+    final_model = program.run.as(FocusSpecModel)
 
-    final_model.focused.should be_true
-    final_model.blurred.should be_true
+    final_model.focused?.should be_true
+    final_model.blurred?.should be_true
   end
 end

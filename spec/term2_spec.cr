@@ -11,31 +11,31 @@ end
 private class SpecTick < Term2::Message
 end
 
-private class SpecCounterApp < Term2::Application
-  class CounterModel < Term2::Model
-    getter count : Int32
+private class SpecCounterModel < Term2::Model
+  getter count : Int32
 
-    def initialize(@count : Int32 = 0)
-    end
+  def initialize(@count : Int32 = 0)
+  end
+end
+
+private class SpecCounterApp < Term2::Application(SpecCounterModel)
+  def init : {SpecCounterModel, Term2::Cmd}
+    {SpecCounterModel.new, Term2::Cmd.tick(100.milliseconds) { |_| SpecTick.new }}
   end
 
-  def init
-    {CounterModel.new, Term2::Cmd.tick(100.milliseconds) { |_| SpecTick.new }}
-  end
-
-  def update(msg : Term2::Message, model : Term2::Model)
-    counter = model.as(CounterModel)
+  def update(msg : Term2::Message, model : SpecCounterModel)
+    counter = model
 
     case msg
     when SpecTick
-      {CounterModel.new(counter.count + 1), Term2::Cmd.quit}
+      {SpecCounterModel.new(counter.count + 1), Term2::Cmd.quit}
     else
       {model, Term2::Cmd.none}
     end
   end
 
-  def view(model : Term2::Model) : String
-    counter = model.as(CounterModel)
+  def view(model : SpecCounterModel) : String
+    counter = model
     "Counter: #{counter.count}\n"
   end
 end
@@ -341,7 +341,7 @@ describe Term2 do
       result.should_not eq({nil, :timeout})
       model = result[0].as(Term2::Model)
 
-      counter = model.as(SpecCounterApp::CounterModel)
+      counter = model.as(SpecCounterModel)
       counter.count.should eq(1)
       output.to_s.should contain("Counter: 1")
     end
