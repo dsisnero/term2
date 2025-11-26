@@ -1,0 +1,13 @@
+name: term2
+version: 0.1.0
+
+authors:
+  - Dominic Sisneros <dsisnero@gmail.com
+
+dependencies:
+  cml:
+    github: dsisnero/cml
+
+crystal: ">= 1.18.2"
+
+license: MIT
