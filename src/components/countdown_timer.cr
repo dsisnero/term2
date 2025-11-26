@@ -11,16 +11,19 @@ module Term2
 
       class Start < Term2::Message
         getter duration : Time::Span
+
         def initialize(@duration : Time::Span); end
       end
 
       class Tick < Term2::Message
         getter time : Time
+
         def initialize(@time : Time); end
       end
 
       class Finished < Term2::Message
         getter finished_at : Time
+
         def initialize(@finished_at : Time); end
       end
 
@@ -60,7 +63,7 @@ module Term2
 
       private def advance(tick_at : Time) : {Model, Cmd}
         return {self, Cmd.none} unless @running
-        
+
         last_tick = @last_tick || tick_at
         elapsed = tick_at - last_tick
         remaining = @remaining - elapsed
