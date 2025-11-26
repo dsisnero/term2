@@ -349,8 +349,14 @@ module Term2
       Style.white.apply(text)
     end
 
-    def self.black(text : String) : String
-      Style.black.apply(text)
+    # Calculate the display width of text (ignoring ANSI codes)
+    def self.width(text : String) : Int32
+      strip_ansi(text).size
+    end
+
+    # Strip ANSI escape codes from text
+    def self.strip_ansi(text : String) : String
+      text.gsub(/\e\[[0-9;]*m/, "")
     end
   end
 
@@ -377,8 +383,8 @@ module Term2
     end
 
     # Shorthand for apply
-    def |(text : String) : String
-      apply(text)
+    def |(other : String) : String
+      apply(other)
     end
 
     # Text attributes

@@ -7,6 +7,7 @@ require "./key_sequences"
 require "./mouse"
 require "./styles"
 require "./view"
+require "./layout"
 require "./renderer"
 
 # Term2 is a Crystal port of the Bubble Tea terminal UI library.
@@ -16,12 +17,13 @@ require "./renderer"
 #
 # ## Quick Start
 #
-# ```crystal
+# ```
 # require "term2"
 #
 # class MyApp < Term2::Application
 #   class MyModel < Term2::Model
 #     getter count : Int32 = 0
+#
 #     def initialize(@count = 0); end
 #   end
 #
@@ -36,7 +38,7 @@ require "./renderer"
 #       case msg.key.to_s
 #       when "q" then {m, Term2::Cmd.quit}
 #       when "+" then {MyModel.new(m.count + 1), Term2::Cmd.none}
-#       else {m, Term2::Cmd.none}
+#       else          {m, Term2::Cmd.none}
 #       end
 #     else
 #       {m, Term2::Cmd.none}
@@ -318,7 +320,7 @@ module Term2
         end
 
         # Neither a match nor a prefix, so it's an unknown/invalid sequence
-        return resolve_current_buffer
+        resolve_current_buffer
       else
         # Single character
         key = parse_single_char(@buffer)
@@ -642,28 +644,28 @@ module Term2
   end
 
   # Applications describe the high-level Elm-style lifecycle.
-  abstract class Application
-    abstract def init
-    abstract def update(msg : Message, model : Model)
-    abstract def view(model : Model) : String
+  abstract class Application(M)
+    abstract def init : M
+    abstract def update(msg : Message, model : M)
+    abstract def view(model : M) : String
 
     # Override to provide program options (mouse, alt screen, etc.)
     def options : Array(ProgramOption)
       [] of ProgramOption
     end
 
-    def run(input : IO? = STDIN, output : IO = STDOUT) : Model
+    def run(input : IO? = STDIN, output : IO = STDOUT) : M
       program_options = ProgramOptions.new
       options.each { |opt| program_options.add(opt) }
-      Program.new(self, input: input, output: output, options: program_options).run
+      Program(M).new(self, input: input, output: output, options: program_options).run
     end
   end
 
   # Program manages the event loop using CML primitives.
-  class Program
+  class Program(M)
     getter dispatcher : Dispatcher
     getter! model
-    @model : Model
+    @model : M
     @pending_shutdown : Bool
     @options : ProgramOptions
     @alt_screen_enabled : Bool
@@ -679,7 +681,7 @@ module Term2
 
     alias RenderOp = String | PrintMsg
 
-    def initialize(@application : Application, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
+    def initialize(@application : Application(M), input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
       @input_io = input
       @output_io = output
       @mailbox = CML::Mailbox(Message).new
@@ -687,7 +689,7 @@ module Term2
       @done = CML::IVar(Nil).new
       @dispatcher = Dispatcher.new(@mailbox)
       @running = Atomic(Bool).new(false)
-      @model = uninitialized Model
+      @model = uninitialized M
       @pending_shutdown = false
       @options = options
       @alt_screen_enabled = false
@@ -705,7 +707,7 @@ module Term2
       @options.apply(self)
     end
 
-    def run : Model
+    def run : M
       # Run inside raw mode if we have an input IO that supports it
       if io = @input_io
         case io
@@ -1638,5 +1640,6 @@ module Term2
     alias Color = Term2::Color
     alias Text = Term2::Text
     alias Cursor = Term2::Cursor
+    alias Layout = Term2::Layout
   end
 end

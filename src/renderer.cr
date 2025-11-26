@@ -74,7 +74,9 @@ module Term2
 
       # Clear and render the new view
       clear_screen
-      @output.print(view)
+      # Ensure newlines are properly formatted for raw mode
+      formatted_view = view.gsub("\n", "\r\n")
+      @output.print(formatted_view)
       @output.flush
 
       @last_render = view
@@ -100,7 +102,8 @@ module Term2
       clear_screen
 
       # Print the text
-      @output.print(text)
+      formatted_text = text.gsub("\n", "\r\n")
+      @output.print(formatted_text)
       @output.flush
 
       # Force repaint on next render
