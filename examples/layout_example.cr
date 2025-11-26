@@ -16,7 +16,7 @@ class LayoutModel < Model
   end
 end
 
-class LayoutApp < Application
+class LayoutApp < Application(LayoutModel)
   def init
     LayoutModel.new
   end
@@ -25,8 +25,8 @@ class LayoutApp < Application
     [WithAltScreen.new] of Term2::ProgramOption
   end
 
-  def update(msg : Message, model : Model)
-    layout = model.as(LayoutModel)
+  def update(msg : Message, model : LayoutModel)
+    layout = model
 
     case msg
     when KeyPress
@@ -52,8 +52,8 @@ class LayoutApp < Application
     end
   end
 
-  def view(model : Model) : String
-    layout = model.as(LayoutModel)
+  def view(model : LayoutModel) : String
+    layout = model
 
     # Create the main screen view
     screen = Term2::View.new(0, 0, layout.width, layout.height)
@@ -155,4 +155,3 @@ class LayoutApp < Application
 end
 
 LayoutApp.new.run
-

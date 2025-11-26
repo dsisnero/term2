@@ -11,23 +11,21 @@ class CounterModel < Model
   end
 end
 
-class CounterApp < Application
-  def init
+class CounterApp < Application(CounterModel)
+  def init : CounterModel
     CounterModel.new
   end
 
-  def update(msg : Message, model : Model)
-    counter = model.as(CounterModel)
-
+  def update(msg : Message, model : CounterModel)
     case msg
     when KeyPress
       case msg.key
-      when "q", "\u0003"  # q or Ctrl+C
-        {counter, Cmd.quit}
+      when "q", "\u0003" # q or Ctrl+C
+        {model, Cmd.quit}
       when "+", "="
-        {CounterModel.new(counter.count + 1), Cmd.none}
+        {CounterModel.new(model.count + 1), Cmd.none}
       when "-", "_"
-        {CounterModel.new(counter.count - 1), Cmd.none}
+        {CounterModel.new(model.count - 1), Cmd.none}
       when "r"
         {CounterModel.new, Cmd.none}
       else
@@ -38,13 +36,12 @@ class CounterApp < Application
     end
   end
 
-  def view(model : Model) : String
-    counter = model.as(CounterModel)
+  def view(model : CounterModel) : String
     # Note: Framework handles cursor hide/show and screen clearing.
     # View just returns content to display.
     String.build do |s|
       s << "\n"
-      s << "Counter: ".bold << counter.count.to_s.cyan << "\n"
+      s << "Counter: ".bold << model.count.to_s.cyan << "\n"
       s << "\n"
       s << "Commands:".bold.yellow << "\n"
       s << "  +/=".cyan << ": Increment\n"
