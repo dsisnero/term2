@@ -36,60 +36,60 @@ include Term2::Prelude
 class CounterModel < Model
   getter count : Int32
   def initialize(@count = 0); end
-end
 
-class CounterApp < Application
-  def init
-    CounterModel.new
+  def init : Cmd
+    Cmd.none
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(CounterModel)
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
+    when KeyMsg
+      case msg.key.to_s
       when "q", "ctrl+c"
-        {m, Cmd.quit}
+        {self, Term2.quit}
       when "+", "="
-        {CounterModel.new(m.count + 1), nil}
+        {CounterModel.new(@count + 1), Cmd.none}
       when "-", "_"
-        {CounterModel.new(m.count - 1), nil}
+        {CounterModel.new(@count - 1), Cmd.none}
       else
-        {m, nil}
+        {self, Cmd.none}
       end
     else
-      {m, nil}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : Model) : String
-    m = model.as(CounterModel)
-    "Count: #{m.count}\n\nPress +/- to change, q to quit"
+  def view : String
+    "Count: #{@count}\n\nPress +/- to change, q to quit"
   end
 end
 
-CounterApp.new.run
+Term2.run(CounterModel.new)
 ```
+
+## Prelude & Aliases
+
+Including `Term2::Prelude` provides convenient aliases for common types:
+
+- `Model`, `Cmd`, `Message` - Core types
+- `TC` - Alias for `Term2::Components` (e.g., `TC::TextInput`)
+- `KeyMsg`, `WindowSizeMsg`, `QuitMsg` - Common messages
+- `S` - Alias for `Term2::S` (Style builder)
 
 ## Program Options
 
-Configure your application with various options:
+Configure your application by passing options to `Term2.run`:
 
 ```crystal
-class MyApp < Application
-  def options : Array(ProgramOption)
-    [
-      WithAltScreen.new,        # Use alternate screen buffer
-      WithMouseAllMotion.new,   # Enable mouse tracking
-      WithReportFocus.new,      # Enable focus reporting
-      WithFPS.new(30.0),        # Set frame rate
-    ]
-  end
-  # ...
-end
+Term2.run(model, [
+  WithAltScreen.new,        # Use alternate screen buffer
+  WithMouseAllMotion.new,   # Enable mouse tracking
+  WithReportFocus.new,      # Enable focus reporting
+] of Term2::ProgramOption)
 ```
 
 Available options:
+
 - `WithAltScreen` - Use alternate screen buffer
 - `WithMouseAllMotion` - Track all mouse motion (hover)
 - `WithMouseCellMotion` - Track mouse drag only
@@ -135,19 +135,43 @@ puts S.bg(30, 30, 30).white | "Dark background"
 ### Available Styles
 
 **Text Attributes:**
+
 - `.bold`, `.faint`/`.dim`, `.italic`, `.underline`
 - `.blink`, `.reverse`, `.hidden`, `.strike`
 
 **Foreground Colors:**
-- Standard: `.black`, `.red`, `.green`, `.yellow`, `.blue`, `.magenta`, `.cyan`, `.white`, `.gray`
-- Bright: `.bright_red`, `.bright_green`, `.bright_yellow`, `.bright_blue`, `.bright_magenta`, `.bright_cyan`, `.bright_white`
+
+- Standard: `.black`, `.red`, `.green`, `.yellow`, `.blue`, `.magenta`, `.cyan`,
+  `.white`, `.gray`
+- Bright: `.bright_red`, `.bright_green`, `.bright_yellow`, `.bright_blue`,
+  `.bright_magenta`, `.bright_cyan`, `.bright_white`
 - 256-color: `.fg(0-255)`
 - RGB: `.fg(r, g, b)`
 
 **Background Colors:**
-- Standard: `.on_black`, `.on_red`, `.on_green`, `.on_yellow`, `.on_blue`, `.on_magenta`, `.on_cyan`, `.on_white`
+
+- Standard: `.on_black`, `.on_red`, `.on_green`, `.on_yellow`, `.on_blue`,
+  `.on_magenta`, `.on_cyan`, `.on_white`
 - 256-color: `.bg(0-255)`
 - RGB: `.bg(r, g, b)`
+
+## Handling Input
+
+### Keyboard
+
+```crystal
+def update(msg : Message) : {Model, Cmd}
+  case msg
+  when KeyMsg
+    case msg.key.to_s
+    when "q"
+      {self, Term2.quit}
+    when "up", "k"
+      # ...
+    end
+  end
+end
+```
 
 ## Handling Input
 

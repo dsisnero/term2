@@ -7,7 +7,19 @@
 
 ## Active Workstreams
 
+### None
+
 ## Completed Workstreams
+
+### [D] Ergonomics & Namespace Cleanup
+**Status:** ✅ Completed (Nov 26, 2025)
+**Goal:** Remove "Bubbles" namespace and improve library ergonomics.
+**Achievements:**
+- Flattened namespace (Term2::Bubbles -> Term2::Components)
+- Simplified Application setup (Term2.run)
+- Added command helpers (Term2.quit, Term2.batch)
+- Standardized styling API
+**Plan File:** `plans/completed/ergonomics-improvements.yml`
 
 ### [B] Bubbles Components Port
 **Status:** ✅ Completed (Nov 25, 2025)
