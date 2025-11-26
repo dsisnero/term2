@@ -1,0 +1,27 @@
+# Crystal build artifacts
+/lib/
+/bin/
+/.shards/
+/.crystal-cache/
+*.dwarf
+/shard.lock
+
+# Temporary and log directories (cleaned by `make clean`)
+/temp/
+/log/
+
+# IDE and tool directories
+/.clarity/
+/.clarity2/
+/.qodo/
+
+# Reference code (Go BubbleTea source)
+/bubbletea/
+
+# Stray directories
+d:/
+/d/
+
+# Status tracking files (not part of library)
+implementation-status-summary.md
+FEATURE_PARITY_PLAN.md
