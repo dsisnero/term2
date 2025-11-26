@@ -1,0 +1,113 @@
+# Workstream Definition: Ergonomics & Namespace Cleanup
+# Refactoring to remove the "Bubbles" namespace and improve library ergonomics
+
+workstream:
+  id: "ergonomics-cleanup"
+  title: "Ergonomics & Namespace Cleanup"
+  letter: "C"
+  status: "active"
+  priority: 1
+  created_at: "2025-11-25T00:00:00Z"
+  updated_at: "2025-11-25T00:00:00Z"
+
+assignment:
+  assigned_agent: "term2-dev"
+  agent_type: "specialist"
+  required_skills: ["crystal", "refactoring", "api-design"]
+  estimated_completion: "2025-12-05"
+
+dependencies:
+  blocks: []
+  blocked_by: []
+  depends_on: ["bubbles-components"]
+  related_to: []
+
+requirements:
+  prerequisites:
+    - "bubbles_components_merged"
+  acceptance_criteria:
+    - "Term2::Bubbles namespace removed"
+    - "Components accessible via Term2::* or Term2::Components::*"
+    - "Simplified Application setup"
+    - "Consistent naming conventions"
+
+tasks:
+  - id: "model-interface"
+    description: "Move update/view methods to Model interface (Bubble Tea style)"
+    status: "completed"
+    priority: 1
+    estimated_hours: 4
+    actual_hours: 4
+    dependencies: []
+    acceptance_criteria:
+      - "Model abstract class defines update(msg) and view()"
+      - "Application class becomes a runner that wraps the initial model"
+      - "Users no longer need to subclass Application"
+    notes: "This is a breaking change but aligns with Bubble Tea and simplifies usage."
+
+  - id: "namespace-flattening"
+    description: "Move components from Term2::Bubbles to Term2 namespace"
+    status: "completed"
+    priority: 1
+    estimated_hours: 4
+    actual_hours: 4
+    dependencies: []
+    acceptance_criteria:
+      - "Rename src/bubbles/ to src/components/ or merge into src/"
+      - "Update all require paths"
+      - "Update module definitions"
+      - "Update examples and specs"
+    notes: "Moved to Term2::Components namespace."
+
+  - id: "simplify-application"
+    description: "Simplify Application instantiation and running"
+    status: "completed"
+    priority: 2
+    estimated_hours: 2
+    actual_hours: 2
+    dependencies: ["namespace-flattening"]
+    acceptance_criteria:
+      - "Create a Term2.run(model) helper"
+      - "Reduce boilerplate for simple apps"
+    notes: "Implemented Term2.run(model) and removed Application class."
+
+  - id: "command-helpers"
+    description: "Add ergonomic helpers for common Commands"
+    status: "completed"
+    priority: 3
+    estimated_hours: 2
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Term2.quit instead of Cmd.message(QuitMsg)"
+      - "Easier batching of commands"
+    notes: "Added Term2.quit and Term2.batch helpers."
+
+  - id: "standardize-styles"
+    description: "Ensure consistent styling API across components"
+    status: "completed"
+    priority: 3
+    estimated_hours: 3
+    actual_hours: 1
+    dependencies: ["namespace-flattening"]
+    acceptance_criteria:
+      - "All components expose `style` properties consistently"
+      - "Use the new Style DSL where applicable"
+    notes: "Components (Spinner, TextInput, Progress, List, Table, Help) already use Style properties."
+
+progress:
+  total_tasks: 5
+  completed_tasks: 5
+  blocked_tasks: 0
+  completion_percentage: 100
+  last_progress_update: "2025-11-25T00:00:00Z"
+
+oracle_insights:
+  strategic_importance: "high"
+  complexity: "medium"
+  risk_level: "low"
+  optimization_suggestions:
+    - "Use `alias` for backward compatibility if needed during transition"
+
+links:
+  plan_reference: "plans/README.md"
