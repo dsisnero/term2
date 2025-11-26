@@ -1,49 +1,46 @@
 require "../src/term2"
-require "../src/bubbles/text_input"
+require "../src/components/text_input"
 
 class TextInputModel < Term2::Model
-  property text_input : Term2::Bubbles::TextInput
+  property text_input : Term2::Components::TextInput
   property entered_text : String = ""
 
   def initialize
-    @text_input = Term2::Bubbles::TextInput.new
+    @text_input = Term2::Components::TextInput.new
     @text_input.placeholder = "Type something..."
     @text_input.focus
   end
-end
 
-class TextInputDemo < Term2::Application(TextInputModel)
-  def init : {TextInputModel, Term2::Cmd}
-    model = TextInputModel.new
-    {model, model.text_input.focus}
+  def init : Term2::Cmd
+    @text_input.focus
   end
 
-  def update(msg : Term2::Message, model : TextInputModel) : {TextInputModel, Term2::Cmd}
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
       if msg.key.to_s == "ctrl+c"
-        return {model, Term2::Cmd.quit}
+        return {self, Term2.quit}
       elsif msg.key.to_s == "enter"
-        model.entered_text = model.text_input.value
-        model.text_input.value = ""
-        model.text_input.cursor_start
-        return {model, Term2::Cmd.none}
+        @entered_text = @text_input.value
+        @text_input.value = ""
+        @text_input.cursor_start
+        return {self, Term2::Cmd.none}
       end
     end
 
-    new_ti, cmd = model.text_input.update(msg)
-    model.text_input = new_ti
+    new_ti, cmd = @text_input.update(msg)
+    @text_input = new_ti
 
-    {model, cmd}
+    {self, cmd}
   end
 
-  def view(model : TextInputModel) : String
+  def view : String
     view_content = String.build do |str|
       str << "What is your favorite color?\n\n"
-      str << model.text_input.view
+      str << @text_input.view
       str << "\n\n"
-      unless model.entered_text.empty?
-        str << "You entered: #{model.entered_text}\n"
+      unless @entered_text.empty?
+        str << "You entered: #{@entered_text}\n"
       end
       str << "(ctrl+c to quit)"
     end
@@ -51,4 +48,4 @@ class TextInputDemo < Term2::Application(TextInputModel)
   end
 end
 
-TextInputDemo.new.run
+Term2.run(TextInputModel.new)

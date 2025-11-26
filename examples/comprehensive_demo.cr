@@ -13,7 +13,7 @@ include Term2::Prelude
 # --- Components ---
 
 # 1. Counter Component
-class CounterModel < Model
+class CounterModel
   getter count : Int32
 
   def initialize(@count = 0); end
@@ -37,7 +37,7 @@ module Counter
     # Return a Node directly for embedding
     Layout::VStack.new.tap do |stack|
       stack.add(Layout::Text.new("Counter".bold.underline))
-      stack.add(Layout::Text.new("#{model.count}".cyan.bold))
+      stack.add(Layout::Text.new("#{model.count}".bold.cyan))
       stack.add(Layout::Text.new("[+/-]".gray))
     end
   end
@@ -50,7 +50,7 @@ module Counter
 end
 
 # 2. List Component
-class ListModel < Model
+class ListModel
   getter items : Array(String)
   getter selected : Int32
 
@@ -81,7 +81,7 @@ module List
       # stack.add(Layout::Text.new("List (j/k)".bold.underline))
       model.items.each_with_index do |item, i|
         if i == model.selected
-          stack.add(Layout::Text.new("> #{item}".green.bold))
+          stack.add(Layout::Text.new("> #{item}".bold.green))
         else
           stack.add(Layout::Text.new("  #{item}"))
         end
@@ -113,67 +113,61 @@ class AppModel < Model
     @height = 24,
   )
   end
-end
 
-class ComprehensiveApp < Application(AppModel)
-  def init : AppModel
-    AppModel.new
+  def init : Cmd
+    Cmd.none
   end
 
-  def options : Array(Term2::ProgramOption)
-    [WithAltScreen.new] of Term2::ProgramOption
-  end
-
-  def update(msg : Message, model : AppModel)
+  def update(msg : Message) : {Model, Cmd}
     # Global keys
     case msg
     when WindowSizeMsg
-      return {AppModel.new(model.counter, model.list, model.active_pane, msg.width, msg.height), Cmd.none}
+      return {AppModel.new(@counter, @list, @active_pane, msg.width, msg.height), Cmd.none}
     when KeyMsg
       case msg.key.to_s
       when "q", "ctrl+c"
-        return {model, Cmd.quit}
+        return {self, Term2.quit}
       when "tab"
-        new_pane = (model.active_pane + 1) % 2
-        return {AppModel.new(model.counter, model.list, new_pane, model.width, model.height), Cmd.none}
+        new_pane = (@active_pane + 1) % 2
+        return {AppModel.new(@counter, @list, new_pane, @width, @height), Cmd.none}
       end
     end
 
     # Route messages to active pane
-    case model.active_pane
+    case @active_pane
     when 0 # Counter
-      new_counter, cmd = Counter.update(msg, model.counter)
-      {AppModel.new(new_counter, model.list, model.active_pane, model.width, model.height), cmd}
+      new_counter, cmd = Counter.update(msg, @counter)
+      {AppModel.new(new_counter, @list, @active_pane, @width, @height), cmd}
     when 1 # List
-      new_list, cmd = List.update(msg, model.list)
-      {AppModel.new(model.counter, new_list, model.active_pane, model.width, model.height), cmd}
+      new_list, cmd = List.update(msg, @list)
+      {AppModel.new(@counter, new_list, @active_pane, @width, @height), cmd}
     else
-      {model, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : AppModel) : String
-    Layout.render(model.width, model.height) do
+  def view : String
+    Layout.render(@width, @height) do
       padding(1, flex: 1) do
-        text "Comprehensive Demo".bold.center(model.width)
-        text "Press [Tab] to switch panes, [q] to quit".gray.center(model.width)
+        text "Comprehensive Demo".bold.center(@width)
+        text "Press [Tab] to switch panes, [q] to quit".gray.center(@width)
 
         h_stack(gap: 2, flex: 1) do
           # Counter Pane
-          border("Counter", active: model.active_pane == 0, flex: 1) do
-            add Counter.render(model.counter)
+          border("Counter", active: @active_pane == 0, flex: 1) do
+            add Counter.render(@counter)
           end
 
           # List Pane
-          border("List", active: model.active_pane == 1, flex: 1) do
-            add List.render(model.list)
+          border("List", active: @active_pane == 1, flex: 1) do
+            add List.render(@list)
           end
         end
 
-        text "Status: Pane #{model.active_pane} Active".on_blue
+        text "Status: Pane #{@active_pane} Active".on_blue
       end
     end
   end
 end
 
-ComprehensiveApp.new.run
+Term2.run(AppModel.new, options: Term2::ProgramOptions.new(WithAltScreen.new))

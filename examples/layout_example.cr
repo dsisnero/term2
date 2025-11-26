@@ -14,49 +14,39 @@ class LayoutModel < Model
 
   def initialize(@width : Int32 = 80, @height : Int32 = 24, @selected_pane : Int32 = 0)
   end
-end
 
-class LayoutApp < Application(LayoutModel)
-  def init
-    LayoutModel.new
+  def init : Cmd
+    Cmd.none
   end
 
-  def options : Array(Term2::ProgramOption)
-    [WithAltScreen.new] of Term2::ProgramOption
-  end
-
-  def update(msg : Message, model : LayoutModel)
-    layout = model
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
-      when "q", "\u0003"
-        {layout, Cmd.quit}
+    when KeyMsg
+      case msg.key.to_s
+      when "q", "ctrl+c"
+        {self, Term2.quit}
       when "1"
-        {LayoutModel.new(layout.width, layout.height, 0), Cmd.none}
+        {LayoutModel.new(@width, @height, 0), Cmd.none}
       when "2"
-        {LayoutModel.new(layout.width, layout.height, 1), Cmd.none}
+        {LayoutModel.new(@width, @height, 1), Cmd.none}
       when "3"
-        {LayoutModel.new(layout.width, layout.height, 2), Cmd.none}
+        {LayoutModel.new(@width, @height, 2), Cmd.none}
       when "tab"
-        next_pane = (layout.selected_pane + 1) % 3
-        {LayoutModel.new(layout.width, layout.height, next_pane), Cmd.none}
+        next_pane = (@selected_pane + 1) % 3
+        {LayoutModel.new(@width, @height, next_pane), Cmd.none}
       else
-        {layout, Cmd.none}
+        {self, Cmd.none}
       end
     when WindowSizeMsg
-      {LayoutModel.new(msg.width, msg.height, layout.selected_pane), Cmd.none}
+      {LayoutModel.new(msg.width, msg.height, @selected_pane), Cmd.none}
     else
-      {layout, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : LayoutModel) : String
-    layout = model
-
+  def view : String
     # Create the main screen view
-    screen = Term2::View.new(0, 0, layout.width, layout.height)
+    screen = Term2::View.new(0, 0, @width, @height)
 
     # Add 1-cell margin around edges
     content = screen.margin(top: 1, bottom: 2, left: 2, right: 2)
@@ -72,10 +62,10 @@ class LayoutApp < Application(LayoutModel)
       # View just returns content to display.
 
       # Draw header
-      draw_box(io, header, "Layout Demo", layout.selected_pane == 0)
+      draw_box(io, header, "Layout Demo", @selected_pane == 0)
 
       # Draw sidebar
-      draw_box(io, sidebar, "Sidebar", layout.selected_pane == 1)
+      draw_box(io, sidebar, "Sidebar", @selected_pane == 1)
       draw_content(io, sidebar.padding(1), [
         "Navigation:",
         "• Item 1",
@@ -84,7 +74,7 @@ class LayoutApp < Application(LayoutModel)
       ])
 
       # Draw main area
-      draw_box(io, main, "Main Content", layout.selected_pane == 2)
+      draw_box(io, main, "Main Content", @selected_pane == 2)
       draw_content(io, main.padding(1), [
         "View Layout System",
         "",
@@ -94,12 +84,12 @@ class LayoutApp < Application(LayoutModel)
         "• Add padding to views",
         "• Draw boxes and content",
         "",
-        "Screen: #{layout.width}x#{layout.height}",
-        "Selected: Pane #{layout.selected_pane + 1}",
+        "Screen: #{@width}x#{@height}",
+        "Selected: Pane #{@selected_pane + 1}",
       ])
 
       # Draw footer (status line)
-      io << Cursor.move_to(layout.height, 1)
+      io << Cursor.move_to(@height, 1)
       io << "[1-3] Select pane | [Tab] Next pane | [q] Quit".gray
     end
   end
@@ -110,12 +100,12 @@ class LayoutApp < Application(LayoutModel)
     # Top border
     io << Cursor.move_to(view.y + 1, view.x + 1)
     if selected
-      io << S.bold.cyan.apply("┌")
+      io << "┌".bold.cyan
     else
       io << "┌".gray
     end
     title_space = view.width - 4
-    border_char = selected ? (S.bold.cyan | "─") : "─".gray
+    border_char = selected ? "─".bold.cyan : "─".gray
     if title.size <= title_space
       padding = title_space - title.size
       left_pad = padding // 2
@@ -126,22 +116,22 @@ class LayoutApp < Application(LayoutModel)
     else
       (view.width - 2).times { io << border_char }
     end
-    io << (selected ? (S.bold.cyan | "┐") : "┐".gray)
+    io << (selected ? "┐".bold.cyan : "┐".gray)
 
     # Side borders (styling for corners already establishes context)
     corner_style = selected ? S.bold.cyan : S.gray
     (1...view.height - 1).each do |row|
       io << Cursor.move_to(view.y + 1 + row, view.x + 1)
-      io << (corner_style | "│")
+      io << corner_style.apply("│")
       io << Cursor.move_to(view.y + 1 + row, view.x + view.width)
-      io << (corner_style | "│")
+      io << corner_style.apply("│")
     end
 
     # Bottom border
     io << Cursor.move_to(view.y + view.height, view.x + 1)
-    io << (corner_style | "└")
+    io << corner_style.apply("└")
     (view.width - 2).times { io << border_char }
-    io << (corner_style | "┘")
+    io << corner_style.apply("┘")
   end
 
   private def draw_content(io : IO, view : Term2::View, lines : Array(String))
@@ -154,4 +144,4 @@ class LayoutApp < Application(LayoutModel)
   end
 end
 
-LayoutApp.new.run
+Term2.run(LayoutModel.new, options: Term2::ProgramOptions.new(WithAltScreen.new))

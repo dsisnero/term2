@@ -8,32 +8,30 @@ class ViewDSLModel < Model
   getter count : Int32
 
   def initialize(@count = 0); end
-end
 
-class ViewDSLApp < Application(ViewDSLModel)
-  def init : ViewDSLModel
-    ViewDSLModel.new
+  def init : Cmd
+    Cmd.none
   end
 
-  def update(msg : Message, model : ViewDSLModel)
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
-      when "q" then {model, Cmd.quit}
-      when "+" then {ViewDSLModel.new(model.count + 1), Cmd.none}
-      else          {model, Cmd.none}
+    when KeyMsg
+      case msg.key.to_s
+      when "q" then {self, Term2.quit}
+      when "+" then {ViewDSLModel.new(@count + 1), Cmd.none}
+      else          {self, Cmd.none}
       end
     else
-      {model, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : ViewDSLModel) : String
+  def view : String
     Layout.render(80, 24) do
       text "View DSL Demo".bold.underline
 
       v_stack do
-        text "Count: #{model.count}".cyan
+        text "Count: #{@count}".cyan
 
         h_stack(gap: 2) do
           text "[+] Increment".on_blue
@@ -46,4 +44,4 @@ class ViewDSLApp < Application(ViewDSLModel)
   end
 end
 
-ViewDSLApp.new.run
+Term2.run(ViewDSLModel.new)

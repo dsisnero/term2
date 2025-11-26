@@ -8,59 +8,48 @@ require "../src/term2"
 include Term2::Prelude
 
 class InputModel < Model
-  getter text_input : Components::TextInput::Model
-
-  def initialize(@text_input : Components::TextInput::Model)
-  end
-end
-
-class InputDemo < Application(InputModel)
-  @input : Components::TextInput
+  property input : TC::TextInput
 
   def initialize
-    @input = Components::TextInput.new(
-      placeholder: "Type something...",
-      max_length: 50
-    )
+    @input = TC::TextInput.new
+    @input.placeholder = "Type something..."
+    @input.char_limit = 20
+    @input.focus
   end
 
-  def init
-    input_model, cmd = @input.init(focused: true)
-    {InputModel.new(input_model), cmd}
+  def init : Cmd
+    @input.focus
   end
 
-  def update(msg : Message, model : InputModel)
-    app = model
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
-      when "\u0003" # Ctrl+C
-        {app, Cmd.quit}
+    when KeyMsg
+      case msg.key.to_s
+      when "ctrl+c"
+        {self, Term2.quit}
       when "enter"
-        # Could submit the text here
-        {app, Cmd.none}
+        # Submit
+        {self, Cmd.none}
       else
-        new_input, cmd = @input.update(msg, app.text_input)
-        {InputModel.new(new_input), cmd}
+        new_input, cmd = @input.update(msg)
+        @input = new_input
+        {self, cmd}
       end
     else
-      {model, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : InputModel) : String
-    app = model.as(InputModel)
-
+  def view : String
     String.build do |str|
       str << "\n"
-      str << (S.bold.cyan | "╔════════════════════════════════════════╗") << "\n"
-      str << (S.bold.cyan | "║          Text Input Demo               ║") << "\n"
-      str << (S.bold.cyan | "╚════════════════════════════════════════╝") << "\n"
+      str << "╔════════════════════════════════════════╗".bold.cyan << "\n"
+      str << "║          Text Input Demo               ║".bold.cyan << "\n"
+      str << "╚════════════════════════════════════════╝".bold.cyan << "\n"
       str << "\n"
-      str << "  " << "Input:".bold << " " << @input.view(app.text_input) << "\n"
+      str << "  " << "Input:".bold << " " << @input.view << "\n"
       str << "\n"
-      str << "  " << "Value:".bold << " " << app.text_input.value.inspect.gray << "\n"
+      str << "  " << "Value:".bold << " " << @input.value.inspect.gray << "\n"
       str << "\n"
       str << "─" * 44 << "\n"
       str << "Type to enter text, " << "Ctrl+C".cyan << " to quit\n"
@@ -68,4 +57,4 @@ class InputDemo < Application(InputModel)
   end
 end
 
-InputDemo.new.run
+Term2.run(InputModel.new)

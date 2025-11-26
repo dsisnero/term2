@@ -1,11 +1,11 @@
 require "../src/term2"
-require "../src/bubbles/table"
+require "../src/components/table"
 
 class TableModel < Term2::Model
-  property table : Term2::Bubbles::Table
+  property table : Term2::Components::Table
 
   def initialize
-    @table = Term2::Bubbles::Table.new(
+    @table = Term2::Components::Table.new(
       columns: [
         {"ID", 5},
         {"Name", 20},
@@ -22,32 +22,30 @@ class TableModel < Term2::Model
       height: 5
     )
   end
-end
 
-class TableDemo < Term2::Application(TableModel)
-  def init : {TableModel, Term2::Cmd}
-    {TableModel.new, Term2::Cmd.none}
+  def init : Term2::Cmd
+    Term2::Cmd.none
   end
 
-  def update(msg : Term2::Message, model : TableModel) : {TableModel, Term2::Cmd}
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
       if msg.key.to_s == "q" || msg.key.to_s == "ctrl+c"
-        return {model, Term2::Cmd.quit}
+        return {self, Term2.quit}
       end
     end
 
-    new_table, cmd = model.table.update(msg)
-    model.table = new_table
+    new_table, cmd = @table.update(msg)
+    @table = new_table
 
-    {model, cmd}
+    {self, cmd}
   end
 
-  def view(model : TableModel) : String
+  def view : String
     "Employee Directory:\n\n" +
-      model.table.view +
+      @table.view +
       "\n(q to quit)"
   end
 end
 
-TableDemo.new.run
+Term2.run(TableModel.new)

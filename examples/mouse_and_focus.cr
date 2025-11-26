@@ -28,57 +28,45 @@ class AppModel < Model
     @events : Array(String) = [] of String,
   )
   end
-end
 
-class MouseFocusApp < Application(AppModel)
-  def init
+  def init : Cmd
     # Start with initial model
-    AppModel.new(events: ["Started! Move your mouse or click."])
+    @events = ["Started! Move your mouse or click."]
+    Cmd.none
   end
 
-  # Configure program options for mouse and focus
-  def options : Array(Term2::ProgramOption)
-    [
-      WithAltScreen.new,      # Use alternate screen
-      WithMouseAllMotion.new, # Track all mouse motion (including hover)
-      WithReportFocus.new,    # Report focus in/out events
-    ]
-  end
-
-  def update(msg : Message, model : AppModel)
-    app = model
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
-      when "q", "\u0003" # q or Ctrl+C
-        {app, Cmd.quit}
+    when KeyMsg
+      case msg.key.to_s
+      when "q", "ctrl+c"
+        {self, Term2.quit}
       else
-        new_events = add_event(app.events, "Key: #{msg.key.inspect}")
-        {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, app.focused?, new_events), Cmd.none}
+        new_events = add_event(@events, "Key: #{msg.key.inspect}")
+        {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, @focused, new_events), Cmd.none}
       end
     when MouseEvent
       # Handle mouse events
-      new_events = add_event(app.events, "Mouse: #{msg.action} #{msg.button} at (#{msg.x}, #{msg.y})")
+      new_events = add_event(@events, "Mouse: #{msg.action} #{msg.button} at (#{msg.x}, #{msg.y})")
       new_model = AppModel.new(
         mouse_x: msg.x,
         mouse_y: msg.y,
         mouse_button: msg.button.to_s,
         mouse_action: msg.action.to_s,
-        focused: app.focused?,
+        focused: @focused,
         events: new_events
       )
       {new_model, Cmd.none}
     when FocusMsg
       # Terminal gained focus
-      new_events = add_event(app.events, "Window FOCUSED")
-      {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, true, new_events), Cmd.none}
+      new_events = add_event(@events, "Window FOCUSED")
+      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, true, new_events), Cmd.none}
     when BlurMsg
       # Terminal lost focus
-      new_events = add_event(app.events, "Window BLURRED")
-      {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, false, new_events), Cmd.none}
+      new_events = add_event(@events, "Window BLURRED")
+      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, false, new_events), Cmd.none}
     else
-      {app, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
@@ -90,28 +78,27 @@ class MouseFocusApp < Application(AppModel)
     new_events
   end
 
-  def view(model : AppModel) : String
-    app = model
-    focus_indicator = app.focused? ? "●" : "○"
-    focus_status = if app.focused?
-                     S.green | "#{focus_indicator} FOCUSED"
+  def view : String
+    focus_indicator = @focused ? "●" : "○"
+    focus_status = if @focused
+                     "#{focus_indicator} FOCUSED".green
                    else
-                     S.red | "#{focus_indicator} BLURRED"
+                     "#{focus_indicator} BLURRED".red
                    end
 
     String.build do |str|
-      str << (S.bold.cyan | "╔══════════════════════════════════════════════════════╗") << "\n"
-      str << (S.bold.cyan | "║           Mouse & Focus Demo                         ║") << "\n"
-      str << (S.bold.cyan | "╚══════════════════════════════════════════════════════╝") << "\n"
+      str << "╔══════════════════════════════════════════════════════╗".bold.cyan << "\n"
+      str << "║           Mouse & Focus Demo                         ║".bold.cyan << "\n"
+      str << "╚══════════════════════════════════════════════════════╝".bold.cyan << "\n"
       str << "\n"
-      str << "Mouse Position:".bold << " (#{app.mouse_x}, #{app.mouse_y})\n"
-      str << "Button:".bold << " #{app.mouse_button}\n"
-      str << "Action:".bold << " #{app.mouse_action}\n"
+      str << "Mouse Position:".bold << " (#{@mouse_x}, #{@mouse_y})\n"
+      str << "Button:".bold << " #{@mouse_button}\n"
+      str << "Action:".bold << " #{@mouse_action}\n"
       str << "\n"
       str << "Window Status:".bold << " #{focus_status}\n"
       str << "\n"
-      str << (S.bold.yellow | "Recent Events:") << "\n"
-      app.events.each do |event|
+      str << "Recent Events:".bold.yellow << "\n"
+      @events.each do |event|
         str << "  • #{event}\n"
       end
       str << "\n"
@@ -121,4 +108,8 @@ class MouseFocusApp < Application(AppModel)
   end
 end
 
-MouseFocusApp.new.run
+Term2.run(AppModel.new, options: Term2::ProgramOptions.new(
+  WithAltScreen.new,      # Use alternate screen
+  WithMouseAllMotion.new, # Track all mouse motion (including hover)
+  WithReportFocus.new,    # Report focus in/out events
+))

@@ -9,13 +9,6 @@
 require "../src/term2"
 include Term2::Prelude
 
-class CounterModel < Model
-  getter count : Int32
-
-  def initialize(@count : Int32 = 0)
-  end
-end
-
 # Custom messages for explicit actions
 class Increment < Message
 end
@@ -26,36 +19,39 @@ end
 class Reset < Message
 end
 
-class CounterApp < Application(CounterModel)
-  def init
-    CounterModel.new
+class CounterModel < Model
+  getter count : Int32
+
+  def initialize(@count : Int32 = 0)
   end
 
-  def update(msg : Message, model : CounterModel)
-    m = model
+  def init : Cmd
+    Cmd.none
+  end
+
+  def update(msg : Message) : {Model, Cmd}
     case msg
     when Increment
-      {CounterModel.new(m.count + 1), Cmd.none}
+      {CounterModel.new(count + 1), Cmd.none}
     when Decrement
-      {CounterModel.new(m.count - 1), Cmd.none}
+      {CounterModel.new(count - 1), Cmd.none}
     when Reset
       {CounterModel.new, Cmd.none}
-    when KeyPress
-      handle_key(msg.key, m)
+    when Term2::KeyMsg
+      handle_key(msg.key)
     else
-      {model, Cmd.none}
+      {self, Cmd.none}
     end
   end
 
-  def view(model : CounterModel) : String
-    m = model.as(CounterModel)
+  def view : String
     String.build do |str|
       str << "\n"
-      str << (S.bold.cyan | "╔════════════════════════════════╗") << "\n"
-      str << (S.bold.cyan | "║        Counter Example         ║") << "\n"
-      str << (S.bold.cyan | "╚════════════════════════════════╝") << "\n"
+      str << "╔════════════════════════════════╗".bold.cyan << "\n"
+      str << "║        Counter Example         ║".bold.cyan << "\n"
+      str << "╚════════════════════════════════╝".bold.cyan << "\n"
       str << "\n"
-      str << "  Count: ".bold << m.count.to_s.bright_cyan << "\n"
+      str << "  Count: ".bold << count.to_s.bright_cyan << "\n"
       str << "\n"
       str << "  Controls: ".bold.yellow << "\n"
       str << "    " << "+".cyan << "/" << "up".cyan << ": Increment\n"
@@ -66,20 +62,20 @@ class CounterApp < Application(CounterModel)
     end
   end
 
-  private def handle_key(key : String, model : CounterModel) : {CounterModel, Cmd}
-    case key
+  private def handle_key(key : Term2::Key) : {Model, Cmd}
+    case key.to_s
     when "+", "up"
-      {CounterModel.new(model.count + 1), Cmd.none}
+      {CounterModel.new(count + 1), Cmd.none}
     when "-", "down"
-      {CounterModel.new(model.count - 1), Cmd.none}
+      {CounterModel.new(count - 1), Cmd.none}
     when "0"
       {CounterModel.new, Cmd.none}
-    when "q", "\u0003" # q or Ctrl+C
-      {model, Cmd.quit}
+    when "q", "ctrl+c"
+      {self, Term2.quit}
     else
-      {model, Cmd.none}
+      {self, Cmd.none}
     end
   end
 end
 
-CounterApp.new.run
+Term2.run(CounterModel.new)

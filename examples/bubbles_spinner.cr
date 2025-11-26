@@ -1,38 +1,35 @@
 require "../src/term2"
-require "../src/bubbles/spinner"
+require "../src/components/spinner"
 
 class SpinnerModel < Term2::Model
-  property spinner : Term2::Bubbles::Spinner
+  property spinner : Term2::Components::Spinner
 
   def initialize
-    @spinner = Term2::Bubbles::Spinner.new(Term2::Bubbles::Spinner::DOT)
-    @spinner.style = Term2::Style.new(foreground: Term2::Color::MAGENTA)
-  end
-end
-
-class SpinnerDemo < Term2::Application(SpinnerModel)
-  def init : {SpinnerModel, Term2::Cmd}
-    model = SpinnerModel.new
-    {model, model.spinner.tick}
+    @spinner = Term2::Components::Spinner.new(Term2::Components::Spinner::DOT)
+    @spinner.style = Term2::Style.magenta
   end
 
-  def update(msg : Term2::Message, model : SpinnerModel) : {SpinnerModel, Term2::Cmd}
+  def init : Term2::Cmd
+    @spinner.tick
+  end
+
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
       if msg.key.to_s == "q" || msg.key.to_s == "ctrl+c"
-        return {model, Term2::Cmd.quit}
+        return {self, Term2.quit}
       end
     end
 
-    new_spinner, cmd = model.spinner.update(msg)
-    model.spinner = new_spinner
+    new_spinner, cmd = @spinner.update(msg)
+    @spinner = new_spinner
 
-    {model, cmd}
+    {self, cmd}
   end
 
-  def view(model : SpinnerModel) : String
-    "#{model.spinner.view} Loading... (press q to quit)"
+  def view : String
+    "#{@spinner.view} Loading... (press q to quit)"
   end
 end
 
-SpinnerDemo.new.run
+Term2.run(SpinnerModel.new)
