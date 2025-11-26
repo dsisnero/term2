@@ -129,7 +129,8 @@ module Term2
       # Check for mouse escape sequences
       if buffer.starts_with?("\e[")
         # Look for complete mouse sequences
-        if buffer =~ /\e\[<(\d+);(\d+);(\d+)([Mm])\)?\z/
+        # SGR format: \e[<code;x;yM or \e[<code;x;ym
+        if buffer =~ /\e\[<(\d+);(\d+);(\d+)([Mm])\z/
           # Parse SGR mouse sequence
           code = $1.to_i
           x = $2.to_i
@@ -137,7 +138,7 @@ module Term2
           final_char = $4
 
           return parse_sgr_mouse(code, x, y, final_char)
-        elsif buffer =~ /\e\[M([\x20-\x3f])([\x20-\x7e])([\x20-\x7e])\z/
+        elsif buffer =~ /\e\[M([\x20-\xff])([\x20-\xff])([\x20-\xff])\z/
           # Parse legacy mouse sequence
           button_code = $1.bytes[0]
           x_code = $2.bytes[0]
@@ -153,49 +154,61 @@ module Term2
     private def parse_sgr_mouse(code : Int32, x : Int32, y : Int32, final_char : String) : MouseEvent?
       # Parse SGR mouse event
       # Bit layout:
-      # - Bits 0-1: button (0=left, 1=middle, 2=right, 3=release)
+      # - Bits 0-1: button (0=left, 1=middle, 2=right, 3=no button/release)
       # - Bit 2: shift
       # - Bit 3: alt (meta)
       # - Bit 4: ctrl
-      # - Bit 5: motion (drag)
+      # - Bit 5: motion (indicates motion while button held, or hover if button bits are 3)
       # - Bit 6: wheel
-      motion_bit = (code & 0x20) != 0 # Bit 5 indicates motion
+      motion_bit = (code & 32) != 0  # Bit 5 indicates motion
+      wheel_bit = (code & 64) != 0   # Bit 6 indicates wheel
+      button_bits = code & 3         # Bits 0-1 for button
 
       button = case
-               when (code & 64) != 0 # Wheel events
-                 case code & 3
+               when wheel_bit # Wheel events (bit 6 set)
+                 case button_bits
                  when 0 then MouseEvent::Button::WheelUp
                  when 1 then MouseEvent::Button::WheelDown
                  when 2 then MouseEvent::Button::WheelLeft
                  when 3 then MouseEvent::Button::WheelRight
                  else        MouseEvent::Button::None
                  end
-               when motion_bit # Motion events (button held)
-                 case code & 3
+               when motion_bit && button_bits == 3
+                 # Motion without button = hover (no button pressed)
+                 MouseEvent::Button::None
+               when motion_bit # Motion with button held = drag
+                 case button_bits
                  when 0 then MouseEvent::Button::Left
                  when 1 then MouseEvent::Button::Middle
                  when 2 then MouseEvent::Button::Right
                  else        MouseEvent::Button::None
                  end
                else # Regular button events
-                 case code & 3
+                 case button_bits
                  when 0 then MouseEvent::Button::Left
                  when 1 then MouseEvent::Button::Middle
                  when 2 then MouseEvent::Button::Right
-                 when 3 then MouseEvent::Button::Release
+                 when 3 then MouseEvent::Button::None  # Release has no specific button
                  else        MouseEvent::Button::None
                  end
                end
 
       action = case
-               when (code & 64) != 0 # Wheel events are always press
+               when wheel_bit
+                 # Wheel events are press
                  MouseEvent::Action::Press
+               when motion_bit && button_bits == 3
+                 # Hover (motion without button)
+                 MouseEvent::Action::Move
                when motion_bit
+                 # Drag (motion with button)
                  MouseEvent::Action::Drag
-               when (code & 3) == 3
+               when final_char == "m"
+                 # Release (lowercase m)
                  MouseEvent::Action::Release
                else
-                 final_char == "M" ? MouseEvent::Action::Press : MouseEvent::Action::Release
+                 # Press (uppercase M)
+                 MouseEvent::Action::Press
                end
 
       alt = (code & 8) != 0
@@ -245,14 +258,15 @@ module Term2
 
   # Mouse support utilities
   module Mouse
-    # Enable mouse tracking
+    # Enable mouse tracking (clicks and drags)
     def self.enable_tracking(io : IO = STDOUT)
-      # Enable SGR mouse mode (preferred)
+      # Enable SGR mouse mode (preferred - extended coordinates)
       io.print "\e[?1006h"
-      # Enable mouse tracking
+      # Enable basic mouse tracking (clicks)
       io.print "\e[?1000h"
-      # Enable extended mouse mode
+      # Enable button-event tracking (drags)
       io.print "\e[?1002h"
+      io.flush
     end
 
     # Disable mouse tracking
@@ -261,36 +275,47 @@ module Term2
       io.print "\e[?1006l"
       io.print "\e[?1000l"
       io.print "\e[?1002l"
+      io.print "\e[?1003l"
+      io.flush
     end
 
     # Enable mouse click reporting
     def self.enable_click_reporting(io : IO = STDOUT)
+      io.print "\e[?1006h"  # SGR mode for extended coordinates
       io.print "\e[?1000h"
+      io.flush
     end
 
     # Disable mouse click reporting
     def self.disable_click_reporting(io : IO = STDOUT)
       io.print "\e[?1000l"
+      io.flush
     end
 
     # Enable mouse drag reporting
     def self.enable_drag_reporting(io : IO = STDOUT)
+      io.print "\e[?1006h"  # SGR mode for extended coordinates
       io.print "\e[?1002h"
+      io.flush
     end
 
     # Disable mouse drag reporting
     def self.disable_drag_reporting(io : IO = STDOUT)
       io.print "\e[?1002l"
+      io.flush
     end
 
-    # Enable mouse move reporting
+    # Enable mouse move reporting (all motion including hover)
     def self.enable_move_reporting(io : IO = STDOUT)
-      io.print "\e[?1003h"
+      io.print "\e[?1006h"  # SGR mode for extended coordinates
+      io.print "\e[?1003h"  # Any-event tracking (all motion)
+      io.flush
     end
 
     # Disable mouse move reporting
     def self.disable_move_reporting(io : IO = STDOUT)
       io.print "\e[?1003l"
+      io.flush
     end
   end
 end

@@ -6,6 +6,13 @@
 *.dwarf
 /shard.lock
 
+# Built example binaries (cleaned by `make clean`)
+examples/basic_example
+examples/input
+examples/layout_example
+examples/mouse_and_focus
+examples/simple
+
 # Temporary and log directories (cleaned by `make clean`)
 /temp/
 /log/

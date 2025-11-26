@@ -21,6 +21,24 @@ module Term2
 
   # Terminal provides utilities for controlling terminal behavior
   module Terminal
+    # Enable raw mode on an IO (typically STDIN)
+    # Returns a block that can be used to restore the original mode
+    # Typically you should use the block form: raw(io) { ... }
+    def self.raw(io : IO, &block)
+      if io.responds_to?(:raw)
+        io.raw do
+          yield
+        end
+      else
+        yield
+      end
+    end
+
+    # Check if IO supports raw mode
+    def self.supports_raw?(io : IO) : Bool
+      io.responds_to?(:raw)
+    end
+
     # Enter alternate screen mode
     def self.enter_alt_screen(io : IO = STDOUT)
       io.print "\033[?1049h"
@@ -44,6 +62,67 @@ module Term2
     # Show the cursor
     def self.show_cursor(io : IO = STDOUT)
       io.print "\033[?25h"
+    end
+
+    # Set the terminal window title
+    def self.set_window_title(io : IO, title : String)
+      io.print "\033]2;#{title}\033\\"
+      io.flush
+    end
+
+    # Move cursor to specific position (1-based row, col)
+    def self.move_to(row : Int32, col : Int32, io : IO = STDOUT)
+      io.print "\e[#{row};#{col}H"
+    end
+
+    # Move cursor to home position (top-left)
+    def self.home(io : IO = STDOUT)
+      io.print "\e[H"
+    end
+
+    # Move cursor up n lines
+    def self.move_up(n : Int32 = 1, io : IO = STDOUT)
+      io.print "\e[#{n}A"
+    end
+
+    # Move cursor down n lines
+    def self.move_down(n : Int32 = 1, io : IO = STDOUT)
+      io.print "\e[#{n}B"
+    end
+
+    # Move cursor right n columns
+    def self.move_right(n : Int32 = 1, io : IO = STDOUT)
+      io.print "\e[#{n}C"
+    end
+
+    # Move cursor left n columns
+    def self.move_left(n : Int32 = 1, io : IO = STDOUT)
+      io.print "\e[#{n}D"
+    end
+
+    # Save cursor position
+    def self.save_cursor(io : IO = STDOUT)
+      io.print "\e[s"
+    end
+
+    # Restore cursor position
+    def self.restore_cursor(io : IO = STDOUT)
+      io.print "\e[u"
+    end
+
+    # Clear from cursor to end of line
+    def self.clear_line(io : IO = STDOUT)
+      io.print "\e[K"
+    end
+
+    # Clear entire line
+    def self.clear_entire_line(io : IO = STDOUT)
+      io.print "\e[2K"
+    end
+
+    # Clear from cursor to end of screen
+    def self.clear_to_end(io : IO = STDOUT)
+      io.print "\e[J"
     end
 
     # Enable bracketed paste mode

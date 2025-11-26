@@ -125,6 +125,22 @@ module Term2
     end
   end
 
+  # ClearScreenMsg signals a request to clear the screen
+  class ClearScreenMsg < Message
+  end
+
+  # SetWindowTitleMsg signals a request to set the terminal window title
+  class SetWindowTitleMsg < Message
+    getter title : String
+
+    def initialize(@title : String)
+    end
+  end
+
+  # RequestWindowSizeMsg signals a request for the current window size
+  class RequestWindowSizeMsg < Message
+  end
+
   # EnableMouseCellMotionMsg signals enabling mouse cell motion tracking
   class EnableMouseCellMotionMsg < Message
   end
@@ -135,6 +151,22 @@ module Term2
 
   # DisableMouseTrackingMsg signals disabling mouse tracking
   class DisableMouseTrackingMsg < Message
+  end
+
+  # EnableBracketedPasteMsg signals enabling bracketed paste mode
+  class EnableBracketedPasteMsg < Message
+  end
+
+  # DisableBracketedPasteMsg signals disabling bracketed paste mode
+  class DisableBracketedPasteMsg < Message
+  end
+
+  # EnableReportFocusMsg signals enabling focus reporting
+  class EnableReportFocusMsg < Message
+  end
+
+  # DisableReportFocusMsg signals disabling focus reporting
+  class DisableReportFocusMsg < Message
   end
 
   # Keyboard events emitted by the default input reader.
@@ -543,6 +575,21 @@ module Term2
       message(HideCursorMsg.new)
     end
 
+    # Clear the screen and move cursor to home position
+    def self.clear_screen : self
+      message(ClearScreenMsg.new)
+    end
+
+    # Set the terminal window title
+    def self.set_window_title(title : String) : self
+      message(SetWindowTitleMsg.new(title))
+    end
+
+    # Request the current window size (results in WindowSizeMsg)
+    def self.window_size : self
+      message(RequestWindowSizeMsg.new)
+    end
+
     # Print a message above the program
     def self.println(text : String) : self
       message(PrintMsg.new(text + "\n"))
@@ -568,6 +615,26 @@ module Term2
       message(DisableMouseTrackingMsg.new)
     end
 
+    # Enable bracketed paste mode
+    def self.enable_bracketed_paste : self
+      message(EnableBracketedPasteMsg.new)
+    end
+
+    # Disable bracketed paste mode
+    def self.disable_bracketed_paste : self
+      message(DisableBracketedPasteMsg.new)
+    end
+
+    # Enable focus reporting
+    def self.enable_report_focus : self
+      message(EnableReportFocusMsg.new)
+    end
+
+    # Disable focus reporting
+    def self.disable_report_focus : self
+      message(DisableReportFocusMsg.new)
+    end
+
     private def self.duration_until(target : Time) : Time::Span
       span = target - Time.utc
       span > Time::Span.zero ? span : Time::Span.zero
@@ -580,8 +647,15 @@ module Term2
     abstract def update(msg : Message, model : Model)
     abstract def view(model : Model) : String
 
+    # Override to provide program options (mouse, alt screen, etc.)
+    def options : Array(ProgramOption)
+      [] of ProgramOption
+    end
+
     def run(input : IO? = STDIN, output : IO = STDOUT) : Model
-      Program.new(self, input: input, output: output).run
+      program_options = ProgramOptions.new
+      options.each { |opt| program_options.add(opt) }
+      Program.new(self, input: input, output: output, options: program_options).run
     end
   end
 
@@ -632,11 +706,28 @@ module Term2
     end
 
     def run : Model
+      # Run inside raw mode if we have an input IO that supports it
+      if io = @input_io
+        case io
+        when IO::FileDescriptor
+          # Log.debug { "Entering raw mode on #{io}" }
+          io.raw do
+            run_internal
+          end
+        else
+          run_internal
+        end
+      else
+        run_internal
+      end
+      @model
+    end
+
+    private def run_internal
       if @panic_recovery_enabled
         begin
           bootstrap
           listen_loop
-          @model
         rescue ex
           # Ensure terminal is restored even on crash
           cleanup
@@ -645,7 +736,6 @@ module Term2
       else
         bootstrap
         listen_loop
-        @model
       end
     ensure
       cleanup
@@ -873,6 +963,17 @@ module Term2
       when HideCursorMsg
         Terminal.hide_cursor(@output_io)
         return
+      when ClearScreenMsg
+        Terminal.clear(@output_io)
+        return
+      when SetWindowTitleMsg
+        Terminal.set_window_title(@output_io, filtered_msg.title)
+        return
+      when RequestWindowSizeMsg
+        # Query window size and dispatch as WindowSizeMsg
+        width, height = Terminal.size
+        dispatch(WindowSizeMsg.new(width, height))
+        return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
         return
@@ -886,6 +987,22 @@ module Term2
         return
       when DisableMouseTrackingMsg
         disable_mouse_tracking
+        return
+      when EnableBracketedPasteMsg
+        Terminal.enable_bracketed_paste(@output_io)
+        @bracketed_paste_enabled = true
+        return
+      when DisableBracketedPasteMsg
+        Terminal.disable_bracketed_paste(@output_io)
+        @bracketed_paste_enabled = false
+        return
+      when EnableReportFocusMsg
+        Terminal.enable_focus_reporting(@output_io)
+        @focus_reporting_enabled = true
+        return
+      when DisableReportFocusMsg
+        Terminal.disable_focus_reporting(@output_io)
+        @focus_reporting_enabled = false
         return
       end
 
@@ -1498,12 +1615,28 @@ module Term2
     alias Components = Term2::Components
     alias KeyBinding = Term2::KeyBinding
     alias ProgramOptions = Term2::ProgramOptions
+    alias ProgramOption = Term2::ProgramOption
+    alias WithAltScreen = Term2::WithAltScreen
+    alias WithMouseCellMotion = Term2::WithMouseCellMotion
+    alias WithMouseAllMotion = Term2::WithMouseAllMotion
+    alias WithReportFocus = Term2::WithReportFocus
+    alias WithoutBracketedPaste = Term2::WithoutBracketedPaste
     alias EnterAltScreenMsg = Term2::EnterAltScreenMsg
     alias ExitAltScreenMsg = Term2::ExitAltScreenMsg
     alias ShowCursorMsg = Term2::ShowCursorMsg
     alias HideCursorMsg = Term2::HideCursorMsg
+    alias ClearScreenMsg = Term2::ClearScreenMsg
+    alias SetWindowTitleMsg = Term2::SetWindowTitleMsg
     alias FocusMsg = Term2::FocusMsg
     alias BlurMsg = Term2::BlurMsg
     alias WindowSizeMsg = Term2::WindowSizeMsg
+    alias KeyMsg = Term2::KeyMsg
+    alias Key = Term2::Key
+    alias KeyType = Term2::KeyType
+    alias S = Term2::S
+    alias Style = Term2::Style
+    alias Color = Term2::Color
+    alias Text = Term2::Text
+    alias Cursor = Term2::Cursor
   end
 end
