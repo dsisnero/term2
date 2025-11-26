@@ -16,27 +16,22 @@ private class SpecCounterModel < Term2::Model
 
   def initialize(@count : Int32 = 0)
   end
-end
 
-private class SpecCounterApp < Term2::Application(SpecCounterModel)
-  def init : {SpecCounterModel, Term2::Cmd}
-    {SpecCounterModel.new, Term2::Cmd.tick(100.milliseconds) { |_| SpecTick.new }}
+  def init : Term2::Cmd
+    Term2::Cmd.tick(100.milliseconds) { |_| SpecTick.new }
   end
 
-  def update(msg : Term2::Message, model : SpecCounterModel)
-    counter = model
-
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when SpecTick
-      {SpecCounterModel.new(counter.count + 1), Term2::Cmd.quit}
+      {SpecCounterModel.new(count + 1), Term2::Cmd.quit}
     else
-      {model, Term2::Cmd.none}
+      {self, Term2::Cmd.none}
     end
   end
 
-  def view(model : SpecCounterModel) : String
-    counter = model
-    "Counter: #{counter.count}\n"
+  def view : String
+    "Counter: #{count}\n"
   end
 end
 
@@ -310,7 +305,7 @@ describe Term2 do
       options.add(Term2::WithFilter.new(filter))
 
       output = IO::Memory.new
-      app = SpecCounterApp.new
+      app = SpecCounterModel.new
       program = Term2::Program.new(app, input: nil, output: output, options: options)
 
       # Run program briefly
@@ -330,7 +325,7 @@ describe Term2 do
       output = IO::Memory.new
       options = Term2::ProgramOptions.new
       options.add(Term2::WithFPS.new(1000.0))
-      program = Term2::Program.new(SpecCounterApp.new, input: nil, output: output, options: options)
+      program = Term2::Program.new(SpecCounterModel.new, input: nil, output: output, options: options)
       # Race the run loop against a timeout so specs don't hang.
       evt = CML.choose([
         CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },

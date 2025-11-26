@@ -6,26 +6,23 @@ private class FocusSpecModel < Term2::Model
 
   def initialize(@focused : Bool = false, @blurred : Bool = false)
   end
-end
 
-private class FocusTestApp < Term2::Application(FocusSpecModel)
-  def init : FocusSpecModel
-    FocusSpecModel.new
+  def init : Term2::Cmd
+    Term2::Cmd.none
   end
 
-  def update(msg : Term2::Message, model : FocusSpecModel)
-    m = model
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::FocusMsg
-      {FocusSpecModel.new(focused: true, blurred: m.blurred?), Term2::Cmd.none}
+      {FocusSpecModel.new(focused: true, blurred: blurred?), Term2::Cmd.none}
     when Term2::BlurMsg
-      {FocusSpecModel.new(focused: m.focused?, blurred: true), Term2::Cmd.quit}
+      {FocusSpecModel.new(focused: focused?, blurred: true), Term2::Cmd.quit}
     else
-      {model, Term2::Cmd.none}
+      {self, Term2::Cmd.none}
     end
   end
 
-  def view(model : FocusSpecModel) : String
+  def view : String
     ""
   end
 end
@@ -40,8 +37,8 @@ describe "Focus Reporting" do
     input.print "\e[O"
     input.rewind
 
-    app = FocusTestApp.new
-    program = Term2::Program.new(app, input: input, output: output)
+    model = FocusSpecModel.new
+    program = Term2::Program.new(model, input: input, output: output)
     program.enable_focus_reporting
 
     # Run program

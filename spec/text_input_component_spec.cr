@@ -2,33 +2,30 @@ require "./spec_helper"
 
 describe Term2::Components::TextInput do
   it "shows placeholder when unfocused" do
-    input = Term2::Components::TextInput.new(placeholder: "Type...")
-    model, _ = input.init
-    model = model.as(Term2::Components::TextInput::Model)
+    input = Term2::Components::TextInput.new
+    input.placeholder = "Type..."
 
-    input.view(model).should contain("Type...")
+    input.view.should contain("Type...")
   end
 
   it "inserts characters and responds to key bindings" do
     input = Term2::Components::TextInput.new
-    model, _ = input.init
-    model = model.as(Term2::Components::TextInput::Model)
-
-    model, _ = input.update(Term2::Components::TextInput::Focus.new, model)
-    model = model.as(Term2::Components::TextInput::Model)
+    input.cursor.focus = true
 
     %w[h i].each do |char|
-      model, _ = input.update(Term2::KeyPress.new(char), model)
-      model = model.as(Term2::Components::TextInput::Model)
+      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      input.update(msg)
     end
 
-    model, _ = input.update(Term2::KeyPress.new("\u0002"), model) # move left
-    model = model.as(Term2::Components::TextInput::Model)
+    # Move left
+    msg_left = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Left))
+    input.update(msg_left)
 
-    model, _ = input.update(Term2::KeyPress.new("\u007F"), model) # backspace
-    model = model.as(Term2::Components::TextInput::Model)
+    # Backspace
+    msg_bs = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Backspace))
+    input.update(msg_bs)
 
-    model.value.should eq("i")
-    model.cursor.should eq(0)
+    input.value.should eq("i")
+    input.cursor_pos.should eq(0)
   end
 end

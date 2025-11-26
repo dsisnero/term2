@@ -188,7 +188,8 @@ module Term2
     end
 
     def initialize(*options : ProgramOption)
-      @options = options.to_a
+      @options = [] of ProgramOption
+      options.each { |opt| @options << opt }
     end
 
     # Add an option to the collection.

@@ -1,43 +1,36 @@
 require "./spec_helper"
 
-private class SpinnerModelWrapper < Term2::Model
-  getter spinner : Term2::Components::Spinner::Model
-
-  def initialize(@spinner : Term2::Components::Spinner::Model)
-  end
-end
-
-private class SpinnerHarness < Term2::Application(SpinnerModelWrapper)
+private class SpinnerTestModel < Term2::Model
+  getter spinner : Term2::Components::Spinner
   getter tick_count : Int32
+  getter limit : Int32
 
   def initialize(@limit : Int32 = 3)
-    @spinner = Term2::Components::Spinner.new(frames: ["1", "2"], interval: 5.milliseconds)
+    type = Term2::Components::Spinner::Type.new(["1", "2"], 5.milliseconds)
+    @spinner = Term2::Components::Spinner.new(type)
     @tick_count = 0
   end
 
-  def init : {SpinnerModelWrapper, Term2::Cmd}
-    spinner_model, cmd = @spinner.init("Loading")
-    {SpinnerModelWrapper.new(spinner_model), cmd}
+  def init : Term2::Cmd
+    @spinner.tick
   end
 
-  def update(msg : Term2::Message, model : SpinnerModelWrapper)
-    wrapper = model
-    spinner_model, cmd = @spinner.update(msg, wrapper.spinner)
-    extra = Term2::Cmd.none
-
+  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
-    when Term2::Components::Spinner::Tick
+    when Term2::Components::Spinner::TickMsg
       @tick_count += 1
       if @tick_count >= @limit
-        extra = Term2::Cmd.quit
+        return {self, Term2::Cmd.quit}
       end
     end
 
-    {SpinnerModelWrapper.new(spinner_model), Term2::Cmd.batch(cmd, extra)}
+    new_spinner, cmd = @spinner.update(msg)
+    @spinner = new_spinner
+    {self, cmd}
   end
 
-  def view(model : SpinnerModelWrapper) : String
-    @spinner.view(model.spinner)
+  def view : String
+    @spinner.view
   end
 end
 
@@ -46,32 +39,18 @@ describe Term2::Components::Spinner do
   # The spinner tick mechanism relies on precise timing that can fail under load
   pending "cycles frames and stops when requested" do
     output = IO::Memory.new
-    app = SpinnerHarness.new(4)
-    program = Term2::Program.new(app, input: nil, output: output)
+    model = SpinnerTestModel.new(4)
+    program = Term2::Program.new(model, input: nil, output: output)
 
-    evt = CML.choose([
-      CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
-      CML.wrap(CML.timeout(3.seconds)) { |_| {nil.as(Term2::Model?), :timeout} },
-    ])
+    program.run
 
-    result = CML.sync(evt)
-    result.should_not eq({nil, :timeout})
-    app.tick_count.should be >= 4
-    output.to_s.should contain("Loading")
+    model.tick_count.should be >= 4
     output.to_s.should contain("1")
-
-    spinner_model = result[0].as(SpinnerHarness::ModelWrapper).spinner
-    spinner_model.spinning?.should be_false
   end
 
-  it "applies theme prefix and finished symbol" do
-    theme = Term2::Components::Spinner::Theme.new(prefix: "[", suffix: "]", finished_symbol: "✓", show_text_when_empty: true)
-    spinner = Term2::Components::Spinner.new(frames: ["*"], interval: 10.milliseconds, theme: theme)
-
-    model, _cmd = spinner.init("")
-    spinner.view(model).should eq("[*]")
-
-    stopped_model = Term2::Components::Spinner::Model.new("", 0, false)
-    spinner.view(stopped_model).should eq("[✓]")
+  it "renders correctly" do
+    type = Term2::Components::Spinner::Type.new(["*"], 10.milliseconds)
+    spinner = Term2::Components::Spinner.new(type)
+    spinner.view.should eq("*")
   end
 end

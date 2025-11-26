@@ -9,6 +9,7 @@ require "./styles"
 require "./view"
 require "./layout"
 require "./renderer"
+require "./components/*"
 
 # Term2 is a Crystal port of the Bubble Tea terminal UI library.
 #
@@ -20,44 +21,41 @@ require "./renderer"
 # ```
 # require "term2"
 #
-# class MyApp < Term2::Application
-#   class MyModel < Term2::Model
-#     getter count : Int32 = 0
+# class MyModel < Term2::Model
+#   getter count : Int32 = 0
 #
-#     def initialize(@count = 0); end
+#   def initialize(@count = 0); end
+#
+#   def init : Term2::Cmd
+#     Term2::Cmd.none
 #   end
 #
-#   def init
-#     MyModel.new
-#   end
-#
-#   def update(msg : Term2::Message, model : Term2::Model)
-#     m = model.as(MyModel)
+#   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
 #     case msg
 #     when Term2::KeyMsg
 #       case msg.key.to_s
-#       when "q" then {m, Term2::Cmd.quit}
-#       when "+" then {MyModel.new(m.count + 1), Term2::Cmd.none}
-#       else          {m, Term2::Cmd.none}
+#       when "q" then {self, Term2::Cmd.quit}
+#       when "+" then {MyModel.new(@count + 1), Term2::Cmd.none}
+#       else          {self, Term2::Cmd.none}
 #       end
 #     else
-#       {m, Term2::Cmd.none}
+#       {self, Term2::Cmd.none}
 #     end
 #   end
 #
-#   def view(model : Term2::Model) : String
-#     "Count: #{model.as(MyModel).count}\nPress + to increment, q to quit"
+#   def view : String
+#     "Count: #{@count}\nPress + to increment, q to quit"
 #   end
 # end
 #
-# MyApp.new.run
+# Term2.run(MyModel.new)
 # ```
 #
 # ## Architecture
 #
 # Term2 follows the Elm architecture:
 # - **Model**: Your application state (must inherit from `Term2::Model`)
-# - **Update**: A function that takes a message and model, returns new model and optional command
+# - **Update**: A function that takes a message and returns a new model and command
 # - **View**: A function that renders the model to a string
 #
 # ## Key Features
@@ -72,125 +70,7 @@ require "./renderer"
 module Term2
   VERSION = "0.1.0"
 
-  # Internal message that signals the program should terminate.
-  # Use `Cmd.quit` to send this message.
-  class QuitMsg < Message
-  end
-
-  # Message to enter alternate screen mode.
-  # Use `Cmd.enter_alt_screen` to send this message.
-  class EnterAltScreenMsg < Message
-  end
-
-  # Message to exit alternate screen mode.
-  # Use `Cmd.exit_alt_screen` to send this message.
-  class ExitAltScreenMsg < Message
-  end
-
-  # Message to show the cursor.
-  # Use `Cmd.show_cursor` to send this message.
-  class ShowCursorMsg < Message
-  end
-
-  # Message to hide the cursor.
-  # Use `Cmd.hide_cursor` to send this message.
-  class HideCursorMsg < Message
-  end
-
-  # Message sent when the terminal window gains focus.
-  # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
-  class FocusMsg < Message
-  end
-
-  # Message sent when the terminal window loses focus.
-  # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
-  class BlurMsg < Message
-  end
-
-  # Message sent when the terminal window is resized.
-  # Contains the new width and height in characters.
-  class WindowSizeMsg < Message
-    # The new terminal width in characters
-    getter width : Int32
-    # The new terminal height in characters
-    getter height : Int32
-
-    def initialize(@width : Int32, @height : Int32)
-    end
-  end
-
-  # PrintMsg signals a request to print text to the output
-  class PrintMsg < Message
-    getter text : String
-
-    def initialize(@text : String)
-    end
-  end
-
-  # ClearScreenMsg signals a request to clear the screen
-  class ClearScreenMsg < Message
-  end
-
-  # SetWindowTitleMsg signals a request to set the terminal window title
-  class SetWindowTitleMsg < Message
-    getter title : String
-
-    def initialize(@title : String)
-    end
-  end
-
-  # RequestWindowSizeMsg signals a request for the current window size
-  class RequestWindowSizeMsg < Message
-  end
-
-  # EnableMouseCellMotionMsg signals enabling mouse cell motion tracking
-  class EnableMouseCellMotionMsg < Message
-  end
-
-  # EnableMouseAllMotionMsg signals enabling mouse all motion tracking
-  class EnableMouseAllMotionMsg < Message
-  end
-
-  # DisableMouseTrackingMsg signals disabling mouse tracking
-  class DisableMouseTrackingMsg < Message
-  end
-
-  # EnableBracketedPasteMsg signals enabling bracketed paste mode
-  class EnableBracketedPasteMsg < Message
-  end
-
-  # DisableBracketedPasteMsg signals disabling bracketed paste mode
-  class DisableBracketedPasteMsg < Message
-  end
-
-  # EnableReportFocusMsg signals enabling focus reporting
-  class EnableReportFocusMsg < Message
-  end
-
-  # DisableReportFocusMsg signals disabling focus reporting
-  class DisableReportFocusMsg < Message
-  end
-
-  # Keyboard events emitted by the default input reader.
-  # DEPRECATED: Use KeyMsg instead for richer key information
-  class KeyPress < Message
-    getter key : String
-
-    def initialize(@key : String)
-    end
-  end
-
-  # KeyMsg contains information about a keypress
-  class KeyMsg < Message
-    getter key : Key
-
-    def initialize(@key : Key)
-    end
-
-    def to_s : String
-      @key.to_s
-    end
-  end
+  # Messages have been moved to base_types.cr
 
   # KeyReader handles reading and parsing key sequences from input
   class KeyReader
@@ -385,279 +265,27 @@ module Term2
   # MouseEvent is now defined in mouse.cr
 
   # Dispatcher bridges commands to the program's message mailbox.
-  class Dispatcher
-    def initialize(@mailbox : CML::Mailbox(Message), parent : Dispatcher? = nil, mapper : Proc(Message, Message)? = nil)
-      @parent = parent
-      @mapper = mapper
-      @running_state = parent ? parent.@running_state : Atomic(Bool).new(true)
-    end
+  # Dispatcher and Cmd have been moved to base_types.cr
 
-    def dispatch(msg : Message) : Nil
-      return unless running?
-      mapped = if mapper = @mapper
-                 mapper.call(msg)
-               else
-                 msg
-               end
-      if parent = @parent
-        parent.dispatch(mapped)
-      else
-        @mailbox.send(mapped)
-      end
-    end
-
-    def stop : Nil
-      if parent = @parent
-        parent.stop
-      else
-        @running_state.set(false)
-      end
-    end
-
-    def running? : Bool
-      if parent = @parent
-        parent.running?
-      else
-        @running_state.get
-      end
-    end
-
-    def mapped(&mapper : Message -> Message) : Dispatcher
-      Dispatcher.new(@mailbox, self, mapper)
-    end
+  # Run the program with the given model.
+  def self.run(model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new) forall M
+    Program(M).new(model, input, output, options).run
   end
 
-  # Cmd represents an asynchronous side-effect that may emit messages.
-  struct Cmd
-    @block : Proc(Dispatcher, Nil)?
-
-    def initialize(&block : Dispatcher -> Nil)
-      @block = block
-    end
-
-    def initialize
-      @block = nil
-    end
-
-    def run(dispatcher : Dispatcher) : Nil
-      @block.try &.call(dispatcher)
-    end
-
-    def self.none : self
-      new
-    end
-
-    def self.message(msg : Message) : self
-      new(&.dispatch(msg))
-    end
-
-    def self.batch(*cmds : self) : self
-      new do |dispatch|
-        cmds.each &.run(dispatch)
-      end
-    end
-
-    def self.sequence(*cmds : self) : self
-      new do |dispatch|
-        cmds.each &.run(dispatch)
-      end
-    end
-
-    def self.map(cmd : self, &block : Message -> Message) : self
-      new do |dispatch|
-        cmd.run(dispatch.mapped(&block))
-      end
-    end
-
-    def self.every(duration : Time::Span, message : Message) : self
-      every(duration) { |_| message }
-    end
-
-    def self.every(duration : Time::Span, &block : Time -> Message) : self
-      new do |dispatch|
-        spawn do
-          loop do
-            break unless dispatch.running?
-            CML.sync(CML.timeout(duration))
-            break unless dispatch.running?
-            dispatch.dispatch(block.call(Time.utc))
-          end
-        end
-      end
-    end
-
-    # Schedule a message to be dispatched after the given duration.
-    def self.after(duration : Time::Span, message : Message) : self
-      if duration <= Time::Span.zero
-        return message(message)
-      end
-      after(duration) { message }
-    end
-
-    # Lazy variant where the message is generated at delivery time.
-    def self.after(duration : Time::Span, &block : -> Message) : self
-      if duration <= Time::Span.zero
-        return message(block.call)
-      end
-      from_event(CML.wrap(CML.timeout(duration)) { block.call })
-    end
-
-    def self.deadline(target : Time, message : Message) : self
-      span = duration_until(target)
-      return message(message) if span <= Time::Span.zero
-      after(span, message)
-    end
-
-    def self.deadline(target : Time, &block : -> Message) : self
-      span = duration_until(target)
-      return after(span, &block) if span > Time::Span.zero
-      message(block.call)
-    end
-
-    def self.timeout(duration : Time::Span, timeout_message : Message, &block : -> Message) : self
-      event = CML.spawn_evt { block.call }
-      timeout(duration, timeout_message, event)
-    end
-
-    def self.timeout(duration : Time::Span, timeout_message : Message, event : CML::Event(Message)) : self
-      events = [] of CML::Event(Message)
-      events << event
-      timeout_evt = CML.wrap(CML.timeout(duration)) { |_| timeout_message.as(Message) }
-      events << timeout_evt
-      from_event(CML.choose(events))
-    end
-
-    # Sends a message produced by the block after the duration elapses.
-    # The block receives the current UTC time similar to tea.Tick in Bubble Tea.
-    def self.tick(duration : Time::Span, &block : Time -> Message) : self
-      from_event(CML.wrap(CML.timeout(duration)) { block.call(Time.utc) })
-    end
-
-    def self.from_event(evt : CML::Event(Message)) : self
-      new do |dispatch|
-        spawn do
-          begin
-            dispatch.dispatch(CML.sync(evt))
-          rescue
-            # Ignore errors from the event and keep the program running.
-          end
-        end
-      end
-    end
-
-    def self.perform(&block : -> Message) : self
-      new do |dispatch|
-        spawn do
-          dispatch.dispatch(block.call)
-        end
-      end
-    end
-
-    def self.quit : self
-      message(QuitMsg.new)
-    end
-
-    # Enter alternate screen mode
-    def self.enter_alt_screen : self
-      message(EnterAltScreenMsg.new)
-    end
-
-    # Exit alternate screen mode
-    def self.exit_alt_screen : self
-      message(ExitAltScreenMsg.new)
-    end
-
-    # Show the cursor
-    def self.show_cursor : self
-      message(ShowCursorMsg.new)
-    end
-
-    # Hide the cursor
-    def self.hide_cursor : self
-      message(HideCursorMsg.new)
-    end
-
-    # Clear the screen and move cursor to home position
-    def self.clear_screen : self
-      message(ClearScreenMsg.new)
-    end
-
-    # Set the terminal window title
-    def self.window_title=(title : String) : self
-      message(SetWindowTitleMsg.new(title))
-    end
-
-    # Request the current window size (results in WindowSizeMsg)
-    def self.window_size : self
-      message(RequestWindowSizeMsg.new)
-    end
-
-    # Print a message above the program
-    def self.println(text : String) : self
-      message(PrintMsg.new(text + "\n"))
-    end
-
-    # Print formatted text above the program
-    def self.printf(format : String, *args) : self
-      message(PrintMsg.new(sprintf(format, *args)))
-    end
-
-    # Enable mouse cell motion tracking
-    def self.enable_mouse_cell_motion : self
-      message(EnableMouseCellMotionMsg.new)
-    end
-
-    # Enable mouse all motion tracking (hover)
-    def self.enable_mouse_all_motion : self
-      message(EnableMouseAllMotionMsg.new)
-    end
-
-    # Disable mouse tracking
-    def self.disable_mouse_tracking : self
-      message(DisableMouseTrackingMsg.new)
-    end
-
-    # Enable bracketed paste mode
-    def self.enable_bracketed_paste : self
-      message(EnableBracketedPasteMsg.new)
-    end
-
-    # Disable bracketed paste mode
-    def self.disable_bracketed_paste : self
-      message(DisableBracketedPasteMsg.new)
-    end
-
-    # Enable focus reporting
-    def self.enable_report_focus : self
-      message(EnableReportFocusMsg.new)
-    end
-
-    # Disable focus reporting
-    def self.disable_report_focus : self
-      message(DisableReportFocusMsg.new)
-    end
-
-    private def self.duration_until(target : Time) : Time::Span
-      span = target - Time.utc
-      span > Time::Span.zero ? span : Time::Span.zero
-    end
+  # Helper to create a quit command
+  def self.quit : Cmd
+    Cmd.quit
   end
 
-  # Applications describe the high-level Elm-style lifecycle.
-  abstract class Application(M)
-    abstract def init
-    abstract def update(msg : Message, model : M)
-    abstract def view(model : M) : String
+  # Helper to batch multiple commands
+  def self.batch(*cmds : Cmd) : Cmd
+    Cmd.batch(*cmds)
+  end
 
-    # Override to provide program options (mouse, alt screen, etc.)
-    def options : Array(ProgramOption)
-      [] of ProgramOption
-    end
-
-    def run(input : IO? = STDIN, output : IO = STDOUT) : M
-      program_options = ProgramOptions.new
-      options.each { |opt| program_options.add(opt) }
-      Program(M).new(self, input: input, output: output, options: program_options).run
+  # Helper to batch multiple commands from an array
+  def self.batch(cmds : Enumerable(Cmd)) : Cmd
+    Cmd.new do |dispatch|
+      cmds.each &.run(dispatch)
     end
   end
 
@@ -681,7 +309,7 @@ module Term2
 
     alias RenderOp = String | PrintMsg
 
-    def initialize(@application : Application(M), input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
+    def initialize(@model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
       @input_io = input
       @output_io = output
       @mailbox = CML::Mailbox(Message).new
@@ -689,7 +317,6 @@ module Term2
       @done = CML::IVar(Nil).new
       @dispatcher = Dispatcher.new(@mailbox)
       @running = Atomic(Bool).new(false)
-      @model = uninitialized M
       @pending_shutdown = false
       @options = options
       @alt_screen_enabled = false
@@ -830,8 +457,7 @@ module Term2
       setup_terminal
       setup_signal_handlers
       start_input_reader
-      init_model, init_cmd = normalize_result(@application.init)
-      @model = init_model
+      init_cmd = @model.init
       schedule_render
       run_cmd(init_cmd)
     end
@@ -1009,8 +635,8 @@ module Term2
       end
 
       begin
-        new_model, cmd = normalize_result(@application.update(filtered_msg, @model))
-        @model = new_model
+        new_model, cmd = @model.update(filtered_msg)
+        @model = new_model.as(M)
         schedule_render
         STDERR.puts "running cmd #{cmd}" if ENV["TERM2_DEBUG"]?
         run_cmd(cmd)
@@ -1025,7 +651,7 @@ module Term2
     end
 
     private def schedule_render
-      frame = @application.view(@model)
+      frame = @model.view
       @render_mailbox.send(frame)
     end
 
@@ -1062,17 +688,6 @@ module Term2
 
     private def run_cmd(cmd : Cmd?)
       cmd.try &.run(dispatcher)
-    end
-
-    private def normalize_result(result)
-      case result
-      when Tuple
-        model = result[0]
-        cmd = result.size > 1 ? result[1].as(Cmd?) : Cmd.none
-        {model, cmd}
-      else
-        {result, Cmd.none}
-      end
     end
 
     private def cleanup
@@ -1149,472 +764,17 @@ module Term2
     end
   end
 
-  module Components
-    class CountdownTimer
-      getter interval : Time::Span
-
-      class Model < Term2::Model
-        getter duration : Time::Span
-        getter remaining : Time::Span
-        getter? running : Bool
-        getter last_tick : Time?
-
-        def initialize(@duration : Time::Span, @remaining : Time::Span, @running : Bool, @last_tick : Time?)
-        end
-      end
-
-      class Start < Term2::Message
-        getter duration : Time::Span
-
-        def initialize(@duration : Time::Span)
-        end
-      end
-
-      class Tick < Term2::Message
-        getter time : Time
-
-        def initialize(@time : Time)
-        end
-      end
-
-      class Finished < Term2::Message
-        getter finished_at : Time
-
-        def initialize(@finished_at : Time)
-        end
-      end
-
-      def initialize(@interval : Time::Span = 100.milliseconds)
-      end
-
-      def init(duration : Time::Span) : {Model, Cmd}
-        now = Time.utc
-        model = Model.new(duration, duration, true, now)
-        {model, schedule_tick}
-      end
-
-      def update(msg : Term2::Message, model : Model) : {Model, Cmd}
-        case msg
-        when Start
-          restart(msg.duration)
-        when Tick
-          advance(model, msg.time)
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      def view(model : Model) : String
-        remaining_seconds = (model.remaining.total_milliseconds / 1000.0).clamp(0.0, model.duration.total_milliseconds / 1000.0)
-        status = model.running? ? "running" : "finished"
-        "Timer: #{remaining_seconds.round(2)}s (#{status})"
-      end
-
-      private def restart(duration : Time::Span) : {Model, Cmd}
-        now = Time.utc
-        model = Model.new(duration, duration, true, now)
-        {model, schedule_tick}
-      end
-
-      private def advance(model : Model, tick_at : Time) : {Model, Cmd}
-        return {model, Cmd.none} unless model.running?
-        last_tick = model.last_tick || tick_at
-        elapsed = tick_at - last_tick
-        remaining = model.remaining - elapsed
-
-        if remaining <= Time::Span.zero
-          finished_model = Model.new(model.duration, Time::Span.zero, false, tick_at)
-          {finished_model, Cmd.message(Finished.new(tick_at))}
-        else
-          updated_model = Model.new(model.duration, remaining, true, tick_at)
-          {updated_model, schedule_tick}
-        end
-      end
-
-      private def schedule_tick : Cmd
-        Cmd.tick(@interval) { |time| Tick.new(time) }
-      end
-    end
-
-    class Spinner
-      getter frames : Array(String)
-
-      class Model < Term2::Model
-        getter text : String
-        getter frame_index : Int32
-        getter? spinning : Bool
-
-        def initialize(@text : String, @frame_index : Int32, @spinning : Bool)
-        end
-      end
-
-      record Theme,
-        prefix : String = "",
-        suffix : String = "",
-        separator : String = " ",
-        finished_symbol : String = "✔",
-        show_text_when_empty : Bool = false do
-        def render(frame : String, text : String, running : Bool) : String
-          symbol = running ? frame : finished_symbol
-          display_text = text
-          display_text = "" if display_text.empty? && !show_text_when_empty
-          body = display_text.empty? ? "" : "#{separator}#{display_text}"
-          "#{prefix}#{symbol}#{body}#{suffix}"
-        end
-      end
-
-      class Tick < Message
-        getter time : Time
-
-        def initialize(@time : Time)
-        end
-      end
-
-      class Start < Message
-      end
-
-      class Stop < Message
-      end
-
-      class SetText < Message
-        getter text : String
-
-        def initialize(@text : String)
-        end
-      end
-
-      def initialize(*, frames : Array(String) = ["|", "/", "-", "\\"], interval : Time::Span = 100.milliseconds, theme : Theme = Theme.new)
-        @frames = frames
-        @interval = interval
-        @theme = theme
-      end
-
-      def init(text : String = "") : {Model, Cmd}
-        model = Model.new(text, 0, true)
-        {model, schedule_tick}
-      end
-
-      def update(msg : Term2::Message, model : Model) : {Model, Cmd}
-        case msg
-        when Start
-          resumed = Model.new(model.text, model.frame_index, true)
-          {resumed, schedule_tick}
-        when Stop
-          stopped = Model.new(model.text, model.frame_index, false)
-          {stopped, Cmd.none}
-        when SetText
-          updated = Model.new(msg.text, model.frame_index, model.spinning?)
-          {updated, Cmd.none}
-        when Tick
-          advance(model, msg.time)
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      def view(model : Model) : String
-        frame = model.spinning? ? @frames[model.frame_index % @frames.size] : @theme.finished_symbol
-        @theme.render(frame, model.text, model.spinning?)
-      end
-
-      private def advance(model : Model, _time : Time) : {Model, Cmd}
-        return {model, Cmd.none} unless model.spinning?
-        next_index = (model.frame_index + 1) % @frames.size
-        updated = Model.new(model.text, next_index, true)
-        {updated, schedule_tick}
-      end
-
-      private def schedule_tick : Cmd
-        Cmd.tick(@interval) { |time| Tick.new(time) }
-      end
-    end
-
-    class ProgressBar
-      class Model < Term2::Model
-        getter percent : Float64
-        getter width : Int32
-        getter complete_char : Char
-        getter incomplete_char : Char
-        getter? show_percentage : Bool
-
-        def initialize(@percent : Float64, @width : Int32, @complete_char : Char, @incomplete_char : Char, @show_percentage : Bool)
-        end
-      end
-
-      class SetPercent < Term2::Message
-        getter value : Float64
-
-        def initialize(@value : Float64)
-        end
-      end
-
-      class Increment < Term2::Message
-        getter delta : Float64
-
-        def initialize(@delta : Float64)
-        end
-      end
-
-      def initialize(*, width : Int32 = 30, complete_char : Char = '=', incomplete_char : Char = ' ', show_percentage : Bool = true)
-        @width = width
-        @complete_char = complete_char
-        @incomplete_char = incomplete_char
-        @show_percentage = show_percentage
-      end
-
-      def init : {Model, Cmd}
-        model = Model.new(0.0, @width, @complete_char, @incomplete_char, @show_percentage)
-        {model, Cmd.none}
-      end
-
-      def update(msg : Term2::Message, model : Model) : {Model, Cmd}
-        case msg
-        when SetPercent
-          {model_with_percent(model, msg.value), Cmd.none}
-        when Increment
-          {model_with_percent(model, model.percent + msg.delta), Cmd.none}
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      def view(model : Model) : String
-        pct = clamp_percent(model.percent)
-        filled = (pct * model.width).round.to_i
-        bar = String.build do |io|
-          io << '['
-          filled.times { io << model.complete_char }
-          (model.width - filled).times { io << model.incomplete_char }
-          io << ']'
-        end
-
-        if model.show_percentage?
-          "#{bar} #{(pct * 100).round(1)}%"
-        else
-          bar
-        end
-      end
-
-      private def model_with_percent(model : Model, percent : Float64) : Model
-        Model.new(clamp_percent(percent), model.width, model.complete_char, model.incomplete_char, model.show_percentage?)
-      end
-
-      private def clamp_percent(value : Float64) : Float64
-        if value < 0.0
-          0.0
-        elsif value > 1.0
-          1.0
-        else
-          value
-        end
-      end
-    end
-
-    class TextInput
-      DEFAULT_BINDINGS = [
-        KeyBinding.new(:move_left, ["ctrl+b", "left"], "Left"),
-        KeyBinding.new(:move_right, ["ctrl+f", "right"], "Right"),
-        KeyBinding.new(:move_start, ["ctrl+a", "home"], "Start"),
-        KeyBinding.new(:move_end, ["ctrl+e", "end"], "End"),
-        KeyBinding.new(:backspace, ["ctrl+h", "backspace"], "Backspace"),
-        KeyBinding.new(:delete, ["ctrl+d", "delete"], "Delete"),
-        KeyBinding.new(:clear, ["ctrl+u"], "Clear"),
-      ]
-
-      class Model < Term2::Model
-        getter value : String
-        getter cursor : Int32
-        getter? focused : Bool
-
-        def initialize(@value : String, @cursor : Int32, @focused : Bool)
-        end
-      end
-
-      class Focus < Term2::Message
-      end
-
-      class Blur < Term2::Message
-      end
-
-      class SetValue < Term2::Message
-        getter value : String
-
-        def initialize(@value : String)
-        end
-      end
-
-      getter placeholder : String
-
-      def initialize(*, placeholder : String = "", max_length : Int32? = nil, key_bindings : Array(KeyBinding) = DEFAULT_BINDINGS)
-        @placeholder = placeholder
-        @max_length = max_length
-        @key_bindings = key_bindings
-      end
-
-      def init(value : String = "", focused : Bool = false) : {Model, Cmd}
-        value = truncate(value)
-        model = Model.new(value, value.size, focused)
-        {model, Cmd.none}
-      end
-
-      def update(msg : Term2::Message, model : Model) : {Model, Cmd}
-        case msg
-        when Focus
-          {Model.new(model.value, model.cursor, true), Cmd.none}
-        when Blur
-          {Model.new(model.value, model.cursor, false), Cmd.none}
-        when SetValue
-          value = truncate(msg.value)
-          cursor = value.size.clamp(0, value.size)
-          {Model.new(value, cursor, model.focused?), Cmd.none}
-        when Term2::KeyMsg
-          handle_key_press(msg.key, model)
-        when Term2::KeyPress
-          # Legacy support - convert to KeyMsg
-          key = parse_legacy_key(msg.key)
-          handle_key_press(key, model)
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      def view(model : Model) : String
-        if !model.focused? && model.value.empty? && !@placeholder.empty?
-          "  #{@placeholder}"
-        else
-          display_value(model)
-        end
-      end
-
-      def key_bindings : Array(KeyBinding)
-        @key_bindings
-      end
-
-      private def display_value(model : Model) : String
-        if model.focused?
-          left = model.value[0, model.cursor] || ""
-          right = model.value[model.cursor, model.value.size - model.cursor] || ""
-          "> #{left}|#{right}"
-        else
-          "> #{model.value}"
-        end
-      end
-
-      private def handle_key_press(key : Key, model : Model) : {Model, Cmd}
-        if binding = binding_for_key(key)
-          apply_binding(binding.action, model)
-        elsif printable?(key)
-          insert_character(key, model)
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      private def binding_for_key(key : Key) : KeyBinding?
-        @key_bindings.find(&.matches?(key))
-      end
-
-      private def apply_binding(action : Symbol, model : Model) : {Model, Cmd}
-        case action
-        when :move_left
-          move_cursor(model, model.cursor - 1)
-        when :move_right
-          move_cursor(model, model.cursor + 1)
-        when :move_start
-          move_cursor(model, 0)
-        when :move_end
-          move_cursor(model, model.value.size)
-        when :backspace
-          delete_backwards(model)
-        when :delete
-          delete_forwards(model)
-        when :clear
-          {Model.new("", 0, model.focused?), Cmd.none}
-        else
-          {model, Cmd.none}
-        end
-      end
-
-      private def printable?(key : Key) : Bool
-        key.type == KeyType::Runes && key.runes.size == 1 && key.runes.first.ord >= 32
-      end
-
-      private def insert_character(key : Key, model : Model) : {Model, Cmd}
-        if max = @max_length
-          return {model, Cmd.none} if model.value.size >= max
-        end
-        char = String.build { |str| key.runes.each { |rune| str << rune } }
-        left = model.value[0, model.cursor] || ""
-        right = model.value[model.cursor, model.value.size - model.cursor] || ""
-        new_value = "#{left}#{char}#{right}"
-        new_cursor = model.cursor + char.size
-        {Model.new(new_value, new_cursor, model.focused?), Cmd.none}
-      end
-
-      private def delete_backwards(model : Model) : {Model, Cmd}
-        return {model, Cmd.none} if model.cursor <= 0
-        left = model.value[0, model.cursor - 1] || ""
-        right = model.value[model.cursor, model.value.size - model.cursor] || ""
-        new_value = "#{left}#{right}"
-        {Model.new(new_value, model.cursor - 1, model.focused?), Cmd.none}
-      end
-
-      private def delete_forwards(model : Model) : {Model, Cmd}
-        return {model, Cmd.none} if model.cursor >= model.value.size
-        left = model.value[0, model.cursor] || ""
-        right = model.value[model.cursor + 1, model.value.size - model.cursor - 1] || ""
-        new_value = "#{left}#{right}"
-        {Model.new(new_value, model.cursor, model.focused?), Cmd.none}
-      end
-
-      private def move_cursor(model : Model, position : Int32) : {Model, Cmd}
-        new_cursor = position.clamp(0, model.value.size)
-        {Model.new(model.value, new_cursor, model.focused?), Cmd.none}
-      end
-
-      private def truncate(value : String) : String
-        return value unless max = @max_length
-        value[0, max] || value
-      end
-
-      private def parse_legacy_key(key_str : String) : Key
-        # Convert legacy string keys to new Key objects
-        case key_str
-        when "\u0001" then Key.new(KeyType::CtrlA)
-        when "\u0002" then Key.new(KeyType::CtrlB)
-        when "\u0004" then Key.new(KeyType::CtrlD)
-        when "\u0005" then Key.new(KeyType::CtrlE)
-        when "\u0006" then Key.new(KeyType::CtrlF)
-        when "\u0008" then Key.new(KeyType::CtrlH)
-        when "\u0015" then Key.new(KeyType::CtrlU)
-        when "\u007F" then Key.new(KeyType::Backspace)
-        when "\e[D"   then Key.new(KeyType::Left)
-        when "\e[C"   then Key.new(KeyType::Right)
-        when "\e[H"   then Key.new(KeyType::Home)
-        when "\e[F"   then Key.new(KeyType::End)
-        else
-          if key_str.size == 1
-            Key.new(key_str[0])
-          else
-            Key.new(key_str)
-          end
-        end
-      end
-    end
-  end
-
   module Prelude
     alias Cmd = Term2::Cmd
     alias Model = Term2::Model
+    alias TC = Term2::Components
     alias Message = Term2::Message
     alias Terminal = Term2::Terminal
     alias Program = Term2::Program
-    alias Application = Term2::Application
     alias KeyPress = Term2::KeyPress
     alias MouseEvent = Term2::MouseEvent
     alias QuitMsg = Term2::QuitMsg
     alias Dispatcher = Term2::Dispatcher
-    alias Components = Term2::Components
     alias KeyBinding = Term2::KeyBinding
     alias ProgramOptions = Term2::ProgramOptions
     alias ProgramOption = Term2::ProgramOption
