@@ -1,19 +1,23 @@
 # Term2 Master Plan
 
 ## Current Status
-**Overall Progress:** ~80%
-**Active Workstream:** Bubbles Components Port
-**Recent Completion:** Crystal Idioms & API Ergonomics
+**Overall Progress:** ~90%
+**Active Workstream:** None
+**Recent Completion:** Bubbles Components Port
 
 ## Active Workstreams
 
-### [B] Bubbles Components Port
-**Status:** Active
-**Goal:** Port standard UI components from Charmbracelet's Bubbles library.
-**Progress:** 0% (Pending Start)
-**Plan File:** `plans/active/bubbles-components.yml`
-
 ## Completed Workstreams
+
+### [B] Bubbles Components Port
+**Status:** ✅ Completed (Nov 25, 2025)
+**Goal:** Port standard UI components from Charmbracelet's Bubbles library.
+**Achievements:**
+- Ported Core Utilities (Key, Cursor, RuneUtil, Viewport)
+- Ported Simple Indicators (Spinner, Progress, Timer, Stopwatch)
+- Ported Input Components (TextInput, TextArea)
+- Ported Complex Data Display (Paginator, List, Table, Help, FilePicker)
+**Plan File:** `plans/completed/bubbles-components.yml`
 
 ### [C] Crystal Idioms & API Ergonomics
 **Status:** ✅ Completed (Nov 25, 2025)
