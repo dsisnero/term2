@@ -101,6 +101,54 @@ Available options:
 - `WithoutCatchPanics` - Disable panic recovery
 - `WithoutBracketedPaste` - Disable bracketed paste
 
+## Text Styling DSL
+
+Term2 provides a fluent API for styled text output without raw escape codes:
+
+### Method 1: String Extensions (Simple Single Styles)
+
+```crystal
+puts "Hello".bold
+puts "Error!".red
+puts "Warning".yellow.bold  # Note: chaining returns nested codes
+```
+
+### Method 2: S Builder (Chained/Composed Styles)
+
+```crystal
+# Method chaining with .apply()
+puts S.bold.cyan.apply("Styled text")
+puts S.red.on_white.underline.apply("Alert!")
+
+# Pipe operator shorthand
+puts S.green.bold | "Success!"
+puts S.bright_magenta.italic | "Fancy"
+
+# 256-color palette
+puts S.fg(208).bold | "Orange"
+
+# True color RGB
+puts S.fg(100, 149, 237).bold | "Cornflower Blue"
+puts S.bg(30, 30, 30).white | "Dark background"
+```
+
+### Available Styles
+
+**Text Attributes:**
+- `.bold`, `.faint`/`.dim`, `.italic`, `.underline`
+- `.blink`, `.reverse`, `.hidden`, `.strike`
+
+**Foreground Colors:**
+- Standard: `.black`, `.red`, `.green`, `.yellow`, `.blue`, `.magenta`, `.cyan`, `.white`, `.gray`
+- Bright: `.bright_red`, `.bright_green`, `.bright_yellow`, `.bright_blue`, `.bright_magenta`, `.bright_cyan`, `.bright_white`
+- 256-color: `.fg(0-255)`
+- RGB: `.fg(r, g, b)`
+
+**Background Colors:**
+- Standard: `.on_black`, `.on_red`, `.on_green`, `.on_yellow`, `.on_blue`, `.on_magenta`, `.on_cyan`, `.on_white`
+- 256-color: `.bg(0-255)`
+- RGB: `.bg(r, g, b)`
+
 ## Handling Input
 
 ### Keyboard
