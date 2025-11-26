@@ -28,6 +28,8 @@ examples/simple
 # Stray directories
 d:/
 /d/
+/bubbles/
+/layout_example
 
 # Status tracking files (not part of library)
 implementation-status-summary.md
