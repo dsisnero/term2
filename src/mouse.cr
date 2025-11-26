@@ -164,58 +164,49 @@ module Term2
       wheel_bit = (code & 64) != 0  # Bit 6 indicates wheel
       button_bits = code & 3        # Bits 0-1 for button
 
-      button = case
-               when wheel_bit # Wheel events (bit 6 set)
-                 case button_bits
-                 when 0 then MouseEvent::Button::WheelUp
-                 when 1 then MouseEvent::Button::WheelDown
-                 when 2 then MouseEvent::Button::WheelLeft
-                 when 3 then MouseEvent::Button::WheelRight
-                 else        MouseEvent::Button::None
-                 end
-               when motion_bit && button_bits == 3
-                 # Motion without button = hover (no button pressed)
-                 MouseEvent::Button::None
-               when motion_bit # Motion with button held = drag
-                 case button_bits
-                 when 0 then MouseEvent::Button::Left
-                 when 1 then MouseEvent::Button::Middle
-                 when 2 then MouseEvent::Button::Right
-                 else        MouseEvent::Button::None
-                 end
-               else # Regular button events
-                 case button_bits
-                 when 0 then MouseEvent::Button::Left
-                 when 1 then MouseEvent::Button::Middle
-                 when 2 then MouseEvent::Button::Right
-                 when 3 then MouseEvent::Button::None # Release has no specific button
-                 else        MouseEvent::Button::None
-                 end
-               end
+      button = parse_sgr_button(wheel_bit, motion_bit, button_bits)
+      action = parse_sgr_action(wheel_bit, motion_bit, button_bits, final_char)
 
-      action = case
-               when wheel_bit
-                 # Wheel events are press
-                 MouseEvent::Action::Press
-               when motion_bit && button_bits == 3
-                 # Hover (motion without button)
-                 MouseEvent::Action::Move
-               when motion_bit
-                 # Drag (motion with button)
-                 MouseEvent::Action::Drag
-               when final_char == "m"
-                 # Release (lowercase m)
-                 MouseEvent::Action::Release
-               else
-                 # Press (uppercase M)
-                 MouseEvent::Action::Press
-               end
-
+      shift = (code & 4) != 0
       alt = (code & 8) != 0
       ctrl = (code & 16) != 0
-      shift = (code & 4) != 0
 
       MouseEvent.new(x, y, button, action, alt, ctrl, shift)
+    end
+
+    private def parse_sgr_button(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32) : MouseEvent::Button
+      if wheel_bit
+        case button_bits
+        when 0 then MouseEvent::Button::WheelUp
+        when 1 then MouseEvent::Button::WheelDown
+        when 2 then MouseEvent::Button::WheelLeft
+        when 3 then MouseEvent::Button::WheelRight
+        else        MouseEvent::Button::None
+        end
+      elsif motion_bit && button_bits == 3
+        MouseEvent::Button::None
+      else
+        case button_bits
+        when 0 then MouseEvent::Button::Left
+        when 1 then MouseEvent::Button::Middle
+        when 2 then MouseEvent::Button::Right
+        else        MouseEvent::Button::None
+        end
+      end
+    end
+
+    private def parse_sgr_action(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32, final_char : String) : MouseEvent::Action
+      if wheel_bit
+        MouseEvent::Action::Press
+      elsif motion_bit && button_bits == 3
+        MouseEvent::Action::Move
+      elsif motion_bit
+        MouseEvent::Action::Drag
+      elsif final_char == "m"
+        MouseEvent::Action::Release
+      else
+        MouseEvent::Action::Press
+      end
     end
 
     private def parse_legacy_mouse(button_code : Int32, x_code : Int32, y_code : Int32) : MouseEvent?

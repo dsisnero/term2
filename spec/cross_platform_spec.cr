@@ -151,19 +151,21 @@ describe "Cross-Platform Compatibility" do
         reader = Term2::MouseReader.new
         event = reader.check_mouse_event("\e[<0;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.x.should eq(10)
-        event.y.should eq(20)
-        event.button.should eq(Term2::MouseEvent::Button::Left)
-        event.action.should eq(Term2::MouseEvent::Action::Press)
+        if event
+          event.x.should eq(10)
+          event.y.should eq(20)
+          event.button.should eq(Term2::MouseEvent::Button::Left)
+          event.action.should eq(Term2::MouseEvent::Action::Press)
+        end
       end
 
       it "parses SGR mouse release events" do
         reader = Term2::MouseReader.new
         event = reader.check_mouse_event("\e[<0;10;20m")
         event.should_not be_nil
-        event = event.not_nil!
-        event.action.should eq(Term2::MouseEvent::Action::Release)
+        if event
+          event.action.should eq(Term2::MouseEvent::Action::Release)
+        end
       end
 
       it "parses SGR mouse with modifiers" do
@@ -171,20 +173,23 @@ describe "Cross-Platform Compatibility" do
         # Code 8 = Alt modifier (bit 3)
         event = reader.check_mouse_event("\e[<8;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.alt?.should be_true
+        if event
+          event.alt?.should be_true
+        end
 
         # Code 16 = Ctrl modifier (bit 4)
         event = reader.check_mouse_event("\e[<16;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.ctrl?.should be_true
+        if event
+          event.ctrl?.should be_true
+        end
 
         # Code 4 = Shift modifier (bit 2)
         event = reader.check_mouse_event("\e[<4;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.shift?.should be_true
+        if event
+          event.shift?.should be_true
+        end
       end
 
       it "parses wheel events" do
@@ -192,14 +197,16 @@ describe "Cross-Platform Compatibility" do
         # Code 64 = wheel up
         event = reader.check_mouse_event("\e[<64;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.button.should eq(Term2::MouseEvent::Button::WheelUp)
+        if event
+          event.button.should eq(Term2::MouseEvent::Button::WheelUp)
+        end
 
         # Code 65 = wheel down
         event = reader.check_mouse_event("\e[<65;10;20M")
         event.should_not be_nil
-        event = event.not_nil!
-        event.button.should eq(Term2::MouseEvent::Button::WheelDown)
+        if event
+          event.button.should eq(Term2::MouseEvent::Button::WheelDown)
+        end
       end
     end
 
@@ -210,10 +217,11 @@ describe "Cross-Platform Compatibility" do
         # Button 0 (left) at position (10, 20)
         event = reader.check_mouse_event("\e[M #{42.chr}#{52.chr}")
         event.should_not be_nil
-        event = event.not_nil!
-        event.x.should eq(10)
-        event.y.should eq(20)
-        event.button.should eq(Term2::MouseEvent::Button::Left)
+        if event
+          event.x.should eq(10)
+          event.y.should eq(20)
+          event.button.should eq(Term2::MouseEvent::Button::Left)
+        end
       end
     end
   end
@@ -222,13 +230,17 @@ describe "Cross-Platform Compatibility" do
     it "recognizes focus in sequence" do
       key = Term2::KeySequences.find("\e[I")
       key.should_not be_nil
-      key.not_nil!.type.should eq(Term2::KeyType::FocusIn)
+      if key
+        key.type.should eq(Term2::KeyType::FocusIn)
+      end
     end
 
     it "recognizes focus out sequence" do
       key = Term2::KeySequences.find("\e[O")
       key.should_not be_nil
-      key.not_nil!.type.should eq(Term2::KeyType::FocusOut)
+      if key
+        key.type.should eq(Term2::KeyType::FocusOut)
+      end
     end
   end
 
