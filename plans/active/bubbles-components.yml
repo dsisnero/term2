@@ -1,0 +1,181 @@
+# Workstream Definition: Bubbles Components Port
+# Porting standard UI components from Charmbracelet's Bubbles library to Term2
+
+workstream:
+  id: "bubbles-components"
+  title: "Bubbles Components Port"
+  letter: "B"
+  status: "active"
+  priority: 1
+  created_at: "2025-11-25T00:00:00Z"
+  updated_at: "2025-11-25T00:00:00Z"
+
+assignment:
+  assigned_agent: "term2-dev"
+  agent_type: "specialist"
+  required_skills: ["crystal", "tui", "porting"]
+  estimated_completion: "2025-12-31"
+
+dependencies:
+  blocks: []
+  blocked_by: []
+  depends_on: ["bubbletea-feature-parity"]
+  related_to: []
+
+requirements:
+  prerequisites:
+    - "term2_core_stable"
+    - "styling_dsl_available"
+  acceptance_criteria:
+    - "All components ported with feature parity"
+    - "Comprehensive specs for each component"
+    - "Example program for each component"
+    - "Components use Term2 styling DSL"
+
+tasks:
+  # Phase 1: Core Utilities & Simple Components
+  - id: "core-utilities"
+    description: "Port foundational utilities (Key, Cursor, RuneUtil, Viewport)"
+    status: "pending"
+    priority: 1
+    estimated_hours: 8
+    actual_hours: 0
+    dependencies: []
+    acceptance_criteria:
+      - "KeyBinding struct and matching logic implemented"
+      - "Cursor manipulation utilities ported"
+      - "RuneUtil width calculations implemented"
+      - "Viewport component with scrolling and clipping"
+    notes: "Base for other components"
+
+  - id: "simple-components"
+    description: "Port simple components (Spinner, Progress, Timer, Stopwatch)"
+    status: "pending"
+    priority: 2
+    estimated_hours: 12
+    actual_hours: 0
+    dependencies: ["core-utilities"]
+    acceptance_criteria:
+      - "Spinner with all standard types"
+      - "ProgressBar with percentage and styling"
+      - "Timer with timeout handling"
+      - "Stopwatch with elapsed time tracking"
+    notes: "Spinner and Progress partially exist, need review/completion"
+
+  # Phase 2: Input & Text Handling
+  - id: "text-input"
+    description: "Port TextInput component"
+    status: "pending"
+    priority: 3
+    estimated_hours: 8
+    actual_hours: 0
+    dependencies: ["core-utilities"]
+    acceptance_criteria:
+      - "Cursor movement (home, end, left, right)"
+      - "Text manipulation (insert, delete)"
+      - "Password mode and placeholder"
+      - "Validation and limits"
+    notes: "Critical for forms"
+
+  - id: "text-area"
+    description: "Port TextArea component"
+    status: "pending"
+    priority: 3
+    estimated_hours: 12
+    actual_hours: 0
+    dependencies: ["text-input"]
+    acceptance_criteria:
+      - "Multi-line editing and cursor movement"
+      - "Line wrapping and scrolling"
+      - "Line numbering and styling"
+    notes: "Complex cursor logic"
+
+  # Phase 3: Data Display & Navigation
+  - id: "paginator"
+    description: "Port Paginator component"
+    status: "pending"
+    priority: 4
+    estimated_hours: 4
+    actual_hours: 0
+    dependencies: []
+    acceptance_criteria:
+      - "Page calculation and navigation"
+      - "Dots and Arabic numbering styles"
+    notes: "Used by List and Table"
+
+  - id: "list"
+    description: "Port List component"
+    status: "pending"
+    priority: 4
+    estimated_hours: 16
+    actual_hours: 0
+    dependencies: ["paginator"]
+    acceptance_criteria:
+      - "Item filtering and selection"
+      - "Default item delegate"
+      - "Pagination integration"
+      - "Status bar and help integration"
+    notes: "One of the most complex components"
+
+  - id: "table"
+    description: "Port Table component"
+    status: "pending"
+    priority: 4
+    estimated_hours: 8
+    actual_hours: 0
+    dependencies: []
+    acceptance_criteria:
+      - "Column width calculation"
+      - "Row selection and navigation"
+      - "Header and row styling"
+    notes: "Needs efficient rendering"
+
+  # Phase 4: Advanced Components
+  - id: "file-picker"
+    description: "Port FilePicker component"
+    status: "pending"
+    priority: 5
+    estimated_hours: 8
+    actual_hours: 0
+    dependencies: ["list"]
+    acceptance_criteria:
+      - "Directory traversal"
+      - "File selection and filtering"
+      - "Permission handling"
+    notes: "Requires filesystem access"
+
+  - id: "help"
+    description: "Port Help component"
+    status: "pending"
+    priority: 5
+    estimated_hours: 4
+    actual_hours: 0
+    dependencies: ["core-utilities"]
+    acceptance_criteria:
+      - "Key binding display"
+      - "Short and full help views"
+      - "Auto-layout based on width"
+    notes: "Integrates with KeyBinding"
+
+progress:
+  total_tasks: 9
+  completed_tasks: 0
+  blocked_tasks: 0
+  completion_percentage: 0
+  last_progress_update: "2025-11-25T00:00:00Z"
+
+oracle_insights:
+  strategic_importance: "high"
+  complexity: "medium"
+  risk_level: "low"
+  optimization_suggestions:
+    - "Reuse existing Term2 styling DSL"
+    - "Implement components in parallel where possible"
+
+links:
+  plan_reference: "plans/README.md"
+  related_files:
+    - "src/components/"
+    - "bubbles/"
+  documentation:
+    - "https://github.com/charmbracelet/bubbles"
