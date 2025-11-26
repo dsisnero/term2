@@ -5,7 +5,7 @@ module Term2
   # Views are used for layout calculations and can be split, padded,
   # centered, and nested to create complex UI arrangements.
   #
-  # ```crystal
+  # ```
   # # Create a full-screen view
   # screen = Term2::View.new(0, 0, 80, 24)
   #

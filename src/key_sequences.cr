@@ -7,14 +7,14 @@ module Term2
     # Sequence mappings for terminal escape sequences
     SEQUENCES = {
       # Arrow keys
-      "\e[A"    => Key.new(KeyType::Up),
-      "\e[B"    => Key.new(KeyType::Down),
-      "\e[C"    => Key.new(KeyType::Right),
-      "\e[D"    => Key.new(KeyType::Left),
-      "\eOA"    => Key.new(KeyType::Up),    # Powershell / vt100
-      "\eOB"    => Key.new(KeyType::Down),  # Powershell / vt100
-      "\eOC"    => Key.new(KeyType::Right), # Powershell / vt100
-      "\eOD"    => Key.new(KeyType::Left),  # Powershell / vt100
+      "\e[A" => Key.new(KeyType::Up),
+      "\e[B" => Key.new(KeyType::Down),
+      "\e[C" => Key.new(KeyType::Right),
+      "\e[D" => Key.new(KeyType::Left),
+      "\eOA" => Key.new(KeyType::Up),    # Powershell / vt100
+      "\eOB" => Key.new(KeyType::Down),  # Powershell / vt100
+      "\eOC" => Key.new(KeyType::Right), # Powershell / vt100
+      "\eOD" => Key.new(KeyType::Left),  # Powershell / vt100
 
       # Shift + Arrow
       "\e[1;2A" => Key.new(KeyType::ShiftUp),
@@ -91,25 +91,25 @@ module Term2
       "\e[6^"   => Key.new(KeyType::CtrlPgDown), # urxvt
       "\e[6;7~" => Key.new(KeyType::CtrlPgDown, alt: true),
 
-      "\e[1~"    => Key.new(KeyType::Home),
-      "\e[H"     => Key.new(KeyType::Home),
-      "\e[1;3H"  => Key.new(KeyType::Home, alt: true),
-      "\e[1;5H"  => Key.new(KeyType::CtrlHome),
-      "\e[1;7H"  => Key.new(KeyType::CtrlHome, alt: true),
-      "\e[1;2H"  => Key.new(KeyType::ShiftHome),
-      "\e[1;4H"  => Key.new(KeyType::ShiftHome, alt: true),
-      "\e[1;6H"  => Key.new(KeyType::CtrlShiftHome),
-      "\e[1;8H"  => Key.new(KeyType::CtrlShiftHome, alt: true),
+      "\e[1~"   => Key.new(KeyType::Home),
+      "\e[H"    => Key.new(KeyType::Home),
+      "\e[1;3H" => Key.new(KeyType::Home, alt: true),
+      "\e[1;5H" => Key.new(KeyType::CtrlHome),
+      "\e[1;7H" => Key.new(KeyType::CtrlHome, alt: true),
+      "\e[1;2H" => Key.new(KeyType::ShiftHome),
+      "\e[1;4H" => Key.new(KeyType::ShiftHome, alt: true),
+      "\e[1;6H" => Key.new(KeyType::CtrlShiftHome),
+      "\e[1;8H" => Key.new(KeyType::CtrlShiftHome, alt: true),
 
-      "\e[4~"    => Key.new(KeyType::End),
-      "\e[F"     => Key.new(KeyType::End),
-      "\e[1;3F"  => Key.new(KeyType::End, alt: true),
-      "\e[1;5F"  => Key.new(KeyType::CtrlEnd),
-      "\e[1;7F"  => Key.new(KeyType::CtrlEnd, alt: true),
-      "\e[1;2F"  => Key.new(KeyType::ShiftEnd),
-      "\e[1;4F"  => Key.new(KeyType::ShiftEnd, alt: true),
-      "\e[1;6F"  => Key.new(KeyType::CtrlShiftEnd),
-      "\e[1;8F"  => Key.new(KeyType::CtrlShiftEnd, alt: true),
+      "\e[4~"   => Key.new(KeyType::End),
+      "\e[F"    => Key.new(KeyType::End),
+      "\e[1;3F" => Key.new(KeyType::End, alt: true),
+      "\e[1;5F" => Key.new(KeyType::CtrlEnd),
+      "\e[1;7F" => Key.new(KeyType::CtrlEnd, alt: true),
+      "\e[1;2F" => Key.new(KeyType::ShiftEnd),
+      "\e[1;4F" => Key.new(KeyType::ShiftEnd, alt: true),
+      "\e[1;6F" => Key.new(KeyType::CtrlShiftEnd),
+      "\e[1;8F" => Key.new(KeyType::CtrlShiftEnd, alt: true),
 
       "\e[7~" => Key.new(KeyType::Home),          # urxvt
       "\e[7^" => Key.new(KeyType::CtrlHome),      # urxvt
@@ -128,10 +128,10 @@ module Term2
       "\e[[D" => Key.new(KeyType::F4), # linux console
       "\e[[E" => Key.new(KeyType::F5), # linux console
 
-      "\eOP"   => Key.new(KeyType::F1),
-      "\eOQ"   => Key.new(KeyType::F2),
-      "\eOR"   => Key.new(KeyType::F3),
-      "\eOS"   => Key.new(KeyType::F4),
+      "\eOP" => Key.new(KeyType::F1),
+      "\eOQ" => Key.new(KeyType::F2),
+      "\eOR" => Key.new(KeyType::F3),
+      "\eOS" => Key.new(KeyType::F4),
 
       "\e[1;3P" => Key.new(KeyType::F1, alt: true),
       "\e[1;3Q" => Key.new(KeyType::F2, alt: true),
@@ -143,7 +143,7 @@ module Term2
       "\e[13~" => Key.new(KeyType::F3), # urxvt
       "\e[14~" => Key.new(KeyType::F4), # urxvt
 
-      "\e[15~" => Key.new(KeyType::F5),
+      "\e[15~"   => Key.new(KeyType::F5),
       "\e[15;3~" => Key.new(KeyType::F5, alt: true),
 
       "\e[17~" => Key.new(KeyType::F6),

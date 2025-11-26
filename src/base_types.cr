@@ -5,7 +5,7 @@ module Term2
   # Your application's model must inherit from this class.
   # The model represents all of your application's state.
   #
-  # ```crystal
+  # ```
   # class MyModel < Term2::Model
   #   getter count : Int32
   #   getter name : String
@@ -22,12 +22,13 @@ module Term2
   # Messages are the only way to update your model. They represent
   # events like key presses, mouse clicks, timers, or custom events.
   #
-  # ```crystal
+  # ```
   # class IncrementMsg < Term2::Message
   # end
   #
   # class SetNameMsg < Term2::Message
   #   getter name : String
+  #
   #   def initialize(@name); end
   # end
   # ```
@@ -43,14 +44,17 @@ module Term2
   # - Alt combinations (alt? == true)
   # - Pasted text (paste? == true)
   #
-  # ```crystal
+  # ```
   # case msg
   # when Term2::KeyMsg
   #   key = msg.key
   #   case key.to_s
-  #   when "q" then # quit
-  #   when "ctrl+c" then # also quit
-  #   when "up" then # move up
+  #   when "q" # quit
+  #  then
+  #   when "ctrl+c" # also quit
+  #  then
+  #   when "up" # move up
+  #  then
   #   end
   # end
   # ```
@@ -251,10 +255,10 @@ module Term2
   # Maps `KeyType` enum values to their string representations used
   # in `Key#to_s` and for matching in `Key#matches?`.
   #
-  # ```crystal
-  # Term2::KEY_NAMES[KeyType::CtrlC]  # => "ctrl+c"
-  # Term2::KEY_NAMES[KeyType::Up]     # => "up"
-  # Term2::KEY_NAMES[KeyType::F1]     # => "f1"
+  # ```
+  # Term2::KEY_NAMES[KeyType::CtrlC] # => "ctrl+c"
+  # Term2::KEY_NAMES[KeyType::Up]    # => "up"
+  # Term2::KEY_NAMES[KeyType::F1]    # => "f1"
   # ```
   KEY_NAMES = {
     # Control keys

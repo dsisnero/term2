@@ -25,7 +25,7 @@ class AppModel < Model
     @mouse_button : String = "none",
     @mouse_action : String = "none",
     @focused : Bool = true,
-    @events : Array(String) = [] of String
+    @events : Array(String) = [] of String,
   )
   end
 end
@@ -39,9 +39,9 @@ class MouseFocusApp < Application
   # Configure program options for mouse and focus
   def options : Array(Term2::ProgramOption)
     [
-      WithAltScreen.new,        # Use alternate screen
-      WithMouseAllMotion.new,   # Track all mouse motion (including hover)
-      WithReportFocus.new,      # Report focus in/out events
+      WithAltScreen.new,      # Use alternate screen
+      WithMouseAllMotion.new, # Track all mouse motion (including hover)
+      WithReportFocus.new,    # Report focus in/out events
     ]
   end
 
@@ -51,13 +51,12 @@ class MouseFocusApp < Application
     case msg
     when KeyPress
       case msg.key
-      when "q", "\u0003"  # q or Ctrl+C
+      when "q", "\u0003" # q or Ctrl+C
         {app, Cmd.quit}
       else
         new_events = add_event(app.events, "Key: #{msg.key.inspect}")
         {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, app.focused?, new_events), Cmd.none}
       end
-
     when MouseEvent
       # Handle mouse events
       new_events = add_event(app.events, "Mouse: #{msg.action} #{msg.button} at (#{msg.x}, #{msg.y})")
@@ -70,17 +69,14 @@ class MouseFocusApp < Application
         events: new_events
       )
       {new_model, Cmd.none}
-
     when FocusMsg
       # Terminal gained focus
       new_events = add_event(app.events, "Window FOCUSED")
       {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, true, new_events), Cmd.none}
-
     when BlurMsg
       # Terminal lost focus
       new_events = add_event(app.events, "Window BLURRED")
       {AppModel.new(app.mouse_x, app.mouse_y, app.mouse_button, app.mouse_action, false, new_events), Cmd.none}
-
     else
       {app, Cmd.none}
     end
@@ -98,10 +94,10 @@ class MouseFocusApp < Application
     app = model.as(AppModel)
     focus_indicator = app.focused? ? "●" : "○"
     focus_status = if app.focused?
-      S.green | "#{focus_indicator} FOCUSED"
-    else
-      S.red | "#{focus_indicator} BLURRED"
-    end
+                     S.green | "#{focus_indicator} FOCUSED"
+                   else
+                     S.red | "#{focus_indicator} BLURRED"
+                   end
 
     String.build do |s|
       s << (S.bold.cyan | "╔══════════════════════════════════════════════════════╗") << "\n"

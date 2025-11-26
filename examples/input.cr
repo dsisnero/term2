@@ -35,7 +35,7 @@ class InputDemo < Application
     case msg
     when KeyPress
       case msg.key
-      when "\u0003"  # Ctrl+C
+      when "\u0003" # Ctrl+C
         {app, Cmd.quit}
       when "enter"
         # Could submit the text here

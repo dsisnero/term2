@@ -27,14 +27,14 @@ describe Term2::Style do
       style = Term2::Style.new(bold: true)
       result = style.apply("hello")
       result.should contain("\e[")
-      result.should contain("1")  # bold code
+      result.should contain("1") # bold code
       result.should end_with("\e[0m")
     end
 
     it "applies foreground color" do
       style = Term2::Style.new(foreground: Term2::Color::RED)
       result = style.apply("hello")
-      result.should contain("31")  # red foreground
+      result.should contain("31") # red foreground
     end
   end
 
@@ -106,7 +106,7 @@ describe Term2::Color do
   describe "#foreground_codes" do
     it "returns codes for named colors" do
       codes = Term2::Color::RED.foreground_codes
-      codes.should eq([31])  # 30 + 1 (red)
+      codes.should eq([31]) # 30 + 1 (red)
     end
 
     it "returns codes for indexed colors" do
@@ -133,22 +133,22 @@ describe Term2::S do
     it "applies styles to text" do
       result = Term2::S.bold.apply("hello")
       result.should start_with("\e[")
-      result.should contain("1")  # bold code
+      result.should contain("1") # bold code
       result.should contain("hello")
       result.should end_with("\e[0m")
     end
 
     it "chains multiple styles" do
       result = Term2::S.bold.cyan.apply("hello")
-      result.should contain("1")   # bold
-      result.should contain("36")  # cyan
+      result.should contain("1")  # bold
+      result.should contain("36") # cyan
     end
   end
 
   describe "#|" do
     it "is shorthand for apply" do
       result = Term2::S.red | "hello"
-      result.should contain("31")  # red
+      result.should contain("31") # red
       result.should contain("hello")
     end
   end
@@ -175,7 +175,7 @@ describe Term2::S do
   describe "background colors" do
     it "applies background colors" do
       result = Term2::S.on_red.apply("hello")
-      result.should contain("41")  # red background
+      result.should contain("41") # red background
     end
   end
 end
@@ -232,7 +232,7 @@ describe "String extensions" do
 
   describe "#styled" do
     it "applies raw SGR codes" do
-      result = "hello".styled(1, 36)  # bold cyan
+      result = "hello".styled(1, 36) # bold cyan
       result.should eq("\e[1;36mhello\e[0m")
     end
   end
@@ -242,14 +242,14 @@ describe Term2::Text do
   describe ".bold" do
     it "applies bold to text" do
       result = Term2::Text.bold("hello")
-      result.should contain("1")  # bold code
+      result.should contain("1") # bold code
     end
   end
 
   describe ".red" do
     it "applies red to text" do
       result = Term2::Text.red("hello")
-      result.should contain("31")  # red code
+      result.should contain("31") # red code
     end
   end
 
@@ -257,13 +257,13 @@ describe Term2::Text do
     it "applies style object to text" do
       style = Term2::Style.new(bold: true)
       result = Term2::Text.style("hello", style)
-      result.should contain("1")  # bold
+      result.should contain("1") # bold
     end
 
     it "combines multiple styles" do
       result = Term2::Text.style("hello", Term2::Style.bold, Term2::Style.cyan)
-      result.should contain("1")   # bold
-      result.should contain("36")  # cyan
+      result.should contain("1")  # bold
+      result.should contain("36") # cyan
     end
   end
 end

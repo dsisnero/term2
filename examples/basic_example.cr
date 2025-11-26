@@ -74,7 +74,7 @@ class CounterApp < Application
       {CounterModel.new(model.count - 1), Cmd.none}
     when "0"
       {CounterModel.new, Cmd.none}
-    when "q", "\u0003"  # q or Ctrl+C
+    when "q", "\u0003" # q or Ctrl+C
       {model, Cmd.quit}
     else
       {model, Cmd.none}

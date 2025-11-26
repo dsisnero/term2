@@ -7,7 +7,7 @@ module Term2
   # Mouse events are sent when mouse tracking is enabled via
   # `ProgramOptions#with_mouse_all_motion` or similar options.
   #
-  # ```crystal
+  # ```
   # def update(model : MyModel, msg : Term2::Message) : {MyModel, Term2::Cmd?}
   #   case msg
   #   when Term2::MouseEvent
@@ -160,9 +160,9 @@ module Term2
       # - Bit 4: ctrl
       # - Bit 5: motion (indicates motion while button held, or hover if button bits are 3)
       # - Bit 6: wheel
-      motion_bit = (code & 32) != 0  # Bit 5 indicates motion
-      wheel_bit = (code & 64) != 0   # Bit 6 indicates wheel
-      button_bits = code & 3         # Bits 0-1 for button
+      motion_bit = (code & 32) != 0 # Bit 5 indicates motion
+      wheel_bit = (code & 64) != 0  # Bit 6 indicates wheel
+      button_bits = code & 3        # Bits 0-1 for button
 
       button = case
                when wheel_bit # Wheel events (bit 6 set)
@@ -188,7 +188,7 @@ module Term2
                  when 0 then MouseEvent::Button::Left
                  when 1 then MouseEvent::Button::Middle
                  when 2 then MouseEvent::Button::Right
-                 when 3 then MouseEvent::Button::None  # Release has no specific button
+                 when 3 then MouseEvent::Button::None # Release has no specific button
                  else        MouseEvent::Button::None
                  end
                end
@@ -281,7 +281,7 @@ module Term2
 
     # Enable mouse click reporting
     def self.enable_click_reporting(io : IO = STDOUT)
-      io.print "\e[?1006h"  # SGR mode for extended coordinates
+      io.print "\e[?1006h" # SGR mode for extended coordinates
       io.print "\e[?1000h"
       io.flush
     end
@@ -294,7 +294,7 @@ module Term2
 
     # Enable mouse drag reporting
     def self.enable_drag_reporting(io : IO = STDOUT)
-      io.print "\e[?1006h"  # SGR mode for extended coordinates
+      io.print "\e[?1006h" # SGR mode for extended coordinates
       io.print "\e[?1002h"
       io.flush
     end
@@ -307,8 +307,8 @@ module Term2
 
     # Enable mouse move reporting (all motion including hover)
     def self.enable_move_reporting(io : IO = STDOUT)
-      io.print "\e[?1006h"  # SGR mode for extended coordinates
-      io.print "\e[?1003h"  # Any-event tracking (all motion)
+      io.print "\e[?1006h" # SGR mode for extended coordinates
+      io.print "\e[?1003h" # Any-event tracking (all motion)
       io.flush
     end
 

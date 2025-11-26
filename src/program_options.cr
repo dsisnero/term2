@@ -5,7 +5,7 @@ module Term2
   # Program options are applied when creating a `Program` to configure
   # terminal behavior, input/output handling, and UI features.
   #
-  # ```crystal
+  # ```
   # options = Term2::ProgramOptions.new(
   #   Term2::WithAltScreen.new,
   #   Term2::WithMouseAllMotion.new,
@@ -58,7 +58,7 @@ module Term2
 
   # Configures a custom input source.
   #
-  # ```crystal
+  # ```
   # # Use a string as input for testing
   # input = IO::Memory.new("test input\n")
   # options = Term2::ProgramOptions.new(Term2::WithInput.new(input))
@@ -73,7 +73,7 @@ module Term2
 
   # Configures a custom output destination.
   #
-  # ```crystal
+  # ```
   # # Capture output for testing
   # output = IO::Memory.new
   # options = Term2::ProgramOptions.new(Term2::WithOutput.new(output))
@@ -104,7 +104,7 @@ module Term2
 
   # Configures the frame rate for rendering.
   #
-  # ```crystal
+  # ```
   # # Set to 30 FPS
   # Term2::WithFPS.new(30.0)
   # ```
@@ -170,7 +170,7 @@ module Term2
 
   # Container for multiple program options.
   #
-  # ```crystal
+  # ```
   # options = Term2::ProgramOptions.new(
   #   Term2::WithAltScreen.new,
   #   Term2::WithMouseAllMotion.new

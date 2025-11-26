@@ -24,7 +24,7 @@ module Term2
     # Enable raw mode on an IO (typically STDIN)
     # Returns a block that can be used to restore the original mode
     # Typically you should use the block form: raw(io) { ... }
-    def self.raw(io : IO, &block)
+    def self.raw(io : IO, &)
       if io.responds_to?(:raw)
         io.raw do
           yield

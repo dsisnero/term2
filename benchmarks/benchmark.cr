@@ -72,10 +72,10 @@ module Term2Benchmarks
 
     reader = Term2::MouseReader.new
     sgr_events = [
-      "\e[<0;10;20M",   # Left click
-      "\e[<0;10;20m",   # Left release
-      "\e[<64;10;20M",  # Wheel up
-      "\e[<32;10;20M",  # Motion
+      "\e[<0;10;20M",  # Left click
+      "\e[<0;10;20m",  # Left release
+      "\e[<64;10;20M", # Wheel up
+      "\e[<32;10;20M", # Motion
     ]
 
     Benchmark.ips do |x|
