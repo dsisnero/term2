@@ -1,53 +1,58 @@
-require "../src/term2"
-
 # Simple counter application built with Term2.
-class CounterApp < Term2::Application
-  class CounterModel < Term2::Model
-    getter count : Int32
+#
+# Run with: crystal run examples/simple.cr
+require "../src/term2"
+include Term2::Prelude
 
-    def initialize(@count : Int32 = 0)
-    end
+class CounterModel < Model
+  getter count : Int32
+
+  def initialize(@count : Int32 = 0)
   end
+end
 
+class CounterApp < Application
   def init
-    {CounterModel.new, Term2::Cmd.none}
+    CounterModel.new
   end
 
-  def update(msg : Term2::Message, model : Term2::Model)
+  def update(msg : Message, model : Model)
     counter = model.as(CounterModel)
 
     case msg
-    when Term2::KeyMsg
-      case msg.key.to_s
-      when "q", "ctrl+c"
-        {counter, Term2::Cmd.quit}
+    when KeyPress
+      case msg.key
+      when "q", "\u0003"  # q or Ctrl+C
+        {counter, Cmd.quit}
       when "+", "="
-        {CounterModel.new(counter.count + 1), Term2::Cmd.none}
+        {CounterModel.new(counter.count + 1), Cmd.none}
       when "-", "_"
-        {CounterModel.new(counter.count - 1), Term2::Cmd.none}
+        {CounterModel.new(counter.count - 1), Cmd.none}
       when "r"
-        {CounterModel.new, Term2::Cmd.none}
+        {CounterModel.new, Cmd.none}
       else
-        {model, Term2::Cmd.none}
+        {model, Cmd.none}
       end
     else
-      {model, Term2::Cmd.none}
+      {model, Cmd.none}
     end
   end
 
-  def view(model : Term2::Model) : String
+  def view(model : Model) : String
     counter = model.as(CounterModel)
-    <<-TERMINAL
-    \033[?25l\033[2J\033[H
-    Counter: #{counter.count}
-
-    Commands:
-      +/=: Increment
-      -/_: Decrement
-      r: Reset
-      q or Ctrl+C: Quit
-    \033[?25h
-    TERMINAL
+    # Note: Framework handles cursor hide/show and screen clearing.
+    # View just returns content to display.
+    String.build do |s|
+      s << "\n"
+      s << "Counter: ".bold << counter.count.to_s.cyan << "\n"
+      s << "\n"
+      s << "Commands:".bold.yellow << "\n"
+      s << "  +/=".cyan << ": Increment\n"
+      s << "  -/_".cyan << ": Decrement\n"
+      s << "  r".cyan << ": Reset\n"
+      s << "  q".cyan << " or " << "Ctrl+C".cyan << ": Quit\n"
+      s << "\n"
+    end
   end
 end
 

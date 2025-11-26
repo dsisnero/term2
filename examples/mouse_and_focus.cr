@@ -37,7 +37,7 @@ class MouseFocusApp < Application
   end
 
   # Configure program options for mouse and focus
-  def options : Array(ProgramOption)
+  def options : Array(Term2::ProgramOption)
     [
       WithAltScreen.new,        # Use alternate screen
       WithMouseAllMotion.new,   # Track all mouse motion (including hover)
@@ -96,27 +96,32 @@ class MouseFocusApp < Application
 
   def view(model : Model) : String
     app = model.as(AppModel)
-    focus_status = app.focused? ? "\e[32m●\e[0m FOCUSED" : "\e[31m○\e[0m BLURRED"
+    focus_indicator = app.focused? ? "●" : "○"
+    focus_status = if app.focused?
+      S.green | "#{focus_indicator} FOCUSED"
+    else
+      S.red | "#{focus_indicator} BLURRED"
+    end
 
-    <<-VIEW
-    \e[?25l\e[2J\e[H
-    \e[1;36m╔══════════════════════════════════════════════════════╗
-    ║           Mouse & Focus Demo                          ║
-    ╚══════════════════════════════════════════════════════╝\e[0m
-
-    \e[1mMouse Position:\e[0m (#{app.mouse_x}, #{app.mouse_y})
-    \e[1mButton:\e[0m #{app.mouse_button}
-    \e[1mAction:\e[0m #{app.mouse_action}
-
-    \e[1mWindow Status:\e[0m #{focus_status}
-
-    \e[1;33mRecent Events:\e[0m
-    #{app.events.map { |e| "  • #{e}" }.join("\n")}
-
-    \e[90m──────────────────────────────────────────────────────\e[0m
-    \e[90mPress 'q' or Ctrl+C to quit\e[0m
-    \e[?25h
-    VIEW
+    String.build do |s|
+      s << (S.bold.cyan | "╔══════════════════════════════════════════════════════╗") << "\n"
+      s << (S.bold.cyan | "║           Mouse & Focus Demo                         ║") << "\n"
+      s << (S.bold.cyan | "╚══════════════════════════════════════════════════════╝") << "\n"
+      s << "\n"
+      s << "Mouse Position:".bold << " (#{app.mouse_x}, #{app.mouse_y})\n"
+      s << "Button:".bold << " #{app.mouse_button}\n"
+      s << "Action:".bold << " #{app.mouse_action}\n"
+      s << "\n"
+      s << "Window Status:".bold << " #{focus_status}\n"
+      s << "\n"
+      s << (S.bold.yellow | "Recent Events:") << "\n"
+      app.events.each do |event|
+        s << "  • #{event}\n"
+      end
+      s << "\n"
+      s << "──────────────────────────────────────────────────────".gray << "\n"
+      s << "Press 'q' or Ctrl+C to quit".gray << "\n"
+    end
   end
 end
 

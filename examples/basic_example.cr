@@ -1,74 +1,85 @@
+# Basic counter application with message types
+#
+# This example demonstrates:
+# - Custom message types for actions
+# - Key handling
+# - Styled output using the DSL
+#
+# Run with: crystal run examples/basic_example.cr
 require "../src/term2"
+include Term2::Prelude
 
-# A simple counter application
-class CounterApp < Term2::Application
-  class Model < Term2::Model
-    getter count : Int32
+class CounterModel < Model
+  getter count : Int32
 
-    def initialize(@count : Int32 = 0)
-    end
+  def initialize(@count : Int32 = 0)
   end
+end
 
-  class Increment < Term2::Message
-  end
+# Custom messages for explicit actions
+class Increment < Message
+end
 
-  class Decrement < Term2::Message
-  end
+class Decrement < Message
+end
 
-  class Reset < Term2::Message
-  end
+class Reset < Message
+end
 
+class CounterApp < Application
   def init
-    {Model.new, Term2::Cmd.none}
+    CounterModel.new
   end
 
-  def update(msg : Term2::Message, model : Term2::Model)
-    m = model.as(Model)
+  def update(msg : Message, model : Model)
+    m = model.as(CounterModel)
     case msg
     when Increment
-      {Model.new(m.count + 1), Term2::Cmd.none}
+      {CounterModel.new(m.count + 1), Cmd.none}
     when Decrement
-      {Model.new(m.count - 1), Term2::Cmd.none}
+      {CounterModel.new(m.count - 1), Cmd.none}
     when Reset
-      {Model.new, Term2::Cmd.none}
-    when Term2::KeyMsg
+      {CounterModel.new, Cmd.none}
+    when KeyPress
       handle_key(msg.key, m)
     else
-      {model, Term2::Cmd.none}
+      {model, Cmd.none}
     end
   end
 
-  def view(model : Term2::Model) : String
-    m = model.as(Model)
-    String.build do |str|
-      str << "\n"
-      str << "Counter: #{m.count}\n"
-      str << "\n"
-      str << "Controls:\n"
-      str << "  + / up: Increment\n"
-      str << "  - / down: Decrement\n"
-      str << "  0: Reset\n"
-      str << "  q / ctrl+c: Quit\n"
-      str << "\n"
+  def view(model : Model) : String
+    m = model.as(CounterModel)
+    String.build do |s|
+      s << "\n"
+      s << (S.bold.cyan | "╔════════════════════════════════╗") << "\n"
+      s << (S.bold.cyan | "║        Counter Example         ║") << "\n"
+      s << (S.bold.cyan | "╚════════════════════════════════╝") << "\n"
+      s << "\n"
+      s << "  Count: ".bold << m.count.to_s.bright_cyan << "\n"
+      s << "\n"
+      s << "  Controls:".bold.yellow << "\n"
+      s << "    " << "+".cyan << "/" << "up".cyan << ": Increment\n"
+      s << "    " << "-".cyan << "/" << "down".cyan << ": Decrement\n"
+      s << "    " << "0".cyan << ": Reset\n"
+      s << "    " << "q".cyan << "/" << "ctrl+c".cyan << ": Quit\n"
+      s << "\n"
     end
   end
 
-  private def handle_key(key : Term2::Key, model : Model) : {Model, Term2::Cmd}
-    case key.to_s
+  private def handle_key(key : String, model : CounterModel) : {CounterModel, Cmd}
+    case key
     when "+", "up"
-      {Model.new(model.count + 1), Term2::Cmd.none}
+      {CounterModel.new(model.count + 1), Cmd.none}
     when "-", "down"
-      {Model.new(model.count - 1), Term2::Cmd.none}
+      {CounterModel.new(model.count - 1), Cmd.none}
     when "0"
-      {Model.new, Term2::Cmd.none}
-    when "q", "ctrl+c"
-      {model, Term2::Cmd.quit}
+      {CounterModel.new, Cmd.none}
+    when "q", "\u0003"  # q or Ctrl+C
+      {model, Cmd.quit}
     else
-      {model, Term2::Cmd.none}
+      {model, Cmd.none}
     end
   end
 end
 
-# Run the application
-app = CounterApp.new
-app.run
+CounterApp.new.run

@@ -21,8 +21,8 @@ class LayoutApp < Application
     LayoutModel.new
   end
 
-  def options : Array(ProgramOption)
-    [WithAltScreen.new]
+  def options : Array(Term2::ProgramOption)
+    [WithAltScreen.new] of Term2::ProgramOption
   end
 
   def update(msg : Message, model : Model)
@@ -68,7 +68,8 @@ class LayoutApp < Application
     sidebar, main = body.split_horizontal(0.3)
 
     String.build do |io|
-      io << "\e[?25l\e[2J\e[H"
+      # Note: Framework handles cursor hide, clear screen, etc.
+      # View just returns content to display.
 
       # Draw header
       draw_box(io, header, "Layout Demo", layout.selected_pane == 0)
@@ -98,57 +99,55 @@ class LayoutApp < Application
       ])
 
       # Draw footer (status line)
-      io << "\e[#{layout.height};1H"
-      io << "\e[90m[1-3] Select pane | [Tab] Next pane | [q] Quit\e[0m"
-
-      io << "\e[?25h"
+      io << Cursor.move_to(layout.height, 1)
+      io << "[1-3] Select pane | [Tab] Next pane | [q] Quit".gray
     end
   end
 
   private def draw_box(io : IO, view : Term2::View, title : String, selected : Bool)
     return if view.width < 4 || view.height < 3
 
-    # Colors
-    border_color = selected ? "\e[1;36m" : "\e[90m"
-    reset = "\e[0m"
-
     # Top border
-    io << "\e[#{view.y + 1};#{view.x + 1}H"
-    io << border_color
-    io << "┌"
+    io << Cursor.move_to(view.y + 1, view.x + 1)
+    if selected
+      io << S.bold.cyan.apply("┌")
+    else
+      io << "┌".gray
+    end
     title_space = view.width - 4
+    border_char = selected ? (S.bold.cyan | "─") : "─".gray
     if title.size <= title_space
       padding = title_space - title.size
       left_pad = padding // 2
       right_pad = padding - left_pad
-      io << "─" * left_pad
+      (left_pad).times { io << border_char }
       io << " " << title << " "
-      io << "─" * right_pad
+      (right_pad).times { io << border_char }
     else
-      io << "─" * (view.width - 2)
+      (view.width - 2).times { io << border_char }
     end
-    io << "┐"
+    io << (selected ? (S.bold.cyan | "┐") : "┐".gray)
 
-    # Side borders
+    # Side borders (styling for corners already establishes context)
+    corner_style = selected ? S.bold.cyan : S.gray
     (1...view.height - 1).each do |row|
-      io << "\e[#{view.y + 1 + row};#{view.x + 1}H"
-      io << "│"
-      io << "\e[#{view.y + 1 + row};#{view.x + view.width}H"
-      io << "│"
+      io << Cursor.move_to(view.y + 1 + row, view.x + 1)
+      io << (corner_style | "│")
+      io << Cursor.move_to(view.y + 1 + row, view.x + view.width)
+      io << (corner_style | "│")
     end
 
     # Bottom border
-    io << "\e[#{view.y + view.height};#{view.x + 1}H"
-    io << "└"
-    io << "─" * (view.width - 2)
-    io << "┘"
-    io << reset
+    io << Cursor.move_to(view.y + view.height, view.x + 1)
+    io << (corner_style | "└")
+    (view.width - 2).times { io << border_char }
+    io << (corner_style | "┘")
   end
 
   private def draw_content(io : IO, view : Term2::View, lines : Array(String))
     lines.each_with_index do |line, idx|
       break if idx >= view.height
-      io << "\e[#{view.y + 1 + idx};#{view.x + 1}H"
+      io << Cursor.move_to(view.y + 1 + idx, view.x + 1)
       truncated = line.size > view.width ? line[0...view.width] : line
       io << truncated
     end
@@ -156,3 +155,4 @@ class LayoutApp < Application
 end
 
 LayoutApp.new.run
+
