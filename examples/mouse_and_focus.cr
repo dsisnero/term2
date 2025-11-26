@@ -30,7 +30,7 @@ class AppModel < Model
   end
 end
 
-class MouseFocusApp < Application
+class MouseFocusApp < Application(AppModel)
   def init
     # Start with initial model
     AppModel.new(events: ["Started! Move your mouse or click."])
@@ -45,8 +45,8 @@ class MouseFocusApp < Application
     ]
   end
 
-  def update(msg : Message, model : Model)
-    app = model.as(AppModel)
+  def update(msg : Message, model : AppModel)
+    app = model
 
     case msg
     when KeyPress
@@ -90,8 +90,8 @@ class MouseFocusApp < Application
     new_events
   end
 
-  def view(model : Model) : String
-    app = model.as(AppModel)
+  def view(model : AppModel) : String
+    app = model
     focus_indicator = app.focused? ? "●" : "○"
     focus_status = if app.focused?
                      S.green | "#{focus_indicator} FOCUSED"
@@ -99,24 +99,24 @@ class MouseFocusApp < Application
                      S.red | "#{focus_indicator} BLURRED"
                    end
 
-    String.build do |s|
-      s << (S.bold.cyan | "╔══════════════════════════════════════════════════════╗") << "\n"
-      s << (S.bold.cyan | "║           Mouse & Focus Demo                         ║") << "\n"
-      s << (S.bold.cyan | "╚══════════════════════════════════════════════════════╝") << "\n"
-      s << "\n"
-      s << "Mouse Position:".bold << " (#{app.mouse_x}, #{app.mouse_y})\n"
-      s << "Button:".bold << " #{app.mouse_button}\n"
-      s << "Action:".bold << " #{app.mouse_action}\n"
-      s << "\n"
-      s << "Window Status:".bold << " #{focus_status}\n"
-      s << "\n"
-      s << (S.bold.yellow | "Recent Events:") << "\n"
+    String.build do |str|
+      str << (S.bold.cyan | "╔══════════════════════════════════════════════════════╗") << "\n"
+      str << (S.bold.cyan | "║           Mouse & Focus Demo                         ║") << "\n"
+      str << (S.bold.cyan | "╚══════════════════════════════════════════════════════╝") << "\n"
+      str << "\n"
+      str << "Mouse Position:".bold << " (#{app.mouse_x}, #{app.mouse_y})\n"
+      str << "Button:".bold << " #{app.mouse_button}\n"
+      str << "Action:".bold << " #{app.mouse_action}\n"
+      str << "\n"
+      str << "Window Status:".bold << " #{focus_status}\n"
+      str << "\n"
+      str << (S.bold.yellow | "Recent Events:") << "\n"
       app.events.each do |event|
-        s << "  • #{event}\n"
+        str << "  • #{event}\n"
       end
-      s << "\n"
-      s << "──────────────────────────────────────────────────────".gray << "\n"
-      s << "Press 'q' or Ctrl+C to quit".gray << "\n"
+      str << "\n"
+      str << "──────────────────────────────────────────────────────".gray << "\n"
+      str << "Press 'q' or Ctrl+C to quit".gray << "\n"
     end
   end
 end

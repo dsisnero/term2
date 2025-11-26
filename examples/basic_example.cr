@@ -26,13 +26,13 @@ end
 class Reset < Message
 end
 
-class CounterApp < Application
+class CounterApp < Application(CounterModel)
   def init
     CounterModel.new
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(CounterModel)
+  def update(msg : Message, model : CounterModel)
+    m = model
     case msg
     when Increment
       {CounterModel.new(m.count + 1), Cmd.none}
@@ -47,22 +47,22 @@ class CounterApp < Application
     end
   end
 
-  def view(model : Model) : String
+  def view(model : CounterModel) : String
     m = model.as(CounterModel)
-    String.build do |s|
-      s << "\n"
-      s << (S.bold.cyan | "╔════════════════════════════════╗") << "\n"
-      s << (S.bold.cyan | "║        Counter Example         ║") << "\n"
-      s << (S.bold.cyan | "╚════════════════════════════════╝") << "\n"
-      s << "\n"
-      s << "  Count: ".bold << m.count.to_s.bright_cyan << "\n"
-      s << "\n"
-      s << "  Controls:".bold.yellow << "\n"
-      s << "    " << "+".cyan << "/" << "up".cyan << ": Increment\n"
-      s << "    " << "-".cyan << "/" << "down".cyan << ": Decrement\n"
-      s << "    " << "0".cyan << ": Reset\n"
-      s << "    " << "q".cyan << "/" << "ctrl+c".cyan << ": Quit\n"
-      s << "\n"
+    String.build do |str|
+      str << "\n"
+      str << (S.bold.cyan | "╔════════════════════════════════╗") << "\n"
+      str << (S.bold.cyan | "║        Counter Example         ║") << "\n"
+      str << (S.bold.cyan | "╚════════════════════════════════╝") << "\n"
+      str << "\n"
+      str << "  Count: ".bold << m.count.to_s.bright_cyan << "\n"
+      str << "\n"
+      str << "  Controls: ".bold.yellow << "\n"
+      str << "    " << "+".cyan << "/" << "up".cyan << ": Increment\n"
+      str << "    " << "-".cyan << "/" << "down".cyan << ": Decrement\n"
+      str << "    " << "0".cyan << ": Reset\n"
+      str << "    " << "q".cyan << "/" << "ctrl+c".cyan << ": Quit\n"
+      str << "\n"
     end
   end
 

@@ -84,7 +84,7 @@ module Term2Benchmarks
       end
 
       x.report("SGR mouse batch") do
-        sgr_events.each { |ev| reader.check_mouse_event(ev) }
+        sgr_events.each { |event| reader.check_mouse_event(event) }
       end
     end
 
@@ -128,7 +128,7 @@ module Term2Benchmarks
 
       x.report("Complex layout") do
         content = screen.margin(top: 1, bottom: 2, left: 2, right: 2)
-        header, body = content.split_vertical(0.1)
+        _, body = content.split_vertical(0.1)
         sidebar, main = body.split_horizontal(0.3)
         sidebar.padding(1)
         main.padding(1)

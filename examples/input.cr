@@ -14,7 +14,7 @@ class InputModel < Model
   end
 end
 
-class InputDemo < Application
+class InputDemo < Application(InputModel)
   @input : Components::TextInput
 
   def initialize
@@ -29,8 +29,8 @@ class InputDemo < Application
     {InputModel.new(input_model), cmd}
   end
 
-  def update(msg : Message, model : Model)
-    app = model.as(InputModel)
+  def update(msg : Message, model : InputModel)
+    app = model
 
     case msg
     when KeyPress
@@ -49,20 +49,21 @@ class InputDemo < Application
     end
   end
 
-  def view(model : Model) : String
+  def view(model : InputModel) : String
     app = model.as(InputModel)
-    String.build do |s|
-      s << "\n"
-      s << (S.bold.cyan | "╔════════════════════════════════════════╗") << "\n"
-      s << (S.bold.cyan | "║          Text Input Demo               ║") << "\n"
-      s << (S.bold.cyan | "╚════════════════════════════════════════╝") << "\n"
-      s << "\n"
-      s << "  " << "Input:".bold << " " << @input.view(app.text_input) << "\n"
-      s << "\n"
-      s << "  " << "Value:".bold << " " << app.text_input.value.inspect.gray << "\n"
-      s << "\n"
-      s << "─" * 44 << "\n"
-      s << "Type to enter text, " << "Ctrl+C".cyan << " to quit\n"
+
+    String.build do |str|
+      str << "\n"
+      str << (S.bold.cyan | "╔════════════════════════════════════════╗") << "\n"
+      str << (S.bold.cyan | "║          Text Input Demo               ║") << "\n"
+      str << (S.bold.cyan | "╚════════════════════════════════════════╝") << "\n"
+      str << "\n"
+      str << "  " << "Input:".bold << " " << @input.view(app.text_input) << "\n"
+      str << "\n"
+      str << "  " << "Value:".bold << " " << app.text_input.value.inspect.gray << "\n"
+      str << "\n"
+      str << "─" * 44 << "\n"
+      str << "Type to enter text, " << "Ctrl+C".cyan << " to quit\n"
     end
   end
 end

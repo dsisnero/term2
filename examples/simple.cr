@@ -39,16 +39,16 @@ class CounterApp < Application(CounterModel)
   def view(model : CounterModel) : String
     # Note: Framework handles cursor hide/show and screen clearing.
     # View just returns content to display.
-    String.build do |s|
-      s << "\n"
-      s << "Counter: ".bold << model.count.to_s.cyan << "\n"
-      s << "\n"
-      s << "Commands:".bold.yellow << "\n"
-      s << "  +/=".cyan << ": Increment\n"
-      s << "  -/_".cyan << ": Decrement\n"
-      s << "  r".cyan << ": Reset\n"
-      s << "  q".cyan << " or " << "Ctrl+C".cyan << ": Quit\n"
-      s << "\n"
+    String.build do |str|
+      str << "\n"
+      str << "Counter: ".bold << model.count.to_s.cyan << "\n"
+      str << "\n"
+      str << "Commands: ".bold.yellow << "\n"
+      str << "  +/=".cyan << ": Increment\n"
+      str << "  -/_".cyan << ": Decrement\n"
+      str << "  r".cyan << ": Reset\n"
+      str << "  q".cyan << " or " << "Ctrl+C".cyan << ": Quit\n"
+      str << "\n"
     end
   end
 end
