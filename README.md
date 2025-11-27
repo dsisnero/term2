@@ -155,6 +155,25 @@ puts S.bg(30, 30, 30).white | "Dark background"
 - 256-color: `.bg(0-255)`
 - RGB: `.bg(r, g, b)`
 
+## LipGloss Styling
+
+For advanced styling and layout, Term2 includes a port of [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+
+```crystal
+style = Term2::LipGloss::Style.new
+  .bold(true)
+  .foreground(Term2::Color::RED)
+  .padding(1, 2)
+  .border(Term2::LipGloss::Border.rounded)
+  .width(20)
+  .align(Term2::LipGloss::Position::Center)
+
+puts style.render("Hello LipGloss!")
+```
+
+LipGloss also provides layout utilities (`join_horizontal`, `place`) and
+rendering components (`Table`, `List`, `Tree`).
+
 ## Handling Input
 
 ### Keyboard
@@ -309,7 +328,7 @@ crystal run --release benchmarks/benchmark.cr
 
 ### Project Structure
 
-```
+```text
 src/
   term2.cr         # Main module, Program, Cmd, KeyReader
   base_types.cr    # Model, Message, Key, KeyType
