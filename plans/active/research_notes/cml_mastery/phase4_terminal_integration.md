@@ -1,6 +1,7 @@
 # Phase 4: CML Integration with Terminal Applications - Research Notes
 
 ## Overview
+
 This phase focuses on designing CML-based architecture for terminal applications, specifically targeting the Bubble Tea port requirements.
 
 ## Research Areas
@@ -8,11 +9,13 @@ This phase focuses on designing CML-based architecture for terminal applications
 ### 1. CML-Based Event Loop Design
 
 #### Current Terminal Event Handling Patterns
+
 - **Blocking I/O** vs **Non-blocking I/O** approaches
 - **Event polling** mechanisms in existing terminal libraries
 - **Signal handling** for terminal resize and interrupt events
 
 #### CML Event Loop Architecture
+
 ```crystal
 class TerminalEventLoop
   def initialize
@@ -54,12 +57,14 @@ end
 ### 2. Terminal Input/Output Handling with CML
 
 #### Input Processing Patterns
+
 - **Raw mode** vs **cooked mode** terminal input
 - **ANSI escape sequence** parsing
 - **Key press** vs **key release** events
 - **Mouse event** handling
 
 #### Output Rendering Patterns
+
 - **Screen buffer** management
 - **Differential updates** for performance
 - **ANSI escape sequence** generation
@@ -68,6 +73,7 @@ end
 ### 3. Real-Time Terminal Updates
 
 #### Concurrent Rendering Architecture
+
 ```crystal
 class TerminalRenderer
   def initialize
@@ -99,11 +105,13 @@ end
 ### 4. Terminal Signal Handling
 
 #### Signal Processing with CML
+
 - **SIGWINCH** (window resize) handling
 - **SIGINT** (interrupt) graceful shutdown
 - **SIGTERM** (termination) cleanup
 
 #### Signal Integration Pattern
+
 ```crystal
 class SignalHandler
   def initialize
@@ -127,11 +135,13 @@ end
 ### 5. Performance Considerations
 
 #### Event Loop Performance
+
 - **Event selection** overhead vs polling
 - **Channel contention** in high-frequency events
 - **Memory allocation** patterns for event objects
 
 #### Rendering Performance
+
 - **Frame rate** vs **update frequency** trade-offs
 - **Screen buffer** management strategies
 - **ANSI optimization** for minimal output
@@ -139,11 +149,13 @@ end
 ### 6. Error Handling and Recovery
 
 #### Graceful Error Recovery
+
 - **Component isolation** through channel-based communication
 - **Timeout mechanisms** for unresponsive components
 - **Fallback strategies** for rendering failures
 
 #### Error Propagation
+
 ```crystal
 class ErrorAwareComponent
   def initialize
@@ -166,21 +178,25 @@ end
 ## Research Questions
 
 ### Architecture Questions
+
 1. How to structure CML processes for terminal application components?
 2. What channel topology best supports component communication?
 3. How to handle backpressure in high-frequency event scenarios?
 
 ### Performance Questions
+
 1. What is the optimal event loop structure for terminal applications?
 2. How to minimize latency in user input processing?
 3. What are the memory implications of CML-based terminal applications?
 
 ### Integration Questions
+
 1. How to integrate CML with existing terminal I/O libraries?
 2. What patterns work best for combining CML with Crystal's fiber scheduler?
 3. How to handle platform-specific terminal behaviors?
 
 ## Next Steps
+
 - Analyze existing terminal library architectures
 - Design CML-based component communication patterns
 - Create performance benchmarks for terminal event handling

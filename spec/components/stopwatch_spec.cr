@@ -13,13 +13,13 @@ describe Term2::Components::Stopwatch do
 
     # Start
     msg = Term2::Components::Stopwatch::StartMsg.new
-    sw, cmd = sw.update(msg)
+    _, cmd = sw.update(msg)
     sw.running?.should be_true
     cmd.should_not be_nil
 
     # Tick
     msg = Term2::Components::Stopwatch::TickMsg.new
-    sw, cmd = sw.update(msg)
+    _, cmd = sw.update(msg)
     # Elapsed time depends on Time.local, so it might be very small but > 0 if time passed
     # But since we just started, it might be 0.
     cmd.should_not be_nil

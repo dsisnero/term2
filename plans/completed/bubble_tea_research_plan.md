@@ -1,6 +1,7 @@
 # Comprehensive Research Plan for Bubble Tea Library Port to Crystal
 
 ## Steps
+
 1. **Phase 1: Bubble Tea Core Architecture Research**
 2. - Study Bubble Tea GitHub repository structure, documentation, and core concepts
 3. - Analyze the main components: Model, Update, View, Command, Message
@@ -8,58 +9,71 @@
 5. - Research the event loop and message passing system
 6. - Examine terminal input/output handling and ANSI escape sequences
 7. - Study the tea.Program structure and initialization process
-8.
-9. **Phase 2: Ecosystem and Dependencies Analysis**
-10. - Identify all Bubble Tea dependencies (bubble, lipgloss, etc.)
-11. - Research the Bubbles component library structure
-12. - Analyze Lip Gloss styling system and its features
-13. - Study Chroma terminal color library integration
-14. - Examine any external dependencies and their roles
-15.
-16. **Phase 3: Crystal Language Compatibility Assessment**
-17. - Map Go language features used in Bubble Tea to Crystal equivalents
-18. - Analyze concurrency patterns and how they translate to Crystal/CML
-19. - Study terminal/console interaction in Crystal ecosystem
-20. - Research existing Crystal terminal libraries for reference
-21. - Identify potential challenges in porting Go idioms to Crystal
-22.
-23. **Phase 4: CML Integration Strategy**
-24. - Analyze how CML channels and processes can replace Go routines
-25. - Design message passing architecture using CML primitives
-26. - Plan fiber-based concurrency model for terminal applications
-27. - Research CML patterns for event handling and state management
-28. - Design integration points between CML and terminal I/O
-29.
-30. **Phase 5: API Design and Porting Strategy**
-31. - Design Crystal API that mirrors Bubble Tea functionality
-32. - Plan incremental porting approach (core → components → styling)
-33. - Design type-safe interfaces for models, messages, and commands
-34. - Plan error handling and exception management strategy
-35. - Design testing strategy for terminal applications
-36.
-37. **Phase 6: Implementation Roadmap**
-38. - Create proof-of-concept minimal terminal application
-39. - Implement core tea.Program equivalent
-40. - Port basic components (text input, spinner, etc.)
-41. - Implement styling system equivalent to Lip Gloss
-42. - Create comprehensive test suite
-43. - Document usage patterns and migration guide
-44.
-45. **Phase 7: Performance and Optimization**
-46. - Benchmark performance against original Go implementation
-47. - Optimize rendering and update cycles
-48. - Profile memory usage and garbage collection
-49. - Test cross-platform compatibility
-50. - Optimize for different terminal environments
-51.
-52. **Phase 8: Documentation and Examples**
-53. - Create comprehensive API documentation
-54. - Build example applications demonstrating various use cases
-55. - Create migration guide from Bubble Tea to Crystal version
-56. - Document best practices and patterns
-57. - Create interactive tutorials and demos
+   8.
+8. **Phase 2: Ecosystem and Dependencies Analysis**
+9. - Identify all Bubble Tea dependencies (bubble, lipgloss, etc.)
+10. - Research the Bubbles component library structure
+11. - Analyze Lip Gloss styling system and its features
+12. - Study Chroma terminal color library integration
+13. - Examine any external dependencies and their roles
+
+   15.
+
+1. **Phase 3: Crystal Language Compatibility Assessment**
+2. - Map Go language features used in Bubble Tea to Crystal equivalents
+3. - Analyze concurrency patterns and how they translate to Crystal/CML
+4. - Study terminal/console interaction in Crystal ecosystem
+5. - Research existing Crystal terminal libraries for reference
+6. - Identify potential challenges in porting Go idioms to Crystal
+
+   22.
+
+1. **Phase 4: CML Integration Strategy**
+2. - Analyze how CML channels and processes can replace Go routines
+3. - Design message passing architecture using CML primitives
+4. - Plan fiber-based concurrency model for terminal applications
+5. - Research CML patterns for event handling and state management
+6. - Design integration points between CML and terminal I/O
+
+   29.
+
+1. **Phase 5: API Design and Porting Strategy**
+2. - Design Crystal API that mirrors Bubble Tea functionality
+3. - Plan incremental porting approach (core → components → styling)
+4. - Design type-safe interfaces for models, messages, and commands
+5. - Plan error handling and exception management strategy
+6. - Design testing strategy for terminal applications
+
+   36.
+
+1. **Phase 6: Implementation Roadmap**
+2. - Create proof-of-concept minimal terminal application
+3. - Implement core tea.Program equivalent
+4. - Port basic components (text input, spinner, etc.)
+5. - Implement styling system equivalent to Lip Gloss
+6. - Create comprehensive test suite
+7. - Document usage patterns and migration guide
+
+   44.
+
+1. **Phase 7: Performance and Optimization**
+2. - Benchmark performance against original Go implementation
+3. - Optimize rendering and update cycles
+4. - Profile memory usage and garbage collection
+5. - Test cross-platform compatibility
+6. - Optimize for different terminal environments
+
+   51.
+
+1. **Phase 8: Documentation and Examples**
+2. - Create comprehensive API documentation
+3. - Build example applications demonstrating various use cases
+4. - Create migration guide from Bubble Tea to Crystal version
+5. - Document best practices and patterns
+6. - Create interactive tutorials and demos
 
 ## Tags
+
 - bubble-tea
 - crystal
 - cml
