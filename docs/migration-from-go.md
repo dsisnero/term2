@@ -20,6 +20,7 @@ Term2 is a Crystal port of [BubbleTea](https://github.com/charmbracelet/bubblete
 ## Model Definition
 
 ### BubbleTea (Go)
+
 ```go
 type model struct {
     count    int
@@ -29,6 +30,7 @@ type model struct {
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 class AppModel < Term2::Model
   getter count : Int32
@@ -41,6 +43,7 @@ end
 ```
 
 **Key Differences:**
+
 - Models must inherit from `Term2::Model`
 - Use `getter` and `property` macros for accessors
 - Crystal uses explicit type annotations
@@ -48,6 +51,7 @@ end
 ## Message Definition
 
 ### BubbleTea (Go)
+
 ```go
 type tickMsg time.Time
 type errMsg error
@@ -59,6 +63,7 @@ type statusMsg struct {
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 class TickMsg < Term2::Message
   getter time : Time
@@ -78,12 +83,14 @@ end
 ```
 
 **Key Differences:**
+
 - Messages must inherit from `Term2::Message`
 - Crystal requires explicit class definitions
 
 ## Application Structure
 
 ### BubbleTea (Go)
+
 ```go
 type model struct {
     count int
@@ -119,6 +126,7 @@ func main() {
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 require "term2"
 include Term2::Prelude
@@ -163,6 +171,7 @@ CounterApp.new.run
 ## Commands
 
 ### BubbleTea (Go)
+
 ```go
 // No-op command
 tea.Cmd(nil)
@@ -183,6 +192,7 @@ tea.Tick(time.Second, func(t time.Time) tea.Msg {
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 # No-op command
 Cmd.none
@@ -204,6 +214,7 @@ Cmd.tick(1.second) { |t| TickMsg.new(t) }
 ## Key Handling
 
 ### BubbleTea (Go)
+
 ```go
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
@@ -226,6 +237,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 def update(msg : Message, model : Model)
   case msg
@@ -255,6 +267,7 @@ end
 ## Mouse Events
 
 ### BubbleTea (Go)
+
 ```go
 case tea.MouseMsg:
     if msg.Type == tea.MouseLeft {
@@ -266,6 +279,7 @@ case tea.MouseMsg:
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 case msg
 when MouseEvent
@@ -281,6 +295,7 @@ end
 ## Program Options
 
 ### BubbleTea (Go)
+
 ```go
 p := tea.NewProgram(
     model{},
@@ -293,6 +308,7 @@ p := tea.NewProgram(
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 class MyApp < Application
   def options : Array(ProgramOption)
@@ -308,6 +324,7 @@ end
 ```
 
 Or with `ProgramOptions`:
+
 ```crystal
 options = ProgramOptions.new(
   WithAltScreen.new,
@@ -319,6 +336,7 @@ program = Program.new(app, options)
 ## Window Size
 
 ### BubbleTea (Go)
+
 ```go
 case tea.WindowSizeMsg:
     m.width = msg.Width
@@ -326,6 +344,7 @@ case tea.WindowSizeMsg:
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 case msg
 when WindowSizeMsg
@@ -338,6 +357,7 @@ end
 ## Focus Events
 
 ### BubbleTea (Go)
+
 ```go
 // Enable focus reporting
 tea.WithReportFocus()
@@ -350,6 +370,7 @@ case tea.BlurMsg:
 ```
 
 ### Term2 (Crystal)
+
 ```crystal
 # Enable in options
 def options
@@ -368,6 +389,7 @@ end
 ## Common Patterns
 
 ### Immutable Updates
+
 Both frameworks encourage immutable model updates:
 
 ```crystal
@@ -379,6 +401,7 @@ Both frameworks encourage immutable model updates:
 ```
 
 ### Type Casting
+
 Crystal requires explicit type casting:
 
 ```crystal
@@ -389,6 +412,7 @@ end
 ```
 
 ### Error Handling
+
 ```crystal
 class ErrorMsg < Message
   getter error : Exception

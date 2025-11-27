@@ -75,6 +75,7 @@ CounterApp.new.run
 ```
 
 **Key Concepts:**
+
 - Model holds all application state
 - Update returns a new model (immutable updates)
 - View renders the current state to a string
@@ -128,6 +129,7 @@ end
 ```
 
 **Available Key Types:**
+
 - Arrow keys: `Up`, `Down`, `Left`, `Right`
 - With modifiers: `CtrlUp`, `ShiftUp`, `CtrlShiftUp`
 - Function keys: `F1` through `F20`
@@ -443,6 +445,7 @@ end
 ```
 
 **View Methods:**
+
 - `margin(top, right, bottom, left)` - Add margins
 - `padding(all)` or `padding(h, v)` - Add padding
 - `split_horizontal(ratio)` - Split left/right
@@ -496,6 +499,7 @@ end
 ```
 
 **Best Practices:**
+
 - Always wrap command work in begin/rescue
 - Create specific message types for success/error
 - Don't let exceptions escape commands

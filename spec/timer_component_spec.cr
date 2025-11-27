@@ -37,7 +37,7 @@ describe Term2::Components::CountdownTimer do
     program = Term2::Program.new(model, input: nil, output: output)
 
     evt = CML.choose([
-      CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
+      CML.wrap(CML.spawn_evt { program.run }) { |_| {nil.as(Term2::Model?), :ok} },
       CML.wrap(CML.timeout(1.second)) { |_| {nil.as(Term2::Model?), :timeout} },
     ])
 

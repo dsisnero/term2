@@ -13,6 +13,7 @@ This directory contains development plans for the Term2 project, organized by st
 **Last Updated:** November 25, 2025
 
 The BubbleTea feature parity implementation has been completed. Term2 now provides:
+
 - Full Elm Architecture (Model-Update-View)
 - 200+ key sequences across terminal types
 - Mouse support (SGR and X10 protocols)
@@ -24,11 +25,13 @@ The BubbleTea feature parity implementation has been completed. Term2 now provid
 ## Completed Plans
 
 ### [BubbleTea Feature Parity](./completed/bubbletea-feature-parity.md)
+
 **Status**: ✅ Complete
 **Completed**: November 25, 2025
 **Summary**: Full feature parity with Go BubbleTea library
 
 ### Research Plans
+
 - [BubbleTea Research](./completed/bubble_tea_research_plan_v3.md)
 - [CML Mastery Research](./completed/cml_mastery_research_plan.md)
 
@@ -42,6 +45,7 @@ The BubbleTea feature parity implementation has been completed. Term2 now provid
 ## Plan Format
 
 Each plan follows this structure:
+
 - **Overview**: High-level description and goals
 - **Phases**: Breakdown of implementation stages
 - **Timeline**: Estimated completion dates
@@ -52,6 +56,7 @@ Each plan follows this structure:
 ## Contributing
 
 When starting work on a plan:
+
 1. Move the plan from `backlog/` to `active/`
 2. Update the status section with current progress
 3. Create detailed implementation tasks

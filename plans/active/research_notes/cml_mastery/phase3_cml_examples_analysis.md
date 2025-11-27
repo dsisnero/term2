@@ -5,9 +5,11 @@
 ### CML Example Applications Analysis
 
 #### 1. Chat Room Demo (Producer-Consumer Pattern)
+
 **File**: `/Users/dominic/repos/github.com/dsisnero/cml/examples/chat_demo.cr`
 
 **Pattern Implementation:**
+
 ```crystal
 class ChatRoom
   def initialize
@@ -30,12 +32,14 @@ end
 ```
 
 **Key Characteristics:**
+
 - **Multiple producers, multiple consumers** on same channel
 - **Synchronous rendezvous** communication
 - **Automatic matching** of senders and receivers
 - **Real-time message delivery** with type safety
 
 **Usage Pattern:**
+
 ```crystal
 room = ChatRoom.new
 room.subscribe("alice")
@@ -45,9 +49,11 @@ spawn { ["hello", "fine!", "see ya"].each { |msg| room.post("bob: #{msg}") } }
 ```
 
 #### 2. Comprehensive Test Patterns
+
 **File**: `/Users/dominic/repos/github.com/dsisnero/cml/spec/cml_comprehensive_spec.cr`
 
 **Nested Choose Operations:**
+
 ```crystal
 # Complex event composition with multiple levels
 inner_choice = CML.choose([ch1.recv_evt, CML.always(42)])
@@ -59,21 +65,25 @@ outer_choice = CML.choose([
 ```
 
 **Key Features:**
+
 - **Hierarchical event selection** with multiple levels
 - **Result transformation** at each composition level
 - **Maintains "one pick, one commit" guarantee**
 - **Type-safe composition** across different event types
 
 #### 3. Performance Benchmarks
+
 **File**: `/Users/dominic/repos/github.com/dsisnero/cml/benchmarks/cml_benchmarks.cr`
 
 **Performance Categories Tested:**
+
 1. **Event Creation Overhead** - Cost of creating different event types
 2. **Sync on AlwaysEvt** - Best-case synchronization performance
 3. **Choose Operations** - Overhead of event selection
 4. **Channel Rendezvous** - Communication performance
 
 **Benchmarked Operations:**
+
 - `CML.always(1)` - Immediate event creation
 - `CML.never` - Never-succeeding event
 - `CML.timeout(1.seconds)` - Time-based events
@@ -83,11 +93,13 @@ outer_choice = CML.choose([
 ### Performance Characteristics Identified
 
 #### Event Creation Performance
+
 - **AlwaysEvt**: Fastest creation (immediate value)
 - **Channel Events**: Moderate overhead (queue management)
 - **Combinators**: Additional overhead for transformation
 
 #### Synchronization Performance
+
 - **AlwaysEvt sync**: Minimal overhead (immediate resolution)
 - **Choose operations**: Efficient with polling optimization
 - **Channel rendezvous**: Moderate overhead for queue management
@@ -95,11 +107,13 @@ outer_choice = CML.choose([
 ### Integration Patterns for Bubble Tea
 
 #### Event-Driven Architecture
+
 - **Message passing**: Use channels for component communication
 - **Event composition**: Combine multiple event sources (keyboard, mouse, timer)
 - **Timeout handling**: Graceful degradation for slow operations
 
 #### Component Communication
+
 ```crystal
 # Example: Component message passing
 class Component
@@ -123,6 +137,7 @@ end
 ```
 
 #### Concurrent Event Handling
+
 ```crystal
 # Example: Multiple event sources
 def event_loop
@@ -141,24 +156,28 @@ end
 ## Key Insights for Bubble Tea Integration
 
 ### Performance Considerations
+
 1. **Event creation overhead** is minimal for most use cases
 2. **Channel operations** scale well for moderate loads
 3. **Choose operations** are optimized for immediate events
 4. **Memory usage** is predictable with type-safe channels
 
 ### Architecture Patterns
+
 1. **One channel per component** for message passing
 2. **Event composition** for complex interactions
 3. **Timeout patterns** for responsive UI
 4. **Graceful shutdown** with cancellation procedures
 
 ### Testing Strategies
+
 1. **Unit test individual events** and channels
 2. **Integration test event composition**
 3. **Performance test** critical paths
 4. **Concurrency test** with multiple fibers
 
 ## Next Steps for Phase 4
+
 1. **Design CML-based event loop** for terminal applications
 2. **Research terminal I/O patterns** with CML
 3. **Analyze real-time update requirements**
