@@ -112,6 +112,8 @@ module Term2
           # Insert character
           if msg.key.type == KeyType::Runes && !msg.key.alt?
             insert_string(msg.key.to_s)
+          elsif msg.key.type == KeyType::Space && !msg.key.alt?
+            insert_string(" ")
           end
         end
       end

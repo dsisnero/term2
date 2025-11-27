@@ -97,4 +97,67 @@ describe Term2::Components::TextInput do
     # \e[7mb\e[0m or similar
     view.should match /\e\[0;7mb\e\[0m/
   end
+
+  it "handles space input" do
+    ti = Term2::Components::TextInput.new
+    ti.focus
+
+    # Insert 'a'
+    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    ti, _ = ti.update(msg)
+    ti.value.should eq "a"
+
+    # Insert space (using KeyType::Space as that's how the parser handles it)
+    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    ti, _ = ti.update(msg)
+    ti.value.should eq "a "
+    ti.cursor_pos.should eq 2
+
+    # Insert 'b'
+    msg = Term2::KeyMsg.new(Term2::Key.new("b"))
+    ti, _ = ti.update(msg)
+    ti.value.should eq "a b"
+    ti.cursor_pos.should eq 3
+  end
+
+  it "handles input with multiple spaces" do
+    ti = Term2::Components::TextInput.new
+    ti.focus
+
+    # Insert "hello world" with a space
+    "hello".each_char do |_|
+      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      ti, _ = ti.update(msg)
+    end
+
+    # Insert space
+    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    ti, _ = ti.update(msg)
+
+    # Insert "world"
+    "world".each_char do |_|
+      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      ti, _ = ti.update(msg)
+    end
+
+    ti.value.should eq "hello world"
+    ti.cursor_pos.should eq 11
+  end
+
+  it "handles space as first character" do
+    ti = Term2::Components::TextInput.new
+    ti.focus
+
+    # Insert space as first character
+    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    ti, _ = ti.update(msg)
+    ti.value.should eq " "
+    ti.cursor_pos.should eq 1
+
+    # Insert 'a' after space
+    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    ti, _ = ti.update(msg)
+    ti.value.should eq " a"
+    ti.cursor_pos.should eq 2
+  end
 end
