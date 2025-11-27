@@ -1,0 +1,96 @@
+---
+workstream:
+  id: bubblezone-port-plan
+  title: Port BubbleZone to Crystal and Integrate with Term2
+  status: active
+  created_at: 2025-11-27 06:11:17.000000000
+  updated_at: 2025-11-27 06:33:18.673373000
+assignment:
+  required_skills: []
+dependencies:
+  blocks: []
+  blocked_by: []
+  depends_on: []
+  related_to: []
+requirements:
+  system_requirements: []
+  acceptance_criteria: []
+tasks:
+- id: task-1
+  description: Analyze BubbleZone source code structure and functionality - COMPLETED
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-2
+  description: Understand Term2 architecture and mouse handling - COMPLETED
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-3
+  description: Design Crystal API for BubbleZone that matches Go version
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-4
+  description: Create src/bubblezone.cr with ZoneManager, ZoneInfo, and Scanner classes
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-5
+  description: Implement ANSI escape sequence markers for zone identification
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-6
+  description: Create zone scanning and parsing logic
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-7
+  description: Integrate with Term2's renderer for automatic zone scanning
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-8
+  description: Add mouse event handling for zone bounds checking
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-9
+  description: Create global zone manager for easy access
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-10
+  description: Add bubblezone integration to Term2 main module
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-11
+  description: Write comprehensive tests for bubblezone functionality
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-12
+  description: Create example applications demonstrating bubblezone usage
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-13
+  description: Update documentation with bubblezone integration guide
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-14
+  description: Ensure performance optimization for real-time zone tracking
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+tags:
+- crystal
+- term2
+- bubblezone
+- port
+- integration
+- mouse
+- ui
