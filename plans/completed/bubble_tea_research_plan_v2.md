@@ -30,61 +30,61 @@
 
    24.
 
-1. **Phase 4: Crystal Language Compatibility Assessment**
-2. - Research existing Crystal terminal libraries: cray, termbox-crystal, ncurses bindings
-3. - Map Go features to Crystal equivalents: fibers vs goroutines, channels vs CML channels
-4. - Analyze type system differences: interfaces vs modules, struct embedding vs inheritance
-5. - Study Crystal's concurrency model and how it applies to terminal applications
-6. - Research Crystal's exception handling and error management
-7. - Identify potential challenges in porting Go idioms
+7. **Phase 4: Crystal Language Compatibility Assessment**
+8. - Research existing Crystal terminal libraries: cray, termbox-crystal, ncurses bindings
+9. - Map Go features to Crystal equivalents: fibers vs goroutines, channels vs CML channels
+10. - Analyze type system differences: interfaces vs modules, struct embedding vs inheritance
+11. - Study Crystal's concurrency model and how it applies to terminal applications
+12. - Research Crystal's exception handling and error management
+13. - Identify potential challenges in porting Go idioms
 
    32.
 
-1. **Phase 5: CML Integration Deep Analysis**
-2. - Study CML documentation: channels, processes, select statements
-3. - Design message passing architecture using CML primitives
-4. - Plan fiber-based concurrency model for terminal event handling
-5. - Research CML patterns for state management and event coordination
-6. - Design integration between CML and terminal I/O operations
-7. - Analyze performance characteristics and potential bottlenecks
+14. **Phase 5: CML Integration Deep Analysis**
+15. - Study CML documentation: channels, processes, select statements
+16. - Design message passing architecture using CML primitives
+17. - Plan fiber-based concurrency model for terminal event handling
+18. - Research CML patterns for state management and event coordination
+19. - Design integration between CML and terminal I/O operations
+20. - Analyze performance characteristics and potential bottlenecks
 
    40.
 
-1. **Phase 6: API Design and Architecture Planning**
-2. - Design Crystal API that mirrors Bubble Tea functionality
-3. - Plan type-safe interfaces for models, messages, and commands
-4. - Design the core Program class and its lifecycle methods
-5. - Plan component system architecture
-6. - Design styling system equivalent to Lip Gloss
-7. - Plan error handling and exception management strategy
+21. **Phase 6: API Design and Architecture Planning**
+22. - Design Crystal API that mirrors Bubble Tea functionality
+23. - Plan type-safe interfaces for models, messages, and commands
+24. - Design the core Program class and its lifecycle methods
+25. - Plan component system architecture
+26. - Design styling system equivalent to Lip Gloss
+27. - Plan error handling and exception management strategy
 
    48.
 
-1. **Phase 7: Implementation Strategy and Roadmap**
-2. - Create proof-of-concept minimal terminal application
-3. - Implement core Program class with basic event loop
-4. - Port essential components: text input, spinner, progress bar
-5. - Implement styling system with color and layout support
-6. - Create comprehensive test suite with terminal simulation
-7. - Plan incremental development approach
+28. **Phase 7: Implementation Strategy and Roadmap**
+29. - Create proof-of-concept minimal terminal application
+30. - Implement core Program class with basic event loop
+31. - Port essential components: text input, spinner, progress bar
+32. - Implement styling system with color and layout support
+33. - Create comprehensive test suite with terminal simulation
+34. - Plan incremental development approach
 
    56.
 
-1. **Phase 8: Performance and Optimization Research**
-2. - Benchmark performance against original Go implementation
-3. - Analyze rendering performance and optimization opportunities
-4. - Study memory usage patterns and garbage collection impact
-5. - Research cross-platform compatibility considerations
-6. - Test different terminal environments and capabilities
+35. **Phase 8: Performance and Optimization Research**
+36. - Benchmark performance against original Go implementation
+37. - Analyze rendering performance and optimization opportunities
+38. - Study memory usage patterns and garbage collection impact
+39. - Research cross-platform compatibility considerations
+40. - Test different terminal environments and capabilities
 
    63.
 
-1. **Phase 9: Documentation and Community Strategy**
-2. - Create comprehensive API documentation
-3. - Build example applications demonstrating various use cases
-4. - Create migration guide from Bubble Tea to Crystal version
-5. - Document best practices and common patterns
-6. - Plan community engagement and contribution guidelines
+41. **Phase 9: Documentation and Community Strategy**
+42. - Create comprehensive API documentation
+43. - Build example applications demonstrating various use cases
+44. - Create migration guide from Bubble Tea to Crystal version
+45. - Document best practices and common patterns
+46. - Plan community engagement and contribution guidelines
 
 ## Tags
 

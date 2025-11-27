@@ -28,49 +28,49 @@
 
    22.
 
-1. **Phase 4: CML Integration Strategy**
-2. - Analyze how CML channels and processes can replace Go routines
-3. - Design message passing architecture using CML primitives
-4. - Plan fiber-based concurrency model for terminal applications
-5. - Research CML patterns for event handling and state management
-6. - Design integration points between CML and terminal I/O
+7. **Phase 4: CML Integration Strategy**
+8. - Analyze how CML channels and processes can replace Go routines
+9. - Design message passing architecture using CML primitives
+10. - Plan fiber-based concurrency model for terminal applications
+11. - Research CML patterns for event handling and state management
+12. - Design integration points between CML and terminal I/O
 
    29.
 
-1. **Phase 5: API Design and Porting Strategy**
-2. - Design Crystal API that mirrors Bubble Tea functionality
-3. - Plan incremental porting approach (core → components → styling)
-4. - Design type-safe interfaces for models, messages, and commands
-5. - Plan error handling and exception management strategy
-6. - Design testing strategy for terminal applications
+13. **Phase 5: API Design and Porting Strategy**
+14. - Design Crystal API that mirrors Bubble Tea functionality
+15. - Plan incremental porting approach (core → components → styling)
+16. - Design type-safe interfaces for models, messages, and commands
+17. - Plan error handling and exception management strategy
+18. - Design testing strategy for terminal applications
 
    36.
 
-1. **Phase 6: Implementation Roadmap**
-2. - Create proof-of-concept minimal terminal application
-3. - Implement core tea.Program equivalent
-4. - Port basic components (text input, spinner, etc.)
-5. - Implement styling system equivalent to Lip Gloss
-6. - Create comprehensive test suite
-7. - Document usage patterns and migration guide
+19. **Phase 6: Implementation Roadmap**
+20. - Create proof-of-concept minimal terminal application
+21. - Implement core tea.Program equivalent
+22. - Port basic components (text input, spinner, etc.)
+23. - Implement styling system equivalent to Lip Gloss
+24. - Create comprehensive test suite
+25. - Document usage patterns and migration guide
 
    44.
 
-1. **Phase 7: Performance and Optimization**
-2. - Benchmark performance against original Go implementation
-3. - Optimize rendering and update cycles
-4. - Profile memory usage and garbage collection
-5. - Test cross-platform compatibility
-6. - Optimize for different terminal environments
+26. **Phase 7: Performance and Optimization**
+27. - Benchmark performance against original Go implementation
+28. - Optimize rendering and update cycles
+29. - Profile memory usage and garbage collection
+30. - Test cross-platform compatibility
+31. - Optimize for different terminal environments
 
    51.
 
-1. **Phase 8: Documentation and Examples**
-2. - Create comprehensive API documentation
-3. - Build example applications demonstrating various use cases
-4. - Create migration guide from Bubble Tea to Crystal version
-5. - Document best practices and patterns
-6. - Create interactive tutorials and demos
+32. **Phase 8: Documentation and Examples**
+33. - Create comprehensive API documentation
+34. - Build example applications demonstrating various use cases
+35. - Create migration guide from Bubble Tea to Crystal version
+36. - Document best practices and patterns
+37. - Create interactive tutorials and demos
 
 ## Tags
 
