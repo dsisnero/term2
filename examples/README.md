@@ -5,7 +5,9 @@ This directory contains example applications demonstrating the functionality of 
 ## Available Examples
 
 ### 1. `simple.cr` - Basic Counter
+
 A minimal example showing the core Term2 architecture:
+
 - Basic Model-Update-View pattern
 - KeyPress handling
 - Simple state management
@@ -14,7 +16,9 @@ A minimal example showing the core Term2 architecture:
 **Run with:** `crystal run examples/simple.cr`
 
 ### 2. `input.cr` - Text Input Component
+
 Demonstrates the TextInput component:
+
 - Text input with cursor navigation
 - Placeholder text
 - Focus/blur functionality
@@ -23,23 +27,27 @@ Demonstrates the TextInput component:
 **Run with:** `crystal run examples/input.cr`
 
 ### 3. `comprehensive_demo.cr` - All Components
+
 A comprehensive demo showcasing all available Term2 components and features:
 
-#### Components Demonstrated:
+#### Components Demonstrated
+
 - **Counter**: Basic state management with increment/decrement
 - **Timer**: Countdown timer with start/stop functionality
 - **Spinner**: Animated loading spinner with custom frames
 - **Progress Bar**: Visual progress indicator with percentage
 - **Text Input**: Full-featured text input with navigation
 
-#### Features Demonstrated:
+#### Features Demonstrated
+
 - Component switching (press 1-5)
 - Multiple concurrent components
 - Message passing between components
 - Custom themes and styling
 - Terminal control sequences
 
-#### Controls:
+#### Controls
+
 - `1-5`: Switch between components
 - `h`: Show help
 - `q` or `Ctrl+C`: Quit
@@ -48,9 +56,11 @@ A comprehensive demo showcasing all available Term2 components and features:
 **Run with:** `crystal run examples/comprehensive_demo.cr`
 
 ### 4. `cmd_demo.cr` - Cmd Operations
+
 Demonstrates the various Cmd operations available in Term2:
 
-#### Cmd Operations Demonstrated:
+#### Cmd Operations Demonstrated
+
 - **Batch**: Execute multiple commands simultaneously
 - **Sequence**: Execute commands in order with delays
 - **After**: Schedule delayed commands
@@ -59,7 +69,8 @@ Demonstrates the various Cmd operations available in Term2:
 - **Map**: Transform messages from commands
 - **Perform**: Execute commands asynchronously
 
-#### Controls:
+#### Controls
+
 - `b`: Batch commands
 - `s`: Sequence commands
 - `d`: Delayed command
@@ -74,6 +85,7 @@ Demonstrates the various Cmd operations available in Term2:
 ## Key Term2 Concepts
 
 ### Application Architecture
+
 All Term2 applications follow the Elm-inspired architecture:
 
 ```crystal
@@ -106,6 +118,7 @@ end
 ```
 
 ### Components
+
 Term2 provides several built-in components:
 
 - **CountdownTimer**: Timer with start/stop and finished notification
@@ -114,6 +127,7 @@ Term2 provides several built-in components:
 - **TextInput**: Full-featured text input with navigation
 
 ### Cmd Operations
+
 The `Cmd` struct provides various ways to perform side effects:
 
 - `Cmd.none`: No operation

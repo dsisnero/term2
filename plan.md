@@ -59,6 +59,6 @@
 
 ## Backlog
 
-- [ ] Advanced Text Layout (Word wrapping, etc.)
-- [ ] Lipgloss Port (Advanced Styling)
+- [x] Advanced Text Layout (Word wrapping, etc.)
+- [x] Lipgloss Port (Advanced Styling)
 - [ ] Windows Support Optimization

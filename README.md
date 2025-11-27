@@ -10,7 +10,7 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 - **Mouse Support**: SGR and legacy X10 mouse protocols
 - **Focus Reporting**: FocusIn/FocusOut events
 - **Alternate Screen**: Clean terminal restoration
-- **Components**: Spinner, ProgressBar, TextInput, CountdownTimer
+- **Components**: Spinner, ProgressBar, TextInput, CountdownTimer, Table, List, Tree
 - **Cross-platform**: Works on Linux, macOS, and Windows
 
 ## Installation
@@ -154,6 +154,83 @@ puts S.bg(30, 30, 30).white | "Dark background"
   `.on_magenta`, `.on_cyan`, `.on_white`
 - 256-color: `.bg(0-255)`
 - RGB: `.bg(r, g, b)`
+
+## LipGloss Styling
+
+For advanced styling and layout, Term2 includes a port of [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+
+```crystal
+style = Term2::LipGloss::Style.new
+  .bold(true)
+  .foreground(Term2::Color::RED)
+  .padding(1, 2)
+  .border(Term2::LipGloss::Border.rounded)
+  .width(20)
+  .align(Term2::LipGloss::Position::Center)
+
+puts style.render("Hello LipGloss!")
+```
+
+LipGloss provides comprehensive styling and layout capabilities:
+
+### Advanced Layout
+
+```crystal
+# Horizontal and vertical joining
+header = Term2::LipGloss::Style.new.bold.render("Header")
+content = Term2::LipGloss::Style.new.render("Content")
+
+# Join horizontally
+row = Term2::LipGloss.join_horizontal(Term2::LipGloss::Center, header, content)
+
+# Join vertically
+layout = Term2::LipGloss.join_vertical(Term2::LipGloss::Left, header, content)
+
+# Place elements
+placed = Term2::LipGloss.place(10, 5, Term2::LipGloss::Center, Term2::LipGloss::Center, content)
+```
+
+### Table Rendering
+
+```crystal
+table = Term2::LipGloss::Table.new
+  .border(Term2::LipGloss::Border.normal)
+  .border_style(Term2::LipGloss::Style.new.foreground(Term2::Color::BLUE))
+  .width(50)
+  .headers("Name", "Age", "City")
+  .row("Alice", "30", "New York")
+  .row("Bob", "25", "London")
+
+puts table.render
+```
+
+### List Rendering
+
+```crystal
+list = Term2::LipGloss::List.new
+  .item("First item")
+  .item("Second item")
+  .item("Third item")
+
+puts list.render
+```
+
+### Tree Rendering
+
+```crystal
+tree = Term2::LipGloss::Tree.new
+  .node("Root")
+    .node("Child 1")
+      .leaf("Leaf 1.1")
+      .leaf("Leaf 1.2")
+    .end
+    .node("Child 2")
+      .leaf("Leaf 2.1")
+    .end
+
+puts tree.render
+```
+rendering components (`Table`, `List`, `Tree`).
 
 ## Handling Input
 
@@ -309,7 +386,7 @@ crystal run --release benchmarks/benchmark.cr
 
 ### Project Structure
 
-```
+```text
 src/
   term2.cr         # Main module, Program, Cmd, KeyReader
   base_types.cr    # Model, Message, Key, KeyType

@@ -453,6 +453,10 @@ end
 - `center(width, height)` - Center a subview
 - `contains?(x, y)` - Check if point is in view
 
+
+## Advanced Styling with Lipgloss {#lipgloss}
+
+For advanced styling and layout, Term2 includes a complete port of Charmbracelet's Lipgloss library.nn### Basic Stylingnn```crystaln# Create a style with borders, padding, and colorsnstyle = Term2::LipGloss::Style.newn  .bold(true)n  .foreground(Term2::Color::RED)n  .background(Term2::Color::WHITE)n  .padding(1, 2)n  .margin(1)n  .border(Term2::LipGloss::Border.rounded)n  .width(30)n  .align(Term2::LipGloss::Position::Center)nnputs style.render("Styled Box")n```nn### Layout Compositionnn```crystaln# Create multiple styled elementsnheader = Term2::LipGloss::Style.newn  .boldn  .foreground(Term2::Color::BLUE)n  .render("Header")nncontent = Term2::LipGloss::Style.newn  .padding(1)n  .render("Content area")nn# Join horizontallynrow = Term2::LipGloss.join_horizontal(Term2::LipGloss::Center, header, content)nn# Join verticallynlayout = Term2::LipGloss.join_vertical(Term2::LipGloss::Left, header, content)nn# Place at specific positionnplaced = Term2::LipGloss.place(10, 5, Term2::LipGloss::Center, Term2::LipGloss::Center, content)n```nn### Table Componentnn```crystalntable = Term2::LipGloss::Table.newn  .border(Term2::LipGloss::Border.normal)n  .border_style(Term2::LipGloss::Style.new.foreground(Term2::Color::BLUE))n  .width(50)n  .headers("Name", "Age", "City")n  .row("Alice", "30", "New York")n  .row("Bob", "25", "London")n  .row("Charlie", "35", "Tokyo")nnputs table.rendern```nn### List Componentnn```crystalnlist = Term2::LipGloss::List.newn  .item("First item")n  .item("Second item")n  .item("Third item")nnputs list.rendern```nn### Tree Componentnn```crystalntree = Term2::LipGloss::Tree.newn  .node("Root")n    .node("Child 1")n      .leaf("Leaf 1.1")n      .leaf("Leaf 1.2")n    .endn    .node("Child 2")n      .leaf("Leaf 2.1")n    .endnnputs tree.rendern```nnLipgloss provides a comprehensive styling system that works seamlessly with Term2's component architecture.n
 ---
 
 ## Error Handling {#error-handling}
