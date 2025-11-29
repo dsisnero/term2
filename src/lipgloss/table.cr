@@ -172,7 +172,7 @@ module Term2
 
       private def render_row(row : Array(String), widths : Array(Int32), default_style : Style, row_index : Int32)
         parts = [] of String
-        widths.each_with_index do |_, col_index|
+        widths.each_with_index do |width, col_index|
           content = col_index < row.size ? row[col_index] : ""
 
           style = default_style
@@ -183,7 +183,7 @@ module Term2
           end
 
           # Using Style to pad/align
-          cell_rendered = style.copy.width(w).render(content)
+          cell_rendered = style.copy.width(width).render(content)
           parts << " #{cell_rendered} "
         end
 

@@ -68,45 +68,51 @@ class TabsModel < Term2::Model
       .border(Term2::LipGloss::Border.normal)
       .border_top(false)
 
-    rendered_tabs = [] of String
-
-    @tabs.each_with_index do |_tab, i|
-      style = (i == @active_tab) ? active_tab_style.copy : inactive_tab_style.copy
-
-      is_first = (i == 0)
-      is_last = (i == @tabs.size - 1)
-      is_active = (i == @active_tab)
-
-      # We need to modify the border of the style.
-      # Since Style holds a reference to Border (which is a struct),
-      # we need to get the border, modify it (it's a struct, so copy), and set it back.
-
-      if border = style.border_style
-        new_border = border # Copy struct
-
-        if is_first && is_active
-          new_border.bottom_left = "│"
-        elsif is_first && !is_active
-          new_border.bottom_left = "├"
-        elsif is_last && is_active
-          new_border.bottom_right = "│"
-        elsif is_last && !is_active
-          new_border.bottom_right = "┤"
-        end
-
-        style.border(new_border)
-      end
-
-      rendered_tabs << style.render(t)
-    end
+    rendered_tabs = render_tabs(inactive_tab_style, active_tab_style)
 
     row = Term2::LipGloss.join_horizontal(Term2::LipGloss::Position::Top, rendered_tabs)
 
     content = window_style
-      .width(Term2::LipGloss.width(row) - window_style.get_horizontal_frame_size)
+      .width(Term2::LipGloss.width(row) - window_style.horizontal_frame_size)
       .render(@tab_content[@active_tab])
 
     doc_style.render("#{row}\n#{content}")
+  end
+
+  private def render_tabs(inactive_tab_style : Term2::LipGloss::Style, active_tab_style : Term2::LipGloss::Style) : Array(String)
+    rendered_tabs = [] of String
+
+    @tabs.each_with_index do |tab, i|
+      style = (i == @active_tab) ? active_tab_style.copy : inactive_tab_style.copy
+      style = modify_tab_border(style, i)
+      rendered_tabs << style.render(tab)
+    end
+
+    rendered_tabs
+  end
+
+  private def modify_tab_border(style : Term2::LipGloss::Style, index : Int32) : Term2::LipGloss::Style
+    is_first = (index == 0)
+    is_last = (index == @tabs.size - 1)
+    is_active = (index == @active_tab)
+
+    if border = style.border_style
+      new_border = border # Copy struct
+
+      if is_first && is_active
+        new_border.bottom_left = "│"
+      elsif is_first && !is_active
+        new_border.bottom_left = "├"
+      elsif is_last && is_active
+        new_border.bottom_right = "│"
+      elsif is_last && !is_active
+        new_border.bottom_right = "┤"
+      end
+
+      style.border(new_border)
+    end
+
+    style
   end
 end
 

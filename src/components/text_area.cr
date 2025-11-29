@@ -60,38 +60,62 @@ module Term2
         lines = @value.split("\n", remove_empty: false)
         lines << "" if lines.empty?
 
+        handle_key_action(msg, lines)
+
+        @value = lines.join("\n")
+      end
+
+      private def handle_key_action(msg : KeyMsg, lines : Array(String))
         case msg.key.to_s
         when "up"
-          @cursor_line = (@cursor_line - 1).clamp(0, lines.size - 1)
-          @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
+          handle_up_key(lines)
         when "down"
-          @cursor_line = (@cursor_line + 1).clamp(0, lines.size - 1)
-          @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
+          handle_down_key(lines)
         when "left"
-          if @cursor_col > 0
-            @cursor_col -= 1
-          elsif @cursor_line > 0
-            @cursor_line -= 1
-            @cursor_col = lines[@cursor_line].size
-          end
+          handle_left_key(lines)
         when "right"
-          if @cursor_col < lines[@cursor_line].size
-            @cursor_col += 1
-          elsif @cursor_line < lines.size - 1
-            @cursor_line += 1
-            @cursor_col = 0
-          end
+          handle_right_key(lines)
         when "enter"
           insert_newline(lines)
         when "backspace"
           delete_char(lines)
         else
-          if msg.key.type == KeyType::Runes && !msg.key.alt?
-            insert_char(lines, msg.key.to_s)
-          end
+          handle_character_key(msg, lines)
         end
+      end
 
-        @value = lines.join("\n")
+      private def handle_up_key(lines : Array(String))
+        @cursor_line = (@cursor_line - 1).clamp(0, lines.size - 1)
+        @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
+      end
+
+      private def handle_down_key(lines : Array(String))
+        @cursor_line = (@cursor_line + 1).clamp(0, lines.size - 1)
+        @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
+      end
+
+      private def handle_left_key(lines : Array(String))
+        if @cursor_col > 0
+          @cursor_col -= 1
+        elsif @cursor_line > 0
+          @cursor_line -= 1
+          @cursor_col = lines[@cursor_line].size
+        end
+      end
+
+      private def handle_right_key(lines : Array(String))
+        if @cursor_col < lines[@cursor_line].size
+          @cursor_col += 1
+        elsif @cursor_line < lines.size - 1
+          @cursor_line += 1
+          @cursor_col = 0
+        end
+      end
+
+      private def handle_character_key(msg : KeyMsg, lines : Array(String))
+        if msg.key.type == KeyType::Runes && !msg.key.alt?
+          insert_char(lines, msg.key.to_s)
+        end
       end
 
       def insert_newline(lines : Array(String))

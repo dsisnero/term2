@@ -91,30 +91,58 @@ module Term2
       end
 
       def handle_key(msg : KeyMsg)
+        if handle_navigation_key(msg)
+          return
+        elsif handle_deletion_key(msg)
+          return
+        else
+          handle_insertion_key(msg)
+        end
+      end
+
+      private def handle_navigation_key(msg : KeyMsg) : Bool
         case
         when @key_map.character_forward.matches?(msg)
           move_cursor(1)
+          true
         when @key_map.character_backward.matches?(msg)
           move_cursor(-1)
+          true
         when @key_map.line_start.matches?(msg)
           cursor_start
+          true
         when @key_map.line_end.matches?(msg)
           cursor_end
+          true
+        else
+          false
+        end
+      end
+
+      private def handle_deletion_key(msg : KeyMsg) : Bool
+        case
         when @key_map.delete_character_backward.matches?(msg)
           delete_before_cursor
+          true
         when @key_map.delete_character_forward.matches?(msg)
           delete_after_cursor
+          true
         when @key_map.delete_before_cursor.matches?(msg)
           delete_line_before_cursor
+          true
         when @key_map.delete_after_cursor.matches?(msg)
           delete_line_after_cursor
+          true
         else
-          # Insert character
-          if msg.key.type == KeyType::Runes && !msg.key.alt?
-            insert_string(msg.key.to_s)
-          elsif msg.key.type == KeyType::Space && !msg.key.alt?
-            insert_string(" ")
-          end
+          false
+        end
+      end
+
+      private def handle_insertion_key(msg : KeyMsg)
+        if msg.key.type == KeyType::Runes && !msg.key.alt?
+          insert_string(msg.key.to_s)
+        elsif msg.key.type == KeyType::Space && !msg.key.alt?
+          insert_string(" ")
         end
       end
 

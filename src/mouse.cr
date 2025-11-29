@@ -176,22 +176,30 @@ module Term2
 
     private def parse_sgr_button(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32) : MouseEvent::Button
       if wheel_bit
-        case button_bits
-        when 0 then MouseEvent::Button::WheelUp
-        when 1 then MouseEvent::Button::WheelDown
-        when 2 then MouseEvent::Button::WheelLeft
-        when 3 then MouseEvent::Button::WheelRight
-        else        MouseEvent::Button::None
-        end
+        parse_wheel_button(button_bits)
       elsif motion_bit && button_bits == 3
         MouseEvent::Button::None
       else
-        case button_bits
-        when 0 then MouseEvent::Button::Left
-        when 1 then MouseEvent::Button::Middle
-        when 2 then MouseEvent::Button::Right
-        else        MouseEvent::Button::None
-        end
+        parse_regular_button(button_bits)
+      end
+    end
+
+    private def parse_wheel_button(button_bits : Int32) : MouseEvent::Button
+      case button_bits
+      when 0 then MouseEvent::Button::WheelUp
+      when 1 then MouseEvent::Button::WheelDown
+      when 2 then MouseEvent::Button::WheelLeft
+      when 3 then MouseEvent::Button::WheelRight
+      else        MouseEvent::Button::None
+      end
+    end
+
+    private def parse_regular_button(button_bits : Int32) : MouseEvent::Button
+      case button_bits
+      when 0 then MouseEvent::Button::Left
+      when 1 then MouseEvent::Button::Middle
+      when 2 then MouseEvent::Button::Right
+      else        MouseEvent::Button::None
       end
     end
 

@@ -120,18 +120,23 @@ module Term2
 
     # Merge with another style
     def merge(other : Style) : Style
-      Style.new(
+      merged_properties = merge_style_properties(other)
+      Style.new(**merged_properties)
+    end
+
+    private def merge_style_properties(other : Style)
+      {
         foreground: other.foreground || @foreground,
         background: other.background || @background,
-        bold: @bold || other.bold?,
-        faint: @faint || other.faint?,
-        italic: @italic || other.italic?,
-        underline: @underline || other.underline?,
-        blink: @blink || other.blink?,
-        reverse: @reverse || other.reverse?,
-        conceal: @conceal || other.conceal?,
-        strike: @strike || other.strike?
-      )
+        bold:       @bold || other.bold?,
+        faint:      @faint || other.faint?,
+        italic:     @italic || other.italic?,
+        underline:  @underline || other.underline?,
+        blink:      @blink || other.blink?,
+        reverse:    @reverse || other.reverse?,
+        conceal:    @conceal || other.conceal?,
+        strike:     @strike || other.strike?,
+      }
     end
 
     # Check if any style is set
@@ -142,11 +147,26 @@ module Term2
 
     # Generate escape sequence for this style
     private def escape_sequence : String
+      codes = build_escape_codes
+      "\e[#{codes.join(';')}m"
+    end
+
+    private def build_escape_codes : Array(Int32)
       codes = [] of Int32
 
       # Reset all attributes first
       codes << 0
 
+      # Add color codes
+      add_color_codes(codes)
+
+      # Add text attribute codes
+      add_text_attribute_codes(codes)
+
+      codes
+    end
+
+    private def add_color_codes(codes : Array(Int32))
       # Foreground color
       if fg = @foreground
         codes.concat(fg.foreground_codes)
@@ -156,8 +176,9 @@ module Term2
       if bg = @background
         codes.concat(bg.background_codes)
       end
+    end
 
-      # Text attributes
+    private def add_text_attribute_codes(codes : Array(Int32))
       codes << 1 if @bold
       codes << 2 if @faint
       codes << 3 if @italic
@@ -166,8 +187,6 @@ module Term2
       codes << 7 if @reverse
       codes << 8 if @conceal
       codes << 9 if @strike
-
-      "\e[#{codes.join(';')}m"
     end
 
     # Predefined styles

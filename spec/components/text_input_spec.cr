@@ -125,7 +125,7 @@ describe Term2::Components::TextInput do
     ti.focus
 
     # Insert "hello world" with a space
-    "hello".each_char do |_|
+    "hello".each_char do |char|
       msg = Term2::KeyMsg.new(Term2::Key.new(char))
       ti, _ = ti.update(msg)
     end
@@ -135,7 +135,7 @@ describe Term2::Components::TextInput do
     ti, _ = ti.update(msg)
 
     # Insert "world"
-    "world".each_char do |_|
+    "world".each_char do |char|
       msg = Term2::KeyMsg.new(Term2::Key.new(char))
       ti, _ = ti.update(msg)
     end

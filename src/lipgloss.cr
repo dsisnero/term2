@@ -369,9 +369,12 @@ module Term2
         lines = text.split('\n')
 
         # 1. Calculate dimensions and align content
-        if w = @width_value
-          content_width = w
+        content_width = @width_value
+        if content_width
           # TODO: Handle wrapping if text is wider than width
+        else
+          # If no width specified, use the maximum line width
+          content_width = lines.max_of { |line| Term2::Text.width(line) } || 0
         end
 
         # 2. Apply alignment and fill to width
@@ -485,7 +488,7 @@ module Term2
         right_str = " " * right
 
         # Apply horizontal padding
-        horizontally_padded = lines.map { |_| left_str + l + right_str }
+        horizontally_padded = lines.map { |line| left_str + line + right_str }
 
         # Apply vertical padding
         full_width = content_width + left + right
@@ -510,7 +513,7 @@ module Term2
         left_str = " " * left
 
         # Apply horizontal margin (left only, right is implicit)
-        horizontally_margined = lines.map { |_| left_str + l }
+        horizontally_margined = lines.map { |line| left_str + line }
 
         # Apply vertical margin
         # For margin, we just add empty lines (no background color)
@@ -523,30 +526,28 @@ module Term2
       end
 
       private def color_from_symbol(sym : Symbol) : Color
-        case sym
-        when :black               then Color::BLACK
-        when :red                 then Color::RED
-        when :green               then Color::GREEN
-        when :yellow              then Color::YELLOW
-        when :blue                then Color::BLUE
-        when :magenta             then Color::MAGENTA
-        when :cyan                then Color::CYAN
-        when :white               then Color::WHITE
-        when :bright_black, :gray then Color::BRIGHT_BLACK
-        when :bright_red          then Color::BRIGHT_RED
-        when :bright_green        then Color::BRIGHT_GREEN
-        when :bright_yellow       then Color::BRIGHT_YELLOW
-        when :bright_blue         then Color::BRIGHT_BLUE
-        when :bright_magenta      then Color::BRIGHT_MAGENTA
-        when :bright_cyan         then Color::BRIGHT_CYAN
-        when :bright_white        then Color::BRIGHT_WHITE
-        else
-          # Fallback or error? For now, let's default to white but maybe logging would be good.
-          # Since this is a UI library, crashing might be too harsh, but silent failure is also bad.
-          # Let's assume standard colors.
-          Color::WHITE
-        end
+        COLOR_MAP[sym]? || Color::WHITE
       end
+
+      private COLOR_MAP = {
+        :black          => Color::BLACK,
+        :red            => Color::RED,
+        :green          => Color::GREEN,
+        :yellow         => Color::YELLOW,
+        :blue           => Color::BLUE,
+        :magenta        => Color::MAGENTA,
+        :cyan           => Color::CYAN,
+        :white          => Color::WHITE,
+        :bright_black   => Color::BRIGHT_BLACK,
+        :gray           => Color::BRIGHT_BLACK,
+        :bright_red     => Color::BRIGHT_RED,
+        :bright_green   => Color::BRIGHT_GREEN,
+        :bright_yellow  => Color::BRIGHT_YELLOW,
+        :bright_blue    => Color::BRIGHT_BLUE,
+        :bright_magenta => Color::BRIGHT_MAGENTA,
+        :bright_cyan    => Color::BRIGHT_CYAN,
+        :bright_white   => Color::BRIGHT_WHITE,
+      }
 
       private def resolve_color(color : Color | AdaptiveColor | Nil) : Color?
         case color
@@ -587,7 +588,7 @@ module Term2
 
       # Calculate max width for EACH block
       block_widths = block_lines.map do |lines|
-        lines.empty? ? 0 : lines.max_of { |_| Term2::Text.width(l) }
+        lines.empty? ? 0 : lines.max_of { |line| Term2::Text.width(line) }
       end
 
       # Find max height
@@ -645,13 +646,13 @@ module Term2
       return "" if blocks.empty?
 
       # Find max width (considering multi-line blocks)
-      max_width = blocks.max_of do |_|
-        lines = b.split('\n')
+      max_width = blocks.max_of do |block|
+        lines = block.split('\n')
         lines.empty? ? 0 : lines.max_of { |line| Term2::Text.width(line) }
       end
 
       # Align each block
-      aligned_blocks = blocks.map do |_|
+      aligned_blocks = blocks.map do |block|
         lines = block.split('\n')
         lines.map do |line|
           w = Term2::Text.width(line)
@@ -684,7 +685,12 @@ module Term2
       else
       end
 
-      # Vertical Placement
+      top_pad, bottom_pad = calculate_vertical_padding(height, content_height, v_pos)
+      result = build_placement_result(width, height, lines, h_pos, top_pad, bottom_pad)
+      result.join('\n')
+    end
+
+    private def self.calculate_vertical_padding(height : Int32, content_height : Int32, v_pos : Position) : Tuple(Int32, Int32)
       gap_y = height - content_height
       top_pad = 0
       bottom_pad = 0
@@ -703,6 +709,10 @@ module Term2
         end
       end
 
+      {top_pad, bottom_pad}
+    end
+
+    private def self.build_placement_result(width : Int32, height : Int32, lines : Array(String), h_pos : Position, top_pad : Int32, bottom_pad : Int32) : Array(String)
       result = [] of String
 
       # Top padding
@@ -710,26 +720,7 @@ module Term2
 
       # Content
       lines.each do |line|
-        line_width = Term2::Text.width(line)
-        gap_x = width - line_width
-
-        if gap_x > 0
-          case h_pos
-          when Position::Left
-            result << line + (" " * gap_x)
-          when Position::Right
-            result << (" " * gap_x) + line
-          when Position::Center
-            left = gap_x // 2
-            right = gap_x - left
-            result << (" " * left) + line + (" " * right)
-          else # Default Left
-            result << line + (" " * gap_x)
-          end
-        else
-          # If content is wider, we currently don't crop (TODO: Implement ANSI-aware truncate)
-          result << line
-        end
+        result << place_line_horizontally(width, line, h_pos)
       end
 
       # Bottom padding
@@ -740,7 +731,30 @@ module Term2
         result = result[0, height]
       end
 
-      result.join('\n')
+      result
+    end
+
+    private def self.place_line_horizontally(width : Int32, line : String, h_pos : Position) : String
+      line_width = Term2::Text.width(line)
+      gap_x = width - line_width
+
+      if gap_x > 0
+        case h_pos
+        when Position::Left
+          line + (" " * gap_x)
+        when Position::Right
+          (" " * gap_x) + line
+        when Position::Center
+          left = gap_x // 2
+          right = gap_x - left
+          (" " * left) + line + (" " * right)
+        else # Default Left
+          line + (" " * gap_x)
+        end
+      else
+        # If content is wider, we currently don't crop (TODO: Implement ANSI-aware truncate)
+        line
+      end
     end
 
     def self.place_horizontal(width : Int32, pos : Position, content : String) : String
@@ -751,7 +765,7 @@ module Term2
 
     def self.place_vertical(height : Int32, pos : Position, content : String) : String
       lines = content.split('\n')
-      width = lines.empty? ? 0 : lines.max_of { |_| Term2::Text.width(l) }
+      width = lines.empty? ? 0 : lines.max_of { |line| Term2::Text.width(line) }
       place(width, height, Position::Left, pos, content)
     end
 

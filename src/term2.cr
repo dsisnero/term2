@@ -88,108 +88,126 @@ module Term2
     PASTE_END   = "\e[201~"
 
     def read_key(io : IO) : Key?
-      char = nil
-      timeout = false
-
-      begin
-        # Try to read a character
-        if @buffer.empty?
-          char = io.read_char
-          raise IO::EOFError.new unless char
-        else
-          # Buffer has data, try to read more with timeout
-          if io.responds_to?(:read_timeout=) && io.is_a?(IO::FileDescriptor)
-            old_timeout = io.read_timeout
-            begin
-              io.read_timeout = 0.05.seconds
-              char = io.read_char
-              raise IO::EOFError.new unless char
-            rescue IO::TimeoutError
-              timeout = true
-            ensure
-              io.read_timeout = old_timeout
-            end
-          else
-            # For non-FileDescriptor IOs (like IO::Memory in tests), we can't easily timeout.
-            # But if we are in a test with IO::Memory, we might be able to peek?
-            # Or just assume if it blocks it blocks.
-            # However, for the focus test, we put all data in upfront.
-            # If we are here, it means we have some buffer (e.g. "\e") and we want to see if there is more.
-            # If the IO is empty, read_char will raise EOF or block.
-            # In tests with IO::Memory, it raises EOF if empty.
-            begin
-              char = io.read_char
-              raise IO::EOFError.new unless char
-            rescue IO::EOFError
-              timeout = true
-            end
-          end
-        end
-      rescue IO::EOFError
-        if !@buffer.empty?
-          return resolve_current_buffer
-        else
-          raise IO::EOFError.new
-        end
-      end
+      char, timeout = read_next_char(io)
 
       if timeout
         return resolve_current_buffer
       end
 
-      # If we're in paste mode, collect until we hit the end sequence
+      # Handle paste mode
       if @in_paste
-        @paste_buffer += char.to_s
-        if @paste_buffer.ends_with?(PASTE_END)
-          # Remove the paste end sequence from the content
-          pasted_content = @paste_buffer[0...-PASTE_END.size]
-          @in_paste = false
-          @paste_buffer = ""
-          @buffer = ""
-          # Return a key with the pasted content and paste flag set
-          return Key.new(pasted_content.chars, alt: false, paste: true)
-        end
-        return nil
+        return handle_paste_mode(char) if char
       end
 
-      # Add to buffer
+      # Add to buffer and check for paste start
       @buffer += char.to_s
 
-      # Check for paste start sequence
-      if @buffer.ends_with?(PASTE_START)
-        @in_paste = true
-        @paste_buffer = ""
-        @buffer = ""
+      if check_paste_start
         return nil
       end
 
-      # Check if we might be in a paste start sequence (partial match)
-      if PASTE_START.starts_with?(@buffer) && @buffer.size < PASTE_START.size
-        return nil # Need more characters
-      end
-
-      # Check for mouse events first
-      if @buffer.starts_with?("\e[")
-        mouse_event = @mouse_reader.check_mouse_event(@buffer)
-        if mouse_event
-          @buffer = ""
-          @last_mouse_event = mouse_event
-          # Return a dummy key to signal we have something
-          return Key.new(KeyType::Null)
-        end
-        # If no mouse event was found, continue to check for key sequences
+      # Check for mouse events
+      if handle_mouse_events
+        return Key.new(KeyType::Null)
       end
 
       # Clear last mouse event since we're not returning a mouse event
       @last_mouse_event = nil
 
-      # Check for escape sequences
+      # Check for escape sequences or single character
+      handle_escape_sequences
+    rescue InvalidByteSequenceError
+      # Return replacement character for invalid UTF-8
+      Key.new('\uFFFD')
+    rescue IO::EOFError
+      if !@buffer.empty?
+        resolve_current_buffer
+      else
+        raise IO::EOFError.new
+      end
+    end
+
+    private def read_next_char(io : IO) : {Char?, Bool}
+      char = nil
+      timeout = false
+
+      if @buffer.empty?
+        char = io.read_char
+        raise IO::EOFError.new unless char
+      else
+        # Buffer has data, try to read more with timeout
+        if io.responds_to?(:read_timeout=) && io.is_a?(IO::FileDescriptor)
+          old_timeout = io.read_timeout
+          begin
+            io.read_timeout = 0.05.seconds
+            char = io.read_char
+            raise IO::EOFError.new unless char
+          rescue IO::TimeoutError
+            timeout = true
+          ensure
+            io.read_timeout = old_timeout
+          end
+        else
+          # For non-FileDescriptor IOs (like IO::Memory in tests), we can't easily timeout.
+          begin
+            char = io.read_char
+            raise IO::EOFError.new unless char
+          rescue IO::EOFError
+            timeout = true
+          end
+        end
+      end
+
+      {char, timeout}
+    end
+
+    private def handle_paste_mode(char : Char) : Key?
+      @paste_buffer += char.to_s
+      if @paste_buffer.ends_with?(PASTE_END)
+        # Remove the paste end sequence from the content
+        pasted_content = @paste_buffer[0...-PASTE_END.size]
+        @in_paste = false
+        @paste_buffer = ""
+        @buffer = ""
+        # Return a key with the pasted content and paste flag set
+        return Key.new(pasted_content.chars, alt: false, paste: true)
+      end
+      nil
+    end
+
+    private def check_paste_start : Bool
+      if @buffer.ends_with?(PASTE_START)
+        @in_paste = true
+        @paste_buffer = ""
+        @buffer = ""
+        return true
+      end
+
+      # Check if we might be in a paste start sequence (partial match)
+      if PASTE_START.starts_with?(@buffer) && @buffer.size < PASTE_START.size
+        return true # Need more characters
+      end
+
+      false
+    end
+
+    private def handle_mouse_events : Bool
+      if @buffer.starts_with?("\e[")
+        mouse_event = @mouse_reader.check_mouse_event(@buffer)
+        if mouse_event
+          @buffer = ""
+          @last_mouse_event = mouse_event
+          return true
+        end
+      end
+      false
+    end
+
+    private def handle_escape_sequences : Key?
       if @buffer.starts_with?("\e")
         # Check if we have a complete sequence
         exact_match = KeySequences.find(@buffer)
         is_prefix = KeySequences.prefix?(@buffer)
-
-        # STDERR.puts "Buffer: #{@buffer.inspect} Match: #{exact_match.inspect} Prefix: #{is_prefix}"
 
         if exact_match && !is_prefix
           # Exact match and not a prefix of anything else
@@ -208,9 +226,6 @@ module Term2
         @buffer = ""
         key
       end
-    rescue InvalidByteSequenceError
-      # Return replacement character for invalid UTF-8
-      Key.new('\uFFFD')
     end
 
     private def resolve_current_buffer : Key
@@ -573,65 +588,7 @@ module Term2
                      end
 
       # Handle internal terminal messages
-      case filtered_msg
-      when QuitMsg
-        @pending_shutdown = true
-        schedule_render
-        return
-      when EnterAltScreenMsg
-        Terminal.enter_alt_screen(@output_io)
-        @alt_screen_enabled = true
-        return
-      when ExitAltScreenMsg
-        Terminal.exit_alt_screen(@output_io)
-        @alt_screen_enabled = false
-        return
-      when ShowCursorMsg
-        Terminal.show_cursor(@output_io)
-        return
-      when HideCursorMsg
-        Terminal.hide_cursor(@output_io)
-        return
-      when ClearScreenMsg
-        Terminal.clear(@output_io)
-        return
-      when SetWindowTitleMsg
-        Terminal.set_window_title(@output_io, filtered_msg.title)
-        return
-      when RequestWindowSizeMsg
-        # Query window size and dispatch as WindowSizeMsg
-        width, height = Terminal.size
-        dispatch(WindowSizeMsg.new(width, height))
-        return
-      when PrintMsg
-        @render_mailbox.send(filtered_msg)
-        return
-      when FocusMsg, BlurMsg, WindowSizeMsg
-        # Pass these to the application
-      when EnableMouseCellMotionMsg
-        enable_mouse_cell_motion
-        return
-      when EnableMouseAllMotionMsg
-        enable_mouse_all_motion
-        return
-      when DisableMouseTrackingMsg
-        disable_mouse_tracking
-        return
-      when EnableBracketedPasteMsg
-        Terminal.enable_bracketed_paste(@output_io)
-        @bracketed_paste_enabled = true
-        return
-      when DisableBracketedPasteMsg
-        Terminal.disable_bracketed_paste(@output_io)
-        @bracketed_paste_enabled = false
-        return
-      when EnableReportFocusMsg
-        Terminal.enable_focus_reporting(@output_io)
-        @focus_reporting_enabled = true
-        return
-      when DisableReportFocusMsg
-        Terminal.disable_focus_reporting(@output_io)
-        @focus_reporting_enabled = false
+      if handle_internal_message(filtered_msg)
         return
       end
 
@@ -649,6 +606,136 @@ module Term2
           raise ex
         end
       end
+    end
+
+    private def handle_internal_message(msg : Message) : Bool
+      case msg
+      when QuitMsg
+        handle_quit_message
+      when EnterAltScreenMsg
+        handle_enter_alt_screen_message
+      when ExitAltScreenMsg
+        handle_exit_alt_screen_message
+      when ShowCursorMsg
+        handle_show_cursor_message
+      when HideCursorMsg
+        handle_hide_cursor_message
+      when ClearScreenMsg
+        handle_clear_screen_message
+      when SetWindowTitleMsg
+        handle_set_window_title_message(msg)
+      when RequestWindowSizeMsg
+        handle_request_window_size_message
+      when PrintMsg
+        handle_print_message(msg)
+      when FocusMsg, BlurMsg, WindowSizeMsg
+        # Pass these to the application
+        false
+      when EnableMouseCellMotionMsg
+        handle_enable_mouse_cell_motion_message
+      when EnableMouseAllMotionMsg
+        handle_enable_mouse_all_motion_message
+      when DisableMouseTrackingMsg
+        handle_disable_mouse_tracking_message
+      when EnableBracketedPasteMsg
+        handle_enable_bracketed_paste_message
+      when DisableBracketedPasteMsg
+        handle_disable_bracketed_paste_message
+      when EnableReportFocusMsg
+        handle_enable_report_focus_message
+      when DisableReportFocusMsg
+        handle_disable_report_focus_message
+      else
+        false
+      end
+    end
+
+    private def handle_quit_message : Bool
+      @pending_shutdown = true
+      schedule_render
+      true
+    end
+
+    private def handle_enter_alt_screen_message : Bool
+      Terminal.enter_alt_screen(@output_io)
+      @alt_screen_enabled = true
+      true
+    end
+
+    private def handle_exit_alt_screen_message : Bool
+      Terminal.exit_alt_screen(@output_io)
+      @alt_screen_enabled = false
+      true
+    end
+
+    private def handle_show_cursor_message : Bool
+      Terminal.show_cursor(@output_io)
+      true
+    end
+
+    private def handle_hide_cursor_message : Bool
+      Terminal.hide_cursor(@output_io)
+      true
+    end
+
+    private def handle_clear_screen_message : Bool
+      Terminal.clear(@output_io)
+      true
+    end
+
+    private def handle_set_window_title_message(msg : SetWindowTitleMsg) : Bool
+      Terminal.set_window_title(@output_io, msg.title)
+      true
+    end
+
+    private def handle_request_window_size_message : Bool
+      width, height = Terminal.size
+      dispatch(WindowSizeMsg.new(width, height))
+      true
+    end
+
+    private def handle_print_message(msg : PrintMsg) : Bool
+      @render_mailbox.send(msg)
+      true
+    end
+
+    private def handle_enable_mouse_cell_motion_message : Bool
+      enable_mouse_cell_motion
+      true
+    end
+
+    private def handle_enable_mouse_all_motion_message : Bool
+      enable_mouse_all_motion
+      true
+    end
+
+    private def handle_disable_mouse_tracking_message : Bool
+      disable_mouse_tracking
+      true
+    end
+
+    private def handle_enable_bracketed_paste_message : Bool
+      Terminal.enable_bracketed_paste(@output_io)
+      @bracketed_paste_enabled = true
+      true
+    end
+
+    private def handle_disable_bracketed_paste_message : Bool
+      Terminal.disable_bracketed_paste(@output_io)
+      @bracketed_paste_enabled = false
+      true
+    end
+
+    private def handle_enable_report_focus_message : Bool
+      Terminal.enable_focus_reporting(@output_io)
+      @focus_reporting_enabled = true
+      true
+    end
+
+    private def handle_disable_report_focus_message : Bool
+      Terminal.disable_focus_reporting(@output_io)
+      @focus_reporting_enabled = false
+      true
     end
 
     private def schedule_render
