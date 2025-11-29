@@ -230,6 +230,7 @@ tree = Term2::LipGloss::Tree.new
 
 puts tree.render
 ```
+
 rendering components (`Table`, `List`, `Tree`).
 
 ## Handling Input
