@@ -4,6 +4,94 @@ require "./base_types"
 module Term2
   # KeySequences contains mappings from terminal escape sequences to Key objects
   module KeySequences
+    FOCUS_IN_SEQ  = "\e[I"
+    FOCUS_OUT_SEQ = "\e[O"
+
+    # Bubble Tea compatibility helpers for detecting sequences directly.
+    def self.detect_sequence(bytes : Bytes) : {Bool, Int32, Msg}
+      seq = String.new(bytes)
+      if key = SEQUENCES[seq]?
+        return {true, bytes.size, KeyMsg.new(key)}
+      end
+
+      # Alt-modified sequence: strip leading ESC and mark alt=true if the rest matches
+      if seq.starts_with?("\e") && seq.size > 1
+        base = seq[1..]
+        if key = SEQUENCES[base]?
+          alt_key = Key.new(key.type, key.runes, alt: true)
+          return {true, bytes.size, KeyMsg.new(alt_key)}
+        end
+      end
+
+      # Control characters / printable (except ESC)
+      if bytes.size == 1
+        b = bytes[0]
+        if b == 0x1b
+          return {true, 1, KeyMsg.new(Key.new(KeyType::Esc))}
+        end
+        if b == 0x7f
+          return {true, 1, KeyMsg.new(Key.new(KeyType::Backspace))}
+        end
+        if b <= 0x7f
+          if b >= 32
+            rune = b.chr
+            return {true, 1, KeyMsg.new(Key.new(runes: [rune]))}
+          else
+            key = KeyType.new(b)
+            return {true, 1, KeyMsg.new(Key.new(key))}
+          end
+        end
+      end
+
+      # Alt + single control character
+      if bytes.size == 2 && bytes[0] == 0x1b && bytes[1] <= 0x7f
+        b = bytes[1]
+        if b >= 32
+          rune = b.chr
+          return {true, 2, KeyMsg.new(Key.new(runes: [rune], alt: true))}
+        else
+          key = KeyType.new(b)
+          return {true, 2, KeyMsg.new(Key.new(key, alt: true))}
+        end
+      end
+
+      # Unknown CSI sequences still count
+      if seq.starts_with?("\e[")
+        return {true, bytes.size, KeyMsg.new(Key.new(KeyType::Null))}
+      end
+
+      {false, 0, KeyMsg.new(Key.new(KeyType::Null))}
+    end
+
+    def self.detect_one_msg(bytes : Bytes) : {Bool, Int32, Msg}
+      seq = String.new(bytes)
+      if seq == FOCUS_IN_SEQ
+        return {true, seq.bytesize, FocusMsg.new}
+      elsif seq == FOCUS_OUT_SEQ
+        return {true, seq.bytesize, BlurMsg.new}
+      end
+
+      if mouse_event = MouseReader.new.check_mouse_event(seq)
+        return {true, bytes.size, mouse_event}
+      end
+
+      has_seq, width, msg = detect_sequence(bytes)
+      return {has_seq, width, msg} if has_seq
+
+      # Runes fallback
+      if bytes.size >= 1
+        alt = bytes[0] == 0x1b && bytes.size > 1
+        str = if alt
+                String.new(bytes[1..])
+              else
+                String.new(bytes)
+              end
+        return {true, bytes.size, KeyMsg.new(Key.new(runes: str.chars, alt: alt))} unless str.empty?
+      end
+
+      {false, 0, KeyMsg.new(Key.new(KeyType::Null))}
+    end
+
     # Sequence mappings for terminal escape sequences
     SEQUENCES = {
       # Arrow keys

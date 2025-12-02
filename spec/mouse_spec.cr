@@ -22,10 +22,7 @@ module Term2
 
     it "converts to string representation" do
       event = MouseEvent.new(10, 20, MouseEvent::Button::Left, MouseEvent::Action::Press)
-      event.to_s.should contain("Left")
-      event.to_s.should contain("Press")
-      event.to_s.should contain("10")
-      event.to_s.should contain("20")
+      event.to_s.should eq("left+press")
     end
 
     it "includes modifiers in string representation" do
@@ -33,6 +30,33 @@ module Term2
       str = event.to_s
       str.should contain("alt")
       str.should contain("ctrl")
+      str.should contain("left")
+    end
+
+    it "matches Bubble Tea string expectations" do
+      specs = {
+        MouseEvent.new(0, 0, MouseEvent::Button::None, MouseEvent::Action::Press)                                     => "unknown",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press)                                     => "left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Right, MouseEvent::Action::Press)                                    => "right+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Middle, MouseEvent::Action::Press)                                   => "middle+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::None, MouseEvent::Action::Release)                                   => "release",
+        MouseEvent.new(0, 0, MouseEvent::Button::WheelUp, MouseEvent::Action::Press)                                  => "wheel up",
+        MouseEvent.new(0, 0, MouseEvent::Button::WheelDown, MouseEvent::Action::Press)                                => "wheel down",
+        MouseEvent.new(0, 0, MouseEvent::Button::WheelLeft, MouseEvent::Action::Press)                                => "wheel left",
+        MouseEvent.new(0, 0, MouseEvent::Button::WheelRight, MouseEvent::Action::Press)                               => "wheel right",
+        MouseEvent.new(0, 0, MouseEvent::Button::None, MouseEvent::Action::Move)                                      => "motion",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Release, shift: true)                      => "shift+left+release",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, shift: true)                        => "shift+left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, shift: true, ctrl: true)            => "ctrl+shift+left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, alt: true)                          => "alt+left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, ctrl: true)                         => "ctrl+left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, ctrl: true, alt: true)              => "ctrl+alt+left+press",
+        MouseEvent.new(0, 0, MouseEvent::Button::Left, MouseEvent::Action::Press, ctrl: true, alt: true, shift: true) => "ctrl+alt+shift+left+press",
+      }
+
+      specs.each do |event, expected|
+        event.to_s.should eq(expected)
+      end
     end
   end
 
@@ -68,8 +92,8 @@ module Term2
         event = reader.check_mouse_event("\e[<0;10;20M")
         event.should_not be_nil
         if event
-          event.x.should eq(10)
-          event.y.should eq(20)
+          event.x.should eq(9)
+          event.y.should eq(19)
           event.button.should eq(MouseEvent::Button::Left)
           event.action.should eq(MouseEvent::Action::Press)
         end
@@ -81,8 +105,8 @@ module Term2
         event = reader.check_mouse_event("\e[<0;15;25m")
         event.should_not be_nil
         if event
-          event.x.should eq(15)
-          event.y.should eq(25)
+          event.x.should eq(14)
+          event.y.should eq(24)
           event.action.should eq(MouseEvent::Action::Release)
         end
       end
@@ -134,8 +158,8 @@ module Term2
         event = reader.check_mouse_event("\e[M #{42.chr}#{52.chr}")
         event.should_not be_nil
         if event
-          event.x.should eq(10)
-          event.y.should eq(20)
+          event.x.should eq(9)
+          event.y.should eq(19)
           event.button.should eq(MouseEvent::Button::Left)
         end
       end

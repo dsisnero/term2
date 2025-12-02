@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class Timer < Model
+    class Timer
+      include Model
+
       property timeout : Time::Span
       property interval : Time::Span = 1.second
       property? running : Bool = false
@@ -40,17 +42,17 @@ module Term2
         end
       end
 
-      def init : {Timer, Cmd}
-        {self, tick_cmd}
+      def init : Cmd
+        tick_cmd
       end
 
-      def update(msg : Message) : {Timer, Cmd}
+      def update(msg : Msg) : {Timer, Cmd}
         case msg
         when StartStopMsg
           if msg.id == @id
             @running = msg.running?
             @tag += 1 if @running # Invalidate old ticks
-            return {self, @running ? tick_cmd : Cmd.none}
+            return {self, @running ? tick_cmd : Cmds.none}
           end
         when TickMsg
           if msg.id == @id && msg.tag == @tag && @running
@@ -58,32 +60,32 @@ module Term2
             if @timeout <= Time::Span.zero
               @timed_out = true
               @running = false
-              return {self, Cmd.message(TimeoutMsg.new(@id))}
+              return {self, Cmds.message(TimeoutMsg.new(@id))}
             end
             return {self, tick_cmd}
           end
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def tick_cmd : Cmd
         id = @id
         tag = @tag
-        Cmd.tick(@interval) do
+        Cmds.tick(@interval) do
           TickMsg.new(id, tag, false)
         end
       end
 
       def start : Cmd
-        Cmd.message(StartStopMsg.new(@id, true))
+        Cmds.message(StartStopMsg.new(@id, true))
       end
 
       def stop : Cmd
-        Cmd.message(StartStopMsg.new(@id, false))
+        Cmds.message(StartStopMsg.new(@id, false))
       end
 
       def toggle : Cmd
-        Cmd.message(StartStopMsg.new(@id, !@running))
+        Cmds.message(StartStopMsg.new(@id, !@running))
       end
 
       def view : String

@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class Stopwatch < Model
+    class Stopwatch
+      include Model
+
       property? running : Bool = false
       property start_time : Time = Time.local
       property elapsed : Time::Span = Time::Span.zero
@@ -23,7 +25,7 @@ module Term2
       class TickMsg < Message
       end
 
-      def update(msg : Message) : {Stopwatch, Cmd}
+      def update(msg : Msg) : {Stopwatch, Cmd}
         case msg
         when StartMsg
           if !@running
@@ -46,25 +48,25 @@ module Term2
             return {self, tick_cmd}
           end
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def tick_cmd : Cmd
-        Cmd.tick(@interval) do |_|
+        Cmds.tick(@interval) do |_|
           TickMsg.new
         end
       end
 
       def start : Cmd
-        Cmd.message(StartMsg.new)
+        Cmds.message(StartMsg.new)
       end
 
       def stop : Cmd
-        Cmd.message(StopMsg.new)
+        Cmds.message(StopMsg.new)
       end
 
       def reset : Cmd
-        Cmd.message(ResetMsg.new)
+        Cmds.message(ResetMsg.new)
       end
 
       def view : String

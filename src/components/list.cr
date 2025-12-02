@@ -5,7 +5,64 @@ require "./key"
 
 module Term2
   module Components
-    class List < Model
+    class List
+      include Model
+
+      # Enumerator generates the prefix for list items (bullets, numbers, etc.)
+      # Takes the list items and current index, returns the prefix string.
+      #
+      # Example:
+      # ```
+      # list.enumerator = ->(items : Array(Item), i : Int32) { "#{i + 1}." }
+      # ```
+      alias Enumerator = Proc(Array(Item), Int32, String)
+
+      # Predefined enumerators (matching Go Lipgloss)
+      module Enumerators
+        # Bullet enumeration: • Foo, • Bar, • Baz
+        Bullet = ->(_items : Array(Item), _i : Int32) { "•" }
+
+        # Dash enumeration: - Foo, - Bar, - Baz
+        Dash = ->(_items : Array(Item), _i : Int32) { "-" }
+
+        # Asterisk enumeration: * Foo, * Bar, * Baz
+        Asterisk = ->(_items : Array(Item), _i : Int32) { "*" }
+
+        # Arabic numeral enumeration: 1. Foo, 2. Bar, 3. Baz
+        Arabic = ->(_items : Array(Item), i : Int32) { "#{i + 1}." }
+
+        # Alphabet enumeration: A. Foo, B. Bar, C. Baz
+        Alphabet = ->(_items : Array(Item), i : Int32) {
+          abc_len = 26
+          if i >= abc_len * abc_len + abc_len
+            "#{('A'.ord + i // abc_len // abc_len - 1).chr}#{('A'.ord + (i // abc_len) % abc_len - 1).chr}#{('A'.ord + i % abc_len).chr}."
+          elsif i >= abc_len
+            "#{('A'.ord + i // abc_len - 1).chr}#{('A'.ord + i % abc_len).chr}."
+          else
+            "#{('A'.ord + i % abc_len).chr}."
+          end
+        }
+
+        # Roman numeral enumeration: I. Foo, II. Bar, III. Baz
+        Roman = ->(_items : Array(Item), idx : Int32) {
+          roman = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+          arabic = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+          result = String.build do |s|
+            n = idx + 1 # Roman numerals are 1-indexed
+            roman.each_with_index do |r, j|
+              while n >= arabic[j]
+                n -= arabic[j]
+                s << r
+              end
+            end
+          end
+          "#{result}."
+        }
+
+        # No enumeration (empty prefix)
+        None = ->(_items : Array(Item), _i : Int32) { "" }
+      end
+
       module Item
         abstract def title : String
         abstract def description : String
@@ -31,7 +88,7 @@ module Term2
       end
 
       module ItemDelegate
-        abstract def render(io : IO, item : Item, index : Int32, selected : Bool)
+        abstract def render(io : IO, item : Item, index : Int32, selected : Bool, enumerator : String)
         abstract def height : Int32
         abstract def spacing : Int32
         # abstract def update(msg : Message, model : List) : Cmd
@@ -40,9 +97,10 @@ module Term2
       class DefaultDelegate
         include ItemDelegate
 
-        property selected_style : Style = Style.new(foreground: Color::MAGENTA)
+        property selected_style : Style = Style.new.foreground(Color::MAGENTA)
         property normal_style : Style = Style.new
-        property desc_style : Style = Style.new(faint: true)
+        property desc_style : Style = Style.new.faint(true)
+        property enumerator_style : Style = Style.new
 
         def height : Int32
           2
@@ -52,13 +110,18 @@ module Term2
           1
         end
 
-        def render(io : IO, item : Item, index : Int32, selected : Bool)
+        def render(io : IO, item : Item, index : Int32, selected : Bool, enumerator : String)
           title_style = selected ? selected_style : normal_style
           cursor = selected ? "> " : "  "
 
-          io << title_style.apply("#{cursor}#{item.title}")
+          # Render enumerator with its style
+          enum_str = enumerator.empty? ? "" : "#{@enumerator_style.render(enumerator)} "
+
+          io << title_style.render("#{cursor}#{enum_str}#{item.title}")
           io << "\n"
-          io << desc_style.apply("    #{item.description}")
+          # Indent description to match enumerator width
+          indent = "    " + (" " * enumerator.size)
+          io << desc_style.render("#{indent}#{item.description}")
         end
       end
 
@@ -66,9 +129,13 @@ module Term2
       property index : Int32 = 0
       property width : Int32 = 20
       property height : Int32 = 10
+      property id : String = "" # Zone ID for focus management
 
       property paginator : Paginator
       property delegate : ItemDelegate
+
+      # Enumerator for list item prefixes (bullet, number, etc.)
+      property enumerator : Enumerator = Enumerators::None
 
       # Key bindings
       property key_map : KeyMap
@@ -87,10 +154,11 @@ module Term2
         end
       end
 
-      def initialize(items : Array(Item) = [] of Item, width : Int32 = 20, height : Int32 = 10)
+      def initialize(items : Array(Item) = [] of Item, width : Int32 = 20, height : Int32 = 10, id : String = "")
         @items = items
         @width = width
         @height = height
+        @id = id
         @paginator = Paginator.new
         @delegate = DefaultDelegate.new
         @key_map = KeyMap.new
@@ -98,15 +166,21 @@ module Term2
       end
 
       # Overload for simple string lists
-      def self.new(items : Array(String), width : Int32 = 20, height : Int32 = 10)
+      def self.new(items : Array(String), width : Int32 = 20, height : Int32 = 10, id : String = "")
         list_items = items.map { |i| DefaultItem.new(i).as(Item) }
-        new(list_items, width, height)
+        new(list_items, width, height, id)
       end
 
       # Overload for title + description lists
-      def self.new(items : Array({String, String}), width : Int32 = 20, height : Int32 = 10)
+      def self.new(items : Array({String, String}), width : Int32 = 20, height : Int32 = 10, id : String = "")
         list_items = items.map { |i| DefaultItem.new(i[0], i[1]).as(Item) }
-        new(list_items, width, height)
+        new(list_items, width, height, id)
+      end
+
+      # Fluent setter for enumerator
+      def enumerator(enumerator_func : Enumerator) : self
+        @enumerator = enumerator_func
+        self
       end
 
       def items=(items : Array(Item))
@@ -118,12 +192,38 @@ module Term2
         @items[@index]?
       end
 
-      def update(msg : Message) : {List, Cmd}
+      def focused? : Bool
+        @id.empty? ? true : Zone.focused?(@id)
+      end
+
+      def focus
+        Zone.focus(@id) unless @id.empty?
+      end
+
+      def blur
+        Zone.blur(@id) unless @id.empty?
+      end
+
+      def update(msg : Msg) : {List, Cmd}
         case msg
+        when ZoneClickMsg
+          if msg.id == @id
+            focus
+            # Calculate which item was clicked based on y position
+            item_height = @delegate.height + @delegate.spacing
+            clicked_item_offset = msg.y // item_height
+            range = @paginator.items_on_page(@items.size)
+            clicked_index = range.begin + clicked_item_offset
+            if clicked_index < @items.size
+              @index = clicked_index
+            end
+          end
         when KeyMsg
-          handle_key(msg)
+          if focused?
+            handle_key(msg)
+          end
         end
-        {self, Cmd.none}
+        {self, nil}
       end
 
       def handle_key(msg : KeyMsg)
@@ -177,13 +277,15 @@ module Term2
       end
 
       def view : String
-        String.build do |io|
+        content = String.build do |io|
           # Render items for current page
           range = @paginator.items_on_page(@items.size)
 
           range.each do |i|
             item = @items[i]
-            @delegate.render(io, item, i, i == @index)
+            # Generate enumerator prefix for this item
+            enum_prefix = @enumerator.call(@items, i)
+            @delegate.render(io, item, i, i == @index, enum_prefix)
             io << "\n" * @delegate.spacing
           end
 
@@ -192,6 +294,9 @@ module Term2
           # Paginator
           io << "\n" << @paginator.view
         end
+
+        # Wrap with zone marker if we have an ID
+        @id.empty? ? content : Zone.mark(@id, content)
       end
     end
   end

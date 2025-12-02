@@ -1,10 +1,14 @@
 require "../term2"
+require "../zone"
 require "./key"
 require "file_utils"
 
 module Term2
   module Components
-    class FilePicker < Model
+    class FilePicker
+      include Model
+
+      property id : String = ""
       property current_directory : String
       property allowed_types : Array(String) = [] of String
       property? show_hidden : Bool = false
@@ -16,17 +20,30 @@ module Term2
       property height : Int32 = 10
 
       # Styles
-      property cursor_style : Style = Style.new(foreground: Color::MAGENTA)
-      property dir_style : Style = Style.new(foreground: Color::BLUE, bold: true)
+      property cursor_style : Style = Style.new.foreground(Color::MAGENTA)
+      property dir_style : Style = Style.new.foreground(Color::BLUE).bold(true)
       property file_style : Style = Style.new
-      property selected_style : Style = Style.new(reverse: true)
-      property error_style : Style = Style.new(foreground: Color::RED)
+      property selected_style : Style = Style.new.reverse(true)
+      property error_style : Style = Style.new.foreground(Color::RED)
 
       property error : String?
       property selected_file : String?
 
       def did_select_file?
         !@selected_file.nil?
+      end
+
+      def focused?
+        return true if @id.empty?
+        Zone.focused?(@id)
+      end
+
+      def focus
+        Zone.focus(@id) unless @id.empty?
+      end
+
+      def blur
+        Zone.blur(@id) unless @id.empty?
       end
 
       # Key bindings
@@ -48,7 +65,7 @@ module Term2
         end
       end
 
-      def initialize(path : String = ".")
+      def initialize(path : String = ".", @id : String = "")
         @current_directory = File.expand_path(path)
         @key_map = KeyMap.new
         read_dir
@@ -69,7 +86,7 @@ module Term2
         end
       end
 
-      def update(msg : Message) : {FilePicker, Cmd}
+      def update(msg : Msg) : {FilePicker, Cmd}
         case msg
         when ReadDirMsg
           if err = msg.error
@@ -80,10 +97,15 @@ module Term2
             @error = nil
             @selected_index = 0
           end
+        when ZoneClickMsg
+          if !@id.empty? && msg.id == @id
+            focus
+            # Could calculate which item was clicked based on y position
+          end
         when KeyMsg
-          handle_key(msg)
+          handle_key(msg) if focused?
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def handle_key(msg : KeyMsg)
@@ -166,48 +188,51 @@ module Term2
       end
 
       def view : String
-        if @error
-          return @error_style.apply("Error: #{@error}")
-        end
+        content = if @error
+                    @error_style.render("Error: #{@error}")
+                  else
+                    String.build do |io|
+                      io << @dir_style.render(@current_directory) << "\n\n"
 
-        String.build do |io|
-          io << @dir_style.apply(@current_directory) << "\n\n"
+                      start_idx = 0
+                      end_idx = [@files.size, @height].min
 
-          start_idx = 0
-          end_idx = [@files.size, @height].min
+                      # Simple scrolling
+                      if @selected_index >= @height
+                        start_idx = @selected_index - @height + 1
+                        end_idx = start_idx + @height
+                      end
 
-          # Simple scrolling
-          if @selected_index >= @height
-            start_idx = @selected_index - @height + 1
-            end_idx = start_idx + @height
-          end
+                      visible_files = @files[start_idx...end_idx]
 
-          visible_files = @files[start_idx...end_idx]
+                      visible_files.each_with_index do |file, i|
+                        real_idx = start_idx + i
+                        selected = real_idx == @selected_index
 
-          visible_files.each_with_index do |file, i|
-            real_idx = start_idx + i
-            selected = real_idx == @selected_index
+                        cursor = selected ? "> " : "  "
 
-            cursor = selected ? "> " : "  "
+                        path = File.join(@current_directory, file)
+                        is_dir = File.directory?(path)
 
-            path = File.join(@current_directory, file)
-            is_dir = File.directory?(path)
+                        style = is_dir ? @dir_style : @file_style
+                        if selected && focused?
+                          style = style.merge(@selected_style)
+                        end
 
-            style = is_dir ? @dir_style : @file_style
-            if selected
-              style = style.merge(@selected_style)
-            end
+                        io << @cursor_style.render(cursor)
+                        io << style.render(file)
+                        io << "/" if is_dir
+                        io << "\n"
+                      end
 
-            io << @cursor_style.apply(cursor)
-            io << style.apply(file)
-            io << "/" if is_dir
-            io << "\n"
-          end
+                      if @files.empty?
+                        io << "  (empty)"
+                      end
+                    end
+                  end
 
-          if @files.empty?
-            io << "  (empty)"
-          end
-        end
+        return content if @id.empty?
+        Zone.mark(@id, content)
       end
     end
   end

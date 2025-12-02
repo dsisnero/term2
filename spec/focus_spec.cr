@@ -1,6 +1,8 @@
 require "./spec_helper"
 
-private class FocusSpecModel < Term2::Model
+private class FocusSpecModel
+  include Term2::Model
+
   getter? focused : Bool = false
   getter? blurred : Bool = false
 
@@ -8,17 +10,17 @@ private class FocusSpecModel < Term2::Model
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::FocusMsg
-      {FocusSpecModel.new(focused: true, blurred: blurred?), Term2::Cmd.none}
+      {FocusSpecModel.new(focused: true, blurred: blurred?), Term2::Cmds.none}
     when Term2::BlurMsg
-      {FocusSpecModel.new(focused: focused?, blurred: true), Term2::Cmd.quit}
+      {FocusSpecModel.new(focused: focused?, blurred: true), Term2::Cmds.quit}
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 

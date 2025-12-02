@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class Spinner < Model
+    class Spinner
+      include Model
+
       struct Type
         getter frames : Array(String)
         getter fps : Time::Span
@@ -53,7 +55,7 @@ module Term2
         end
       end
 
-      def update(msg : Message) : {Spinner, Cmd}
+      def update(msg : Msg) : {Spinner, Cmd}
         case msg
         when TickMsg
           if msg.id == @id && msg.tag == @tag
@@ -61,19 +63,19 @@ module Term2
             return {self, tick}
           end
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def tick : Cmd
         id = @id
         tag = @tag
-        Cmd.tick(@type.fps) do |time|
+        Cmds.tick(@type.fps) do |time|
           TickMsg.new(id, tag, time)
         end
       end
 
       def view : String
-        @style.apply(@type.frames[@frame_index])
+        @style.render(@type.frames[@frame_index])
       end
     end
   end

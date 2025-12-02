@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class CountdownTimer < Term2::Model
+    class CountdownTimer
+      include Term2::Model
+
       getter duration : Time::Span
       getter remaining : Time::Span
       getter? running : Bool
@@ -38,14 +40,14 @@ module Term2
         schedule_tick
       end
 
-      def update(msg : Message) : {Model, Cmd}
+      def update(msg : Msg) : {Model, Cmd}
         case msg
         when Start
           restart(msg.duration)
         when Tick
           advance(msg.time)
         else
-          {self, Cmd.none}
+          {self, Cmds.none}
         end
       end
 
@@ -62,7 +64,7 @@ module Term2
       end
 
       private def advance(tick_at : Time) : {Model, Cmd}
-        return {self, Cmd.none} unless @running
+        return {self, Cmds.none} unless @running
 
         last_tick = @last_tick || tick_at
         elapsed = tick_at - last_tick
@@ -70,7 +72,7 @@ module Term2
 
         if remaining <= Time::Span.zero
           finished_timer = CountdownTimer.new(@duration, Time::Span.zero, false, tick_at, @interval)
-          {finished_timer, Cmd.message(Finished.new(tick_at))}
+          {finished_timer, Cmds.message(Finished.new(tick_at))}
         else
           updated_timer = CountdownTimer.new(@duration, remaining, true, tick_at, @interval)
           {updated_timer, updated_timer.schedule_tick}
@@ -78,7 +80,7 @@ module Term2
       end
 
       def schedule_tick : Cmd
-        Cmd.tick(@interval) { |time| Tick.new(time) }
+        Cmds.tick(@interval) { |time| Tick.new(time) }
       end
     end
   end

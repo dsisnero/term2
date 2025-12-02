@@ -94,8 +94,8 @@ describe Term2::Components::TextInput do
     view.should contain "a"
     view.should contain "c"
     # Check for reverse video code around 'b'
-    # \e[7mb\e[0m or similar
-    view.should match /\e\[0;7mb\e\[0m/
+    # \e[7mb\e[0m (standard ANSI reverse video)
+    view.should match /\e\[7mb\e\[0m/
   end
 
   it "handles space input" do

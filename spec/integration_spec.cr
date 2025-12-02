@@ -3,7 +3,9 @@ require "./spec_helper"
 # Integration tests for Term2 - end-to-end testing of the framework
 
 # Test app that counts messages received
-private class MessageCounterModel < Term2::Model
+private class MessageCounterModel
+  include Term2::Model
+
   getter messages : Array(String) = [] of String
   getter? quit_requested : Bool = false
 
@@ -11,7 +13,7 @@ private class MessageCounterModel < Term2::Model
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
@@ -19,12 +21,12 @@ private class MessageCounterModel < Term2::Model
     when Term2::KeyMsg
       key_str = msg.key.to_s
       if key_str == "q" || msg.key.type == Term2::KeyType::CtrlC
-        {MessageCounterModel.new(messages + [key_str], quit_requested: true), Term2::Cmd.quit}
+        {MessageCounterModel.new(messages + [key_str], quit_requested: true), Term2::Cmds.quit}
       else
-        {MessageCounterModel.new(messages + [key_str]), Term2::Cmd.none}
+        {MessageCounterModel.new(messages + [key_str]), Term2::Cmds.none}
       end
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -34,7 +36,9 @@ private class MessageCounterModel < Term2::Model
 end
 
 # Test app for window resize
-private class ResizeModel < Term2::Model
+private class ResizeModel
+  include Term2::Model
+
   getter width : Int32 = 0
   getter height : Int32 = 0
 
@@ -42,15 +46,15 @@ private class ResizeModel < Term2::Model
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::WindowSizeMsg
-      {ResizeModel.new(msg.width, msg.height), Term2::Cmd.quit}
+      {ResizeModel.new(msg.width, msg.height), Term2::Cmds.quit}
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -63,14 +67,16 @@ end
 private class CommandTickMsg < Term2::Message
 end
 
-private class CommandModel < Term2::Model
+private class CommandModel
+  include Term2::Model
+
   getter tick_count : Int32 = 0
 
   def initialize(@tick_count = 0)
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.tick(10.milliseconds) { CommandTickMsg.new }
+    Term2::Cmds.tick(10.milliseconds) { CommandTickMsg.new }
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
@@ -78,12 +84,12 @@ private class CommandModel < Term2::Model
     when CommandTickMsg
       new_count = tick_count + 1
       if new_count >= 3
-        {CommandModel.new(new_count), Term2::Cmd.quit}
+        {CommandModel.new(new_count), Term2::Cmds.quit}
       else
-        {CommandModel.new(new_count), Term2::Cmd.tick(10.milliseconds) { CommandTickMsg.new }}
+        {CommandModel.new(new_count), Term2::Cmds.tick(10.milliseconds) { CommandTickMsg.new }}
       end
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -99,16 +105,18 @@ end
 private class BatchMsgB < Term2::Message
 end
 
-private class BatchCommandModel < Term2::Model
+private class BatchCommandModel
+  include Term2::Model
+
   getter received : Array(String) = [] of String
 
   def initialize(@received = [] of String)
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.batch(
-      Term2::Cmd.message(BatchMsgA.new),
-      Term2::Cmd.message(BatchMsgB.new)
+    Term2::Cmds.batch(
+      Term2::Cmds.message(BatchMsgA.new),
+      Term2::Cmds.message(BatchMsgB.new)
     )
   end
 
@@ -117,19 +125,19 @@ private class BatchCommandModel < Term2::Model
     when BatchMsgA
       new_received = received + ["A"]
       if new_received.size >= 2
-        {BatchCommandModel.new(new_received), Term2::Cmd.quit}
+        {BatchCommandModel.new(new_received), Term2::Cmds.quit}
       else
-        {BatchCommandModel.new(new_received), Term2::Cmd.none}
+        {BatchCommandModel.new(new_received), Term2::Cmds.none}
       end
     when BatchMsgB
       new_received = received + ["B"]
       if new_received.size >= 2
-        {BatchCommandModel.new(new_received), Term2::Cmd.quit}
+        {BatchCommandModel.new(new_received), Term2::Cmds.quit}
       else
-        {BatchCommandModel.new(new_received), Term2::Cmd.none}
+        {BatchCommandModel.new(new_received), Term2::Cmds.none}
       end
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -146,14 +154,16 @@ private class FilteredMsg < Term2::Message
   end
 end
 
-private class FilterModel < Term2::Model
+private class FilterModel
+  include Term2::Model
+
   getter values : Array(String) = [] of String
 
   def initialize(@values = [] of String)
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.message(FilteredMsg.new("original"))
+    Term2::Cmds.message(FilteredMsg.new("original"))
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
@@ -161,12 +171,12 @@ private class FilterModel < Term2::Model
     when FilteredMsg
       new_values = values + [msg.value]
       if new_values.size >= 1
-        {FilterModel.new(new_values), Term2::Cmd.quit}
+        {FilterModel.new(new_values), Term2::Cmds.quit}
       else
-        {FilterModel.new(new_values), Term2::Cmd.none}
+        {FilterModel.new(new_values), Term2::Cmds.none}
       end
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -303,7 +313,9 @@ describe "Integration Tests" do
 end
 
 # Reuse FocusTestApp from focus_spec.cr
-private class FocusTestModel < Term2::Model
+private class FocusTestModel
+  include Term2::Model
+
   getter? focused : Bool = false
   getter? blurred : Bool = false
 
@@ -311,17 +323,17 @@ private class FocusTestModel < Term2::Model
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::FocusMsg
-      {FocusTestModel.new(focused: true, blurred: blurred?), Term2::Cmd.none}
+      {FocusTestModel.new(focused: true, blurred: blurred?), Term2::Cmds.none}
     when Term2::BlurMsg
-      {FocusTestModel.new(focused: focused?, blurred: true), Term2::Cmd.quit}
+      {FocusTestModel.new(focused: focused?, blurred: true), Term2::Cmds.quit}
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 

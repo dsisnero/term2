@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class Paginator < Model
+    class Paginator
+      include Model
+
       enum Type
         Arabic
         Dots
@@ -15,13 +17,13 @@ module Term2
       property active_dot : String = "•"
       property inactive_dot : String = "○"
       property arabic_format : String = "%d/%d"
-      property style : Style = Style.new(faint: true)
+      property style : Style = Style.new.faint(true)
 
       def initialize
       end
 
-      def update(msg : Message) : {Paginator, Cmd}
-        {self, Cmd.none}
+      def update(msg : Msg) : {Paginator, Cmd}
+        {self, Cmds.none}
       end
 
       def total_pages=(items : Int32)
@@ -37,7 +39,7 @@ module Term2
         @total_pages = n
       end
 
-      def items_on_page(items : Int32) : Range(Int32, Int32)
+      def items_on_page(items : Int32) : ::Range(Int32, Int32)
         start = @page * @per_page
         end_idx = {start + @per_page, items}.min
         start...end_idx
@@ -73,7 +75,7 @@ module Term2
                  ""
                end
 
-        @style.apply(text)
+        @style.render(text)
       end
     end
   end

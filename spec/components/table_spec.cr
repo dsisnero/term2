@@ -82,15 +82,17 @@ describe Term2::Components::Table do
 
     view = table.view
 
+    plain = Term2::Text.strip_ansi(view)
+
     # Header
-    view.should contain "ID"
-    view.should contain "Name"
+    plain.should contain "ID"
+    plain.should contain "Name"
 
     # Rows
-    view.should contain "1"
-    view.should contain "Alice"
-    view.should contain "2"
-    view.should contain "Bob"
+    plain.should contain "1"
+    plain.should contain "Alice"
+    plain.should contain "2"
+    plain.should contain "Bob"
 
     # Selection style (reverse video)
     # First row is selected

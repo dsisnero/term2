@@ -127,6 +127,11 @@ module Term2
       # Move cursor to home position and clear from cursor to end of screen
       @output.print("\e[H\e[J")
     end
+
+    # Compatibility no-op with Bubble Tea renderer API
+    def reset_lines_rendered : Nil
+      # We don't track rendered lines; noop for compatibility.
+    end
   end
 
   # NilRenderer is a no-op renderer for non-TUI mode
@@ -138,7 +143,15 @@ module Term2
       @running = true
     end
 
+    def write(text : String) : Nil
+      # No-op
+    end
+
     def stop : Nil
+      @running = false
+    end
+
+    def kill : Nil
       @running = false
     end
 
@@ -168,6 +181,50 @@ module Term2
 
     def fps : Float64
       @fps
+    end
+
+    def reset_lines_rendered : Nil
+      # No-op
+    end
+
+    def enter_alt_screen : Nil
+      # No-op
+    end
+
+    def exit_alt_screen : Nil
+      # No-op
+    end
+
+    def alt_screen? : Bool
+      false
+    end
+
+    def clear_screen : Nil
+      # No-op
+    end
+
+    def show_cursor : Nil
+      # No-op
+    end
+
+    def hide_cursor : Nil
+      # No-op
+    end
+
+    def enable_mouse_cell_motion : Nil
+      # No-op
+    end
+
+    def disable_mouse_cell_motion : Nil
+      # No-op
+    end
+
+    def enable_mouse_all_motion : Nil
+      # No-op
+    end
+
+    def disable_mouse_all_motion : Nil
+      # No-op
     end
   end
 end

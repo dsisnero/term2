@@ -125,32 +125,32 @@ module Term2
 
   describe "terminal commands" do
     it "creates enter_alt_screen command" do
-      cmd = Cmd.enter_alt_screen
+      cmd = Cmds.enter_alt_screen
       cmd.should be_a(Cmd)
     end
 
     it "creates exit_alt_screen command" do
-      cmd = Cmd.exit_alt_screen
+      cmd = Cmds.exit_alt_screen
       cmd.should be_a(Cmd)
     end
 
     it "creates show_cursor command" do
-      cmd = Cmd.show_cursor
+      cmd = Cmds.show_cursor
       cmd.should be_a(Cmd)
     end
 
     it "creates hide_cursor command" do
-      cmd = Cmd.hide_cursor
+      cmd = Cmds.hide_cursor
       cmd.should be_a(Cmd)
     end
 
     it "creates println command" do
-      cmd = Cmd.println("test")
+      cmd = Cmds.println("test")
       cmd.should be_a(Cmd)
     end
 
     it "creates printf command" do
-      cmd = Cmd.printf("test %s", "value")
+      cmd = Cmds.printf("test %s", "value")
       cmd.should be_a(Cmd)
     end
   end

@@ -1,54 +1,133 @@
 # Base types for Term2
+#
+# Mirrors Bubble Tea's core types as closely as possible:
+#
+#   Go (Bubble Tea)              Crystal (Term2)
+#   ---------------              ---------------
+#   type Msg interface{}         alias Msg = Message
+#   type Cmd func() Msg          alias Cmd = (-> Msg)?
+#   type Model interface {       module Model
+#     Init() Cmd                   def init : Cmd
+#     Update(Msg) (Model, Cmd)     def update(msg) : {Model, Cmd}
+#     View() string                def view : String
+#   }                            end
+#
 require "cml"
 require "cml/mailbox"
 
 module Term2
-  # Base class for application state.
+  # Msg is any message that can be sent to the update function.
+  # In Go this is `interface{}` (any type). In Crystal we use
+  # a base class that all messages inherit from.
+  abstract class Message
+  end
+
+  alias Msg = Message
+
+  # Cmd is an IO operation that returns a message when it's complete.
+  # If it's nil it's considered a no-op.
   #
-  # Your application's model must inherit from this class.
-  # The model represents all of your application's state.
+  # In Go: `type Cmd func() Msg`
+  # In Crystal: `alias Cmd = (-> Msg)?`
+  alias Cmd = (Proc(Msg) | Proc(Msg?))?
+
+  # Model contains the program's state as well as its core functions.
+  #
+  # Any type that includes this module and implements the required
+  # methods can be used as a model. This mirrors Go's interface-based
+  # approach where any struct with the right methods implements Model.
   #
   # ```
-  # class MyModel < Term2::Model
-  #   getter count : Int32
-  #   getter name : String
+  # class Counter
+  #   include Term2::Model
   #
-  #   def initialize(@count = 0, @name = "")
+  #   getter count : Int32 = 0
+  #
+  #   def init : Term2::Cmd
+  #     nil # no initial command
+  #   end
+  #
+  #   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
+  #     case msg
+  #     when Term2::KeyMsg
+  #       case msg.key.to_s
+  #       when "q" then {self, Term2.quit}
+  #       when "+" then {Counter.new(@count + 1), nil}
+  #       else          {self, nil}
+  #       end
+  #     else
+  #       {self, nil}
+  #     end
+  #   end
+  #
+  #   def view : String
+  #     "Count: #{@count}"
   #   end
   # end
   # ```
-  abstract class Model
+  module Model
     # Init is the first function that will be called. It returns an optional
-    # initial command. To not perform an initial command return `Cmd.none`.
+    # initial command. To not perform an initial command return nil.
     def init : Cmd
-      Cmd.none
+      nil
     end
 
     # Update is called when a message is received. Use it to inspect the
     # message and, in response, update the model and/or send a command.
-    abstract def update(msg : Message) : {Model, Cmd}
+    abstract def update(msg : Msg) : {Model, Cmd}
 
     # View renders the program's UI, which is just a string. The view is
-    # rendered after every update.
+    # rendered after every Update.
     abstract def view : String
+
+    # Zone ID for this model (used by BubbleZone for focus/click tracking).
+    # Override this to provide a custom zone ID.
+    def zone_id : String?
+      nil
+    end
+
+    # Whether this model is currently focused.
+    def focused? : Bool
+      if id = zone_id
+        Zone.focused?(id)
+      else
+        false
+      end
+    end
+
+    # Focus this model's zone.
+    def focus : Cmd
+      if id = zone_id
+        Zone.focus(id)
+      end
+      nil
+    end
+
+    # Blur (unfocus) this model's zone.
+    def blur : Cmd
+      if id = zone_id
+        Zone.blur(id)
+      end
+      nil
+    end
   end
 
-  # Base class for all messages in the system.
-  #
-  # Messages are the only way to update your model. They represent
-  # events like key presses, mouse clicks, timers, or custom events.
-  #
-  # ```
-  # class IncrementMsg < Term2::Message
-  # end
-  #
-  # class SetNameMsg < Term2::Message
-  #   getter name : String
-  #
-  #   def initialize(@name); end
-  # end
-  # ```
-  abstract class Message
+  # BatchMsg is used internally to run commands concurrently.
+  class BatchMsg < Message
+    getter cmds : Array(-> Msg?)
+
+    def initialize(cmds)
+      @cmds = cmds.map { |c| -> : Msg? { c.call.as?(Msg) } }
+    end
+  end
+
+  # SequenceMsg is used internally to run commands in order.
+  class SequenceMsg < Message
+    getter cmds : Array(-> Msg?)
+
+    def initialize(cmds)
+      @cmds = cmds.map { |c| -> : Msg? { c.call.as?(Msg) } }
+    end
   end
 
   # Key contains information about a keypress.
@@ -124,6 +203,10 @@ module Term2
           str << KEY_NAMES[@type]?
         end
       end
+    end
+
+    def ==(other : Key) : Bool
+      to_s == other.to_s
     end
 
     # Check if this key matches a given string representation
@@ -264,6 +347,10 @@ module Term2
     F20
     FocusIn
     FocusOut
+
+    def to_s : String
+      KEY_NAMES[self]? || ""
+    end
   end
 
   # Human-readable names for key types.
@@ -371,38 +458,53 @@ module Term2
   }
 
   # Internal message that signals the program should terminate.
-  # Use `Cmd.quit` to send this message.
+  # Use `Cmds.quit` to send this message.
   class QuitMsg < Message
   end
 
   # Message to enter alternate screen mode.
-  # Use `Cmd.enter_alt_screen` to send this message.
+  # Use `Cmds.enter_alt_screen` to send this message.
   class EnterAltScreenMsg < Message
   end
 
   # Message to exit alternate screen mode.
-  # Use `Cmd.exit_alt_screen` to send this message.
+  # Use `Cmds.exit_alt_screen` to send this message.
   class ExitAltScreenMsg < Message
   end
 
   # Message to show the cursor.
-  # Use `Cmd.show_cursor` to send this message.
+  # Use `Cmds.show_cursor` to send this message.
   class ShowCursorMsg < Message
   end
 
   # Message to hide the cursor.
-  # Use `Cmd.hide_cursor` to send this message.
+  # Use `Cmds.hide_cursor` to send this message.
   class HideCursorMsg < Message
   end
 
   # Message sent when the terminal window gains focus.
   # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
   class FocusMsg < Message
+    def ==(other : FocusMsg) : Bool
+      true
+    end
   end
 
   # Message sent when the terminal window loses focus.
   # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
   class BlurMsg < Message
+    def ==(other : BlurMsg) : Bool
+      true
+    end
+  end
+
+  # Message sent when a zone receives focus via tab navigation.
+  # Contains the zone ID that should receive focus.
+  class ZoneFocusMsg < Message
+    getter zone_id : String
+
+    def initialize(@zone_id : String)
+    end
   end
 
   # Message sent when the terminal window is resized.
@@ -423,6 +525,10 @@ module Term2
 
     def initialize(@text : String)
     end
+  end
+
+  # Raised when program is killed.
+  class ProgramKilled < Exception
   end
 
   # ClearScreenMsg signals a request to clear the screen
@@ -488,16 +594,20 @@ module Term2
     def to_s : String
       @key.to_s
     end
+
+    def ==(other : KeyMsg) : Bool
+      @key == other.key
+    end
   end
 
   class Dispatcher
-    def initialize(@mailbox : CML::Mailbox(Message), parent : Dispatcher? = nil, mapper : Proc(Message, Message)? = nil)
+    def initialize(@mailbox : CML::Mailbox(Msg), parent : Dispatcher? = nil, mapper : Proc(Msg, Msg)? = nil)
       @parent = parent
       @mapper = mapper
       @running_state = parent ? parent.@running_state : Atomic(Bool).new(true)
     end
 
-    def dispatch(msg : Message) : Nil
+    def dispatch(msg : Msg) : Nil
       return unless running?
       mapped = if mapper = @mapper
                  mapper.call(msg)
@@ -527,217 +637,248 @@ module Term2
       end
     end
 
-    def mapped(&mapper : Message -> Message) : Dispatcher
+    def mapped(&mapper : Msg -> Msg) : Dispatcher
       Dispatcher.new(@mailbox, self, mapper)
     end
   end
 
-  struct Cmd
-    @block : Proc(Dispatcher, Nil)?
+  # Batch performs a bunch of commands concurrently with no ordering guarantees.
+  # Use a Batch to return several commands from Init or Update.
+  #
+  # ```
+  # def init : Term2::Cmd
+  #   Term2.batch(load_data_cmd, start_timer_cmd)
+  # end
+  # ```
+  def self.batch(*cmds : Cmd) : Cmd
+    Cmds.batch(*cmds)
+  end
 
-    def initialize(&block : Dispatcher -> Nil)
-      @block = block
+  # Sequence runs the given commands one at a time, in order.
+  # Contrast this with Batch, which runs commands concurrently.
+  def self.sequence(*cmds : Cmd) : Cmd
+    Cmds.sequence(*cmds)
+  end
+
+  # Quit is a command that tells the program to exit.
+  def self.quit : Cmd
+    Cmds.quit
+  end
+
+  module Cmds
+    # No-op command (nil)
+    def self.none : ::Term2::Cmd
+      nil
     end
 
-    def initialize
-      @block = nil
+    # Immediately emit a single message.
+    def self.message(msg : Msg) : ::Term2::Cmd
+      -> : Msg? { msg.as(Msg) }
     end
 
-    def run(dispatcher : Dispatcher) : Nil
-      @block.try &.call(dispatcher)
+    # Run several commands concurrently.
+    def self.batch : ::Term2::Cmd
+      none
     end
 
-    def self.none : self
-      new
+    def self.batch(*cmds : ::Term2::Cmd) : ::Term2::Cmd
+      normalized = cmds.to_a.compact
+      return none if normalized.empty?
+      return normalized.first if normalized.size == 1
+
+      -> : Msg? { BatchMsg.new(normalized).as(Msg) }
     end
 
-    def self.message(msg : Message) : self
-      new(&.dispatch(msg))
+    # Run commands sequentially.
+    def self.sequence : ::Term2::Cmd
+      none
     end
 
-    def self.batch(*cmds : self) : self
-      new do |dispatch|
-        cmds.each &.run(dispatch)
-      end
+    def self.sequence(*cmds : ::Term2::Cmd) : ::Term2::Cmd
+      normalized = cmds.to_a.compact
+      return none if normalized.empty?
+      return normalized.first if normalized.size == 1
+
+      -> : Msg? { SequenceMsg.new(normalized).as(Msg) }
     end
 
-    def self.sequence(*cmds : self) : self
-      new do |dispatch|
-        cmds.each &.run(dispatch)
-      end
-    end
+    # Sequentially executes commands in order, returning the first non-nil message.
+    # Mirrors Bubble Tea's Sequentially helper.
+    def self.sequentially(*cmds : ::Term2::Cmd) : ::Term2::Cmd
+      normalized = cmds.to_a.compact
+      return none if normalized.empty?
 
-    def self.map(cmd : self, &block : Message -> Message) : self
-      new do |dispatch|
-        cmd.run(dispatch.mapped(&block))
-      end
-    end
-
-    def self.every(duration : Time::Span, message : Message) : self
-      every(duration) { |_| message }
-    end
-
-    def self.every(duration : Time::Span, &block : Time -> Message) : self
-      new do |dispatch|
-        spawn do
-          loop do
-            break unless dispatch.running?
-            CML.sync(CML.timeout(duration))
-            break unless dispatch.running?
-            dispatch.dispatch(block.call(Time.utc))
+      -> {
+        normalized.each do |cmd|
+          next unless cmd
+          if msg = cmd.call
+            return msg
           end
         end
-      end
+        nil
+      }
     end
 
-    # Schedule a message to be dispatched after the given duration.
-    def self.after(duration : Time::Span, message : Message) : self
-      if duration <= Time::Span.zero
-        return message(message)
-      end
-      after(duration) { message }
-    end
-
-    # Lazy variant where the message is generated at delivery time.
-    def self.after(duration : Time::Span, &block : -> Message) : self
-      if duration <= Time::Span.zero
-        return message(block.call)
-      end
-      from_event(CML.wrap(CML.timeout(duration)) { block.call })
-    end
-
-    def self.deadline(target : Time, message : Message) : self
-      span = duration_until(target)
-      return message(message) if span <= Time::Span.zero
-      after(span, message)
-    end
-
-    def self.deadline(target : Time, &block : -> Message) : self
-      span = duration_until(target)
-      return after(span, &block) if span > Time::Span.zero
-      message(block.call)
-    end
-
-    def self.timeout(duration : Time::Span, timeout_message : Message, &block : -> Message) : self
-      event = CML.spawn_evt { block.call }
-      timeout(duration, timeout_message, event)
-    end
-
-    def self.timeout(duration : Time::Span, timeout_message : Message, event : CML::Event(Message)) : self
-      events = [] of CML::Event(Message)
-      events << event
-      timeout_evt = CML.wrap(CML.timeout(duration)) { |_| timeout_message.as(Message) }
-      events << timeout_evt
-      from_event(CML.choose(events))
-    end
-
-    # Sends a message produced by the block after the duration elapses.
-    # The block receives the current UTC time similar to tea.Tick in Bubble Tea.
-    def self.tick(duration : Time::Span, &block : Time -> Message) : self
-      from_event(CML.wrap(CML.timeout(duration)) { block.call(Time.utc) })
-    end
-
-    def self.from_event(evt : CML::Event(Message)) : self
-      new do |dispatch|
-        spawn do
-          begin
-            dispatch.dispatch(CML.sync(evt))
-          rescue
-            # Ignore errors from the event and keep the program running.
+    def self.sequentially(cmds : Array(::Term2::Cmd)) : ::Term2::Cmd
+      normalized = cmds.compact
+      return none if normalized.empty?
+      -> {
+        normalized.each do |cmd|
+          next unless cmd
+          if msg = cmd.call
+            return msg
           end
         end
-      end
+        nil
+      }
     end
 
-    def self.perform(&block : -> Message) : self
-      new do |dispatch|
+    # Map the result of a command.
+    def self.map(cmd : ::Term2::Cmd, &block : Msg -> Msg) : ::Term2::Cmd
+      return none unless cmd
+      -> : Msg? {
+        msg = cmd.call
+        return nil unless msg
+        block.call(msg)
+      }
+    end
+
+    # Every is a command that ticks after a duration.
+    # Like Bubble Tea, this sends a single message - to tick repeatedly,
+    # return another Every command from your update function.
+    def self.every(duration : Time::Span, &block : Time -> Msg) : ::Term2::Cmd
+      -> : Msg? {
+        CML.sync(CML.timeout(duration))
+        block.call(Time.utc)
+      }
+    end
+
+    # Tick sends a message after a duration (alias for every).
+    def self.tick(duration : Time::Span, &block : Time -> Msg) : ::Term2::Cmd
+      every(duration, &block)
+    end
+
+    # Schedule a message after a duration.
+    def self.after(duration : Time::Span, msg : Msg) : ::Term2::Cmd
+      -> : Msg? {
+        CML.sync(CML.timeout(duration)) unless duration <= Time::Span.zero
+        msg.as(Msg)
+      }
+    end
+
+    def self.after(duration : Time::Span, &block : -> Msg) : ::Term2::Cmd
+      -> : Msg? {
+        CML.sync(CML.timeout(duration)) unless duration <= Time::Span.zero
+        block.call.as(Msg)
+      }
+    end
+
+    def self.deadline(target : Time, msg : Msg) : ::Term2::Cmd
+      span = duration_until(target)
+      after(span, msg)
+    end
+
+    def self.deadline(target : Time, &block : -> Msg) : ::Term2::Cmd
+      span = duration_until(target)
+      after(span, &block)
+    end
+
+    def self.timeout(duration : Time::Span, timeout_message : Msg, &block : -> Msg) : ::Term2::Cmd
+      -> : Msg? {
+        result_ch = Channel(Msg).new
+
+        # Spawn the work
         spawn do
-          dispatch.dispatch(block.call)
+          result_ch.send(block.call)
         end
-      end
+
+        # Race between work and timeout
+        select
+        when msg = result_ch.receive
+          msg
+        when timeout(duration)
+          timeout_message
+        end
+      }
     end
 
-    def self.quit : self
+    def self.from_event(evt : CML::Event(Msg)) : ::Term2::Cmd
+      -> : Msg? {
+        CML.sync(evt)
+      }
+    end
+
+    def self.perform(&block : -> Msg) : ::Term2::Cmd
+      -> : Msg? { block.call }
+    end
+
+    def self.quit : ::Term2::Cmd
       message(QuitMsg.new)
     end
 
-    # Enter alternate screen mode
-    def self.enter_alt_screen : self
+    # Internal/terminal related helper constructors mirror the
+    # old Cmd API for convenience.
+    def self.enter_alt_screen : ::Term2::Cmd
       message(EnterAltScreenMsg.new)
     end
 
-    # Exit alternate screen mode
-    def self.exit_alt_screen : self
+    def self.exit_alt_screen : ::Term2::Cmd
       message(ExitAltScreenMsg.new)
     end
 
-    # Show the cursor
-    def self.show_cursor : self
+    def self.show_cursor : ::Term2::Cmd
       message(ShowCursorMsg.new)
     end
 
-    # Hide the cursor
-    def self.hide_cursor : self
+    def self.hide_cursor : ::Term2::Cmd
       message(HideCursorMsg.new)
     end
 
-    # Clear the screen and move cursor to home position
-    def self.clear_screen : self
+    def self.clear_screen : ::Term2::Cmd
       message(ClearScreenMsg.new)
     end
 
-    # Set the terminal window title
-    def self.window_title=(title : String) : self
+    def self.window_title=(title : String) : ::Term2::Cmd
       message(SetWindowTitleMsg.new(title))
     end
 
-    # Request the current window size (results in WindowSizeMsg)
-    def self.window_size : self
+    def self.window_size : ::Term2::Cmd
       message(RequestWindowSizeMsg.new)
     end
 
-    # Print a message above the program
-    def self.println(text : String) : self
+    def self.println(text : String) : ::Term2::Cmd
       message(PrintMsg.new(text + "\n"))
     end
 
-    # Print formatted text above the program
-    def self.printf(format : String, *args) : self
+    def self.printf(format : String, *args) : ::Term2::Cmd
       message(PrintMsg.new(sprintf(format, *args)))
     end
 
-    # Enable mouse cell motion tracking
-    def self.enable_mouse_cell_motion : self
+    def self.enable_mouse_cell_motion : ::Term2::Cmd
       message(EnableMouseCellMotionMsg.new)
     end
 
-    # Enable mouse all motion tracking (hover)
-    def self.enable_mouse_all_motion : self
+    def self.enable_mouse_all_motion : ::Term2::Cmd
       message(EnableMouseAllMotionMsg.new)
     end
 
-    # Disable mouse tracking
-    def self.disable_mouse_tracking : self
+    def self.disable_mouse_tracking : ::Term2::Cmd
       message(DisableMouseTrackingMsg.new)
     end
 
-    # Enable bracketed paste mode
-    def self.enable_bracketed_paste : self
+    def self.enable_bracketed_paste : ::Term2::Cmd
       message(EnableBracketedPasteMsg.new)
     end
 
-    # Disable bracketed paste mode
-    def self.disable_bracketed_paste : self
+    def self.disable_bracketed_paste : ::Term2::Cmd
       message(DisableBracketedPasteMsg.new)
     end
 
-    # Enable focus reporting
-    def self.enable_report_focus : self
+    def self.enable_report_focus : ::Term2::Cmd
       message(EnableReportFocusMsg.new)
     end
 
-    # Disable focus reporting
-    def self.disable_report_focus : self
+    def self.disable_report_focus : ::Term2::Cmd
       message(DisableReportFocusMsg.new)
     end
 

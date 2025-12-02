@@ -1,6 +1,8 @@
 require "./spec_helper"
 
-private class TimerTestModel < Term2::Model
+private class TimerTestModel
+  include Term2::Model
+
   getter timer : Term2::Components::CountdownTimer
   getter finished_count : Int32
 
@@ -17,7 +19,7 @@ private class TimerTestModel < Term2::Model
     case msg
     when Term2::Components::CountdownTimer::Finished
       @finished_count += 1
-      return {self, Term2::Cmd.quit}
+      return {self, Term2::Cmds.quit}
     end
 
     new_timer, cmd = @timer.update(msg)
@@ -37,7 +39,7 @@ describe Term2::Components::CountdownTimer do
     program = Term2::Program.new(model, input: nil, output: output)
 
     evt = CML.choose([
-      CML.wrap(CML.spawn_evt { program.run }) { |message| {message.as(Term2::Model?), :ok} },
+      CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
       CML.wrap(CML.timeout(1.second)) { |_| {nil.as(Term2::Model?), :timeout} },
     ])
 

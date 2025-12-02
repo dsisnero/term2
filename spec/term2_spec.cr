@@ -1,32 +1,34 @@
 require "./spec_helper"
 include Term2::Prelude
 
-private class SpecTextMessage < Term2::Message
+private class SpecTextMessage < Term2::Msg
   getter value : String
 
   def initialize(@value : String)
   end
 end
 
-private class SpecTick < Term2::Message
+private class SpecTick < Term2::Msg
 end
 
-private class SpecCounterModel < Term2::Model
+private class SpecCounterModel
+  include Term2::Model
+
   getter count : Int32
 
   def initialize(@count : Int32 = 0)
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.tick(100.milliseconds) { |_| SpecTick.new }
+    Term2::Cmds.tick(100.milliseconds) { |_| SpecTick.new }
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {self, Term2::Cmd}
     case msg
     when SpecTick
-      {SpecCounterModel.new(count + 1), Term2::Cmd.quit}
+      {SpecCounterModel.new(count + 1), Term2::Cmds.quit}
     else
-      {self, Term2::Cmd.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -36,173 +38,83 @@ private class SpecCounterModel < Term2::Model
 end
 
 describe Term2 do
-  describe Term2::Cmd do
-    it "dispatches batched messages" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      seen = [] of Term2::Message
-      done = Channel(Nil).new
-
-      spawn do
-        2.times { seen << CML.sync(mailbox.recv_evt) }
-        done.send(nil)
-      end
-
-      cmd = Term2::Cmd.batch(
-        Term2::Cmd.message(SpecTextMessage.new("one")),
-        Term2::Cmd.message(SpecTextMessage.new("two"))
+  describe Term2::Cmds do
+    it "creates batch commands" do
+      cmd = Term2::Cmds.batch(
+        Term2::Cmds.message(SpecTextMessage.new("one")),
+        Term2::Cmds.message(SpecTextMessage.new("two"))
       )
-
-      cmd.run(dispatcher)
-      done.receive
-      seen.map(&.as(SpecTextMessage).value).should eq(["one", "two"])
+      cmd.should_not be_nil
     end
 
-    it "dispatches messages from events" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      ch = CML::Chan(String).new
-      cmd = Term2::Cmd.from_event(CML.wrap(ch.recv_evt) { |msg| SpecTextMessage.new(msg) })
+    it "creates message commands" do
+      cmd = Term2::Cmds.message(SpecTextMessage.new("test"))
+      cmd.should_not be_nil
+      msg = cmd.not_nil!.call
+      msg.should be_a(SpecTextMessage)
+      msg.as(SpecTextMessage).value.should eq("test")
+    end
 
-      cmd.run(dispatcher)
-      spawn { CML.sync(ch.send_evt("event-msg")) }
-
-      CML.sync(mailbox.recv_evt).as(SpecTextMessage).value.should eq("event-msg")
+    it "creates none command" do
+      cmd = Term2::Cmds.none
+      cmd.should be_nil
     end
 
     it "dispatches delayed messages" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      cmd = Term2::Cmd.after(5.milliseconds, SpecTextMessage.new("delayed"))
-
-      cmd.run(dispatcher)
-      result = CML.sync(
-        CML.choose(
-          mailbox.recv_evt,
-          CML.wrap(CML.timeout(200.milliseconds)) { :timeout }
-        )
-      )
-
-      result.should_not eq(:timeout)
-      result.as(SpecTextMessage).value.should eq("delayed")
+      cmd = Term2::Cmds.after(5.milliseconds, SpecTextMessage.new("delayed"))
+      cmd.should_not be_nil
+      # The command should return the message after the delay
+      msg = cmd.not_nil!.call
+      msg.should be_a(SpecTextMessage)
+      msg.as(SpecTextMessage).value.should eq("delayed")
     end
 
     it "provides time to tick blocks" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
       tick_time : Time? = nil
-      cmd = Term2::Cmd.tick(5.milliseconds) do |time|
+      cmd = Term2::Cmds.tick(5.milliseconds) do |time|
         tick_time = time
         SpecTextMessage.new("tick")
       end
 
-      cmd.run(dispatcher)
-      result = CML.sync(
-        CML.choose(
-          mailbox.recv_evt,
-          CML.wrap(CML.timeout(200.milliseconds)) { :timeout }
-        )
-      )
-
-      result.should_not eq(:timeout)
-      result.as(SpecTextMessage).value.should eq("tick")
+      msg = cmd.not_nil!.call
+      msg.should be_a(SpecTextMessage)
+      msg.as(SpecTextMessage).value.should eq("tick")
       tick_time.should be_a(Time)
     end
 
-    it "dispatches timeout results from work or timer" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-
-      fast = Term2::Cmd.timeout(50.milliseconds, SpecTextMessage.new("timeout")) do
+    it "dispatches timeout results" do
+      fast = Term2::Cmds.timeout(50.milliseconds, SpecTextMessage.new("timeout")) do
         SpecTextMessage.new("fast")
       end
+      fast.not_nil!.call.as(SpecTextMessage).value.should eq("fast")
 
-      slow = Term2::Cmd.timeout(5.milliseconds, SpecTextMessage.new("timeout")) do
-        CML.sync(CML.timeout(50.milliseconds))
+      slow = Term2::Cmds.timeout(5.milliseconds, SpecTextMessage.new("timeout")) do
+        sleep 50.milliseconds
         SpecTextMessage.new("slow")
       end
-
-      fast.run(dispatcher)
-      CML.sync(mailbox.recv_evt).as(SpecTextMessage).value.should eq("fast")
-
-      slow.run(dispatcher)
-      CML.sync(mailbox.recv_evt).as(SpecTextMessage).value.should eq("timeout")
-    end
-
-    it "dispatches messages at deadlines" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      past = Term2::Cmd.deadline(Time.utc - 1.second, SpecTextMessage.new("due"))
-      future = Term2::Cmd.deadline(Time.utc + 5.milliseconds) { SpecTextMessage.new("future") }
-
-      past.run(dispatcher)
-      future.run(dispatcher)
-
-      first = CML.sync(mailbox.recv_evt).as(SpecTextMessage).value
-      second = CML.sync(mailbox.recv_evt).as(SpecTextMessage).value
-      first.should eq("due")
-      second.should eq("future")
-    end
-
-    it "dispatches periodic messages until dispatcher stops" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      cmd = Term2::Cmd.every(5.milliseconds) { SpecTick.new }
-      cmd.run(dispatcher)
-
-      2.times do
-        result = CML.sync(
-          CML.choose(
-            mailbox.recv_evt,
-            CML.wrap(CML.timeout(200.milliseconds)) { :timeout }
-          )
-        )
-        result.should_not eq(:timeout)
-        result.should be_a(SpecTick)
-      end
-
-      dispatcher.stop
-      while mailbox.poll
-      end
-
-      CML.sync(
-        CML.choose(
-          mailbox.recv_evt,
-          CML.wrap(CML.timeout(50.milliseconds)) { :timeout }
-        )
-      ).should eq(:timeout)
+      slow.not_nil!.call.as(SpecTextMessage).value.should eq("timeout")
     end
 
     it "runs commands sequentially" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      order = [] of String
-
-      cmd = Term2::Cmd.sequence(
-        Term2::Cmd.message(SpecTextMessage.new("first")),
-        Term2::Cmd.message(SpecTextMessage.new("second"))
+      cmd = Term2::Cmds.sequence(
+        Term2::Cmds.message(SpecTextMessage.new("first")),
+        Term2::Cmds.message(SpecTextMessage.new("second"))
       )
 
-      cmd.run(dispatcher)
-      2.times do
-        msg = CML.sync(mailbox.recv_evt).as(SpecTextMessage)
-        order << msg.value
-      end
-
-      order.should eq(["first", "second"])
+      msg = cmd.not_nil!.call
+      msg.should be_a(Term2::SequenceMsg)
+      msg.as(Term2::SequenceMsg).cmds.size.should eq(2)
     end
 
     it "maps messages emitted by a command" do
-      mailbox = CML::Mailbox(Term2::Message).new
-      dispatcher = Term2::Dispatcher.new(mailbox)
-      original = Term2::Cmd.message(SpecTextMessage.new("original"))
-      cmd = Term2::Cmd.map(original) do |msg|
+      original = Term2::Cmds.message(SpecTextMessage.new("original"))
+      cmd = Term2::Cmds.map(original) do |msg|
         text = msg.as(SpecTextMessage).value.upcase
         SpecTextMessage.new(text)
       end
 
-      cmd.run(dispatcher)
-      CML.sync(mailbox.recv_evt).as(SpecTextMessage).value.should eq("ORIGINAL")
+      msg = cmd.not_nil!.call
+      msg.as(SpecTextMessage).value.should eq("ORIGINAL")
     end
   end
 

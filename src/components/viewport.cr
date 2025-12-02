@@ -3,7 +3,9 @@ require "./key"
 
 module Term2
   module Components
-    class Viewport < Model
+    class Viewport
+      include Model
+
       property width : Int32
       property height : Int32
       property x_offset : Int32 = 0
@@ -60,7 +62,7 @@ module Term2
             half_page_down
           end
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def line_up
@@ -99,21 +101,17 @@ module Term2
         [@lines.size - @height, 0].max
       end
 
-      def render : Layout::Node
+      # Helper to render as a string
+      def view : String
         visible_lines = [] of String
 
-        if @lines.empty?
-          # Empty content
-        else
+        unless @lines.empty?
           end_index = [@y_offset + @height, @lines.size].min
           visible_lines = @lines[@y_offset...end_index]
         end
 
-        # Pad with empty lines if needed to fill height?
-        # Or just let Layout handle it.
-
-        Layout::VStack.new.tap do |stack|
-          visible_lines.each do |line|
+        result = String.build do |io|
+          visible_lines.each_with_index do |line, i|
             # Handle x_offset and width clipping
             clipped_line = line
             if @x_offset > 0
@@ -130,16 +128,12 @@ module Term2
               clipped_line = clipped_line[0...@width]
             end
 
-            stack.add(Layout::Text.new(clipped_line))
+            io << clipped_line
+            io << "\n" if i < visible_lines.size - 1
           end
         end
-      end
 
-      # Helper to render as a string (for legacy or direct usage)
-      def view : String
-        Layout.render(@width, @height) do
-          add render
-        end
+        result
       end
     end
   end

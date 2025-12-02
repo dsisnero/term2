@@ -194,4 +194,139 @@ module Term2
       io.tty?
     end
   end
+
+  # Cursor module provides escape sequence strings for cursor control.
+  # Unlike Terminal module methods which print directly, these return strings
+  # that can be used in string building/concatenation.
+  #
+  # Example:
+  # ```
+  # io << Cursor.move_to(1, 1) << "Hello" << Cursor.move_to(2, 1) << "World"
+  # ```
+  module Cursor
+    # Move cursor to specific position (row, col are 1-based)
+    def self.move_to(row : Int32, col : Int32) : String
+      "\e[#{row};#{col}H"
+    end
+
+    # Move cursor to home position (top-left)
+    def self.home : String
+      "\e[H"
+    end
+
+    # Move cursor up n lines
+    def self.up(n : Int32 = 1) : String
+      "\e[#{n}A"
+    end
+
+    # Move cursor down n lines
+    def self.down(n : Int32 = 1) : String
+      "\e[#{n}B"
+    end
+
+    # Move cursor right n columns
+    def self.right(n : Int32 = 1) : String
+      "\e[#{n}C"
+    end
+
+    # Move cursor left n columns
+    def self.left(n : Int32 = 1) : String
+      "\e[#{n}D"
+    end
+
+    # Move cursor to beginning of line n lines down
+    def self.next_line(n : Int32 = 1) : String
+      "\e[#{n}E"
+    end
+
+    # Move cursor to beginning of line n lines up
+    def self.prev_line(n : Int32 = 1) : String
+      "\e[#{n}F"
+    end
+
+    # Move cursor to column n
+    def self.column(n : Int32) : String
+      "\e[#{n}G"
+    end
+
+    # Save cursor position
+    def self.save : String
+      "\e[s"
+    end
+
+    # Restore cursor position
+    def self.restore : String
+      "\e[u"
+    end
+
+    # Hide cursor
+    def self.hide : String
+      "\e[?25l"
+    end
+
+    # Show cursor
+    def self.show : String
+      "\e[?25h"
+    end
+
+    # Request cursor position (terminal will respond with position)
+    def self.request_position : String
+      "\e[6n"
+    end
+
+    # Erase from cursor to end of line
+    def self.erase_line_right : String
+      "\e[K"
+    end
+
+    # Erase from start of line to cursor
+    def self.erase_line_left : String
+      "\e[1K"
+    end
+
+    # Erase entire line
+    def self.erase_line : String
+      "\e[2K"
+    end
+
+    # Erase from cursor to end of screen
+    def self.erase_screen_below : String
+      "\e[J"
+    end
+
+    # Erase from start of screen to cursor
+    def self.erase_screen_above : String
+      "\e[1J"
+    end
+
+    # Erase entire screen
+    def self.erase_screen : String
+      "\e[2J"
+    end
+
+    # Clear screen and move to home (convenience)
+    def self.clear : String
+      "\e[2J\e[H"
+    end
+
+    # Enter alternate screen buffer
+    def self.enter_alt_screen : String
+      "\e[?1049h"
+    end
+
+    # Exit alternate screen buffer
+    def self.exit_alt_screen : String
+      "\e[?1049l"
+    end
+
+    # Set window title
+    def self.set_title(title : String) : String
+      "\e]2;#{title}\e\\"
+    end
+
+    # Reset all attributes
+    def self.reset : String
+      "\e[0m"
+    end
+  end
 end

@@ -1,6 +1,8 @@
 require "./spec_helper"
 
-private class SpinnerTestModel < Term2::Model
+private class SpinnerTestModel
+  include Term2::Model
+
   getter spinner : Term2::Components::Spinner
   getter tick_count : Int32
   getter limit : Int32
@@ -20,7 +22,7 @@ private class SpinnerTestModel < Term2::Model
     when Term2::Components::Spinner::TickMsg
       @tick_count += 1
       if @tick_count >= @limit
-        return {self, Term2::Cmd.quit}
+        return {self, Term2::Cmds.quit}
       end
     end
 
@@ -35,9 +37,7 @@ private class SpinnerTestModel < Term2::Model
 end
 
 describe Term2::Components::Spinner do
-  # Note: This test is flaky due to timing issues with CML event handling
-  # The spinner tick mechanism relies on precise timing that can fail under load
-  pending "cycles frames and stops when requested" do
+  it "cycles frames and stops when requested" do
     output = IO::Memory.new
     model = SpinnerTestModel.new(4)
     program = Term2::Program.new(model, input: nil, output: output)

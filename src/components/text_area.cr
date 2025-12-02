@@ -1,11 +1,15 @@
 require "../term2"
+require "../zone"
 require "./viewport"
 require "./cursor"
 require "./key"
 
 module Term2
   module Components
-    class TextArea < Model
+    class TextArea
+      include Model
+
+      property id : String = ""
       property value : String = ""
       property cursor_line : Int32 = 0
       property cursor_col : Int32 = 0
@@ -17,22 +21,25 @@ module Term2
       property viewport : Viewport
       property cursor : Cursor
 
-      def initialize
+      def initialize(@id : String = "")
         @viewport = Viewport.new(40, 20)
         @cursor = Cursor.new
         @cursor.mode = Cursor::Mode::Static
       end
 
       def focus : Cmd
+        Zone.focus(@id) unless @id.empty?
         @cursor.focus_cmd
       end
 
       def blur
+        Zone.blur(@id) unless @id.empty?
         @cursor.blur
       end
 
       def focused?
-        @cursor.focus?
+        return @cursor.focus? if @id.empty?
+        Zone.focused?(@id)
       end
 
       def value=(val : String)
@@ -40,11 +47,16 @@ module Term2
         update_viewport
       end
 
-      def update(msg : Message) : {TextArea, Cmd}
+      def update(msg : Msg) : {TextArea, Cmd}
         new_cursor, cmd = @cursor.update(msg)
         @cursor = new_cursor
 
         case msg
+        when ZoneClickMsg
+          if !@id.empty? && msg.id == @id
+            # Handle click - position cursor at click location if possible
+            return {self, focus}
+          end
         when KeyMsg
           if focused?
             handle_key(msg)
@@ -60,62 +72,38 @@ module Term2
         lines = @value.split("\n", remove_empty: false)
         lines << "" if lines.empty?
 
-        handle_key_action(msg, lines)
-
-        @value = lines.join("\n")
-      end
-
-      private def handle_key_action(msg : KeyMsg, lines : Array(String))
         case msg.key.to_s
         when "up"
-          handle_up_key(lines)
+          @cursor_line = (@cursor_line - 1).clamp(0, lines.size - 1)
+          @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
         when "down"
-          handle_down_key(lines)
+          @cursor_line = (@cursor_line + 1).clamp(0, lines.size - 1)
+          @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
         when "left"
-          handle_left_key(lines)
+          if @cursor_col > 0
+            @cursor_col -= 1
+          elsif @cursor_line > 0
+            @cursor_line -= 1
+            @cursor_col = lines[@cursor_line].size
+          end
         when "right"
-          handle_right_key(lines)
+          if @cursor_col < lines[@cursor_line].size
+            @cursor_col += 1
+          elsif @cursor_line < lines.size - 1
+            @cursor_line += 1
+            @cursor_col = 0
+          end
         when "enter"
           insert_newline(lines)
         when "backspace"
           delete_char(lines)
         else
-          handle_character_key(msg, lines)
+          if msg.key.type == KeyType::Runes && !msg.key.alt?
+            insert_char(lines, msg.key.to_s)
+          end
         end
-      end
 
-      private def handle_up_key(lines : Array(String))
-        @cursor_line = (@cursor_line - 1).clamp(0, lines.size - 1)
-        @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
-      end
-
-      private def handle_down_key(lines : Array(String))
-        @cursor_line = (@cursor_line + 1).clamp(0, lines.size - 1)
-        @cursor_col = @cursor_col.clamp(0, lines[@cursor_line].size)
-      end
-
-      private def handle_left_key(lines : Array(String))
-        if @cursor_col > 0
-          @cursor_col -= 1
-        elsif @cursor_line > 0
-          @cursor_line -= 1
-          @cursor_col = lines[@cursor_line].size
-        end
-      end
-
-      private def handle_right_key(lines : Array(String))
-        if @cursor_col < lines[@cursor_line].size
-          @cursor_col += 1
-        elsif @cursor_line < lines.size - 1
-          @cursor_line += 1
-          @cursor_col = 0
-        end
-      end
-
-      private def handle_character_key(msg : KeyMsg, lines : Array(String))
-        if msg.key.type == KeyType::Runes && !msg.key.alt?
-          insert_char(lines, msg.key.to_s)
-        end
+        @value = lines.join("\n")
       end
 
       def insert_newline(lines : Array(String))
@@ -211,7 +199,9 @@ module Term2
       end
 
       def view : String
-        @viewport.view
+        content = @viewport.view
+        return content if @id.empty?
+        Zone.mark(@id, content)
       end
     end
   end

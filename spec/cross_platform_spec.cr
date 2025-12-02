@@ -152,8 +152,8 @@ describe "Cross-Platform Compatibility" do
         event = reader.check_mouse_event("\e[<0;10;20M")
         event.should_not be_nil
         if event
-          event.x.should eq(10)
-          event.y.should eq(20)
+          event.x.should eq(9)
+          event.y.should eq(19)
           event.button.should eq(Term2::MouseEvent::Button::Left)
           event.action.should eq(Term2::MouseEvent::Action::Press)
         end
@@ -218,8 +218,8 @@ describe "Cross-Platform Compatibility" do
         event = reader.check_mouse_event("\e[M #{42.chr}#{52.chr}")
         event.should_not be_nil
         if event
-          event.x.should eq(10)
-          event.y.should eq(20)
+          event.x.should eq(9)
+          event.y.should eq(19)
           event.button.should eq(Term2::MouseEvent::Button::Left)
         end
       end

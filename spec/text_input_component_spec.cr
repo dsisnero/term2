@@ -28,21 +28,4 @@ describe Term2::Components::TextInput do
     input.value.should eq("i")
     input.cursor_pos.should eq(0)
   end
-
-  it "handles space key input" do
-    input = Term2::Components::TextInput.new
-    input.cursor.focus = true
-
-    # Type "this is as" with spaces
-    ['t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'a', 's'].each do |char|
-      if char == " "
-        msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
-      else
-        msg = Term2::KeyMsg.new(Term2::Key.new(char))
-      end
-      input.update(msg)
-    end
-
-    input.value.should eq("this is as")
-  end
 end

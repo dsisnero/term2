@@ -4,7 +4,9 @@ require "./key"
 
 module Term2
   module Components
-    class TextInput < Model
+    class TextInput
+      include Model
+
       enum EchoMode
         Normal
         Password
@@ -18,11 +20,12 @@ module Term2
       property prompt : String = "> "
       property echo_mode : EchoMode = EchoMode::Normal
       property char_limit : Int32 = 0 # 0 means no limit
+      property id : String = ""       # Zone ID for focus management
 
       # Styling
       property prompt_style : Style = Style.new
       property text_style : Style = Style.new
-      property placeholder_style : Style = Style.new(faint: true)
+      property placeholder_style : Style = Style.new.faint(true)
 
       # Components
       property cursor : Cursor
@@ -58,29 +61,50 @@ module Term2
         end
       end
 
-      def initialize
+      def initialize(@id : String = "")
         @cursor = Cursor.new
         @key_map = KeyMap.new
       end
 
+      # Zone ID for focus management
+      def zone_id : String?
+        @id.empty? ? nil : @id
+      end
+
       def focus : Cmd
+        Zone.focus(@id) unless @id.empty?
         @cursor.focus_cmd
       end
 
       def blur
+        Zone.blur(@id) unless @id.empty?
         @cursor.blur
       end
 
       def focused?
-        @cursor.focus?
+        if @id.empty?
+          @cursor.focus?
+        else
+          Zone.focused?(@id)
+        end
       end
 
-      def update(msg : Message) : {TextInput, Cmd}
+      def update(msg : Msg) : {TextInput, Cmd}
         # Handle cursor blink
         new_cursor, cmd = @cursor.update(msg)
         @cursor = new_cursor
 
         case msg
+        when ZoneClickMsg
+          # Focus this input when clicked
+          if msg.id == @id
+            return {self, focus}
+          end
+        when ZoneFocusMsg
+          # Focus this input when tab-focused
+          if msg.zone_id == @id
+            return {self, focus}
+          end
         when KeyMsg
           if focused?
             handle_key(msg)
@@ -91,58 +115,30 @@ module Term2
       end
 
       def handle_key(msg : KeyMsg)
-        if handle_navigation_key(msg)
-          return
-        elsif handle_deletion_key(msg)
-          return
-        else
-          handle_insertion_key(msg)
-        end
-      end
-
-      private def handle_navigation_key(msg : KeyMsg) : Bool
         case
         when @key_map.character_forward.matches?(msg)
           move_cursor(1)
-          true
         when @key_map.character_backward.matches?(msg)
           move_cursor(-1)
-          true
         when @key_map.line_start.matches?(msg)
           cursor_start
-          true
         when @key_map.line_end.matches?(msg)
           cursor_end
-          true
-        else
-          false
-        end
-      end
-
-      private def handle_deletion_key(msg : KeyMsg) : Bool
-        case
         when @key_map.delete_character_backward.matches?(msg)
           delete_before_cursor
-          true
         when @key_map.delete_character_forward.matches?(msg)
           delete_after_cursor
-          true
         when @key_map.delete_before_cursor.matches?(msg)
           delete_line_before_cursor
-          true
         when @key_map.delete_after_cursor.matches?(msg)
           delete_line_after_cursor
-          true
         else
-          false
-        end
-      end
-
-      private def handle_insertion_key(msg : KeyMsg)
-        if msg.key.type == KeyType::Runes && !msg.key.alt?
-          insert_string(msg.key.to_s)
-        elsif msg.key.type == KeyType::Space && !msg.key.alt?
-          insert_string(" ")
+          # Insert character - handle both Runes and Space
+          if msg.key.type == KeyType::Runes && !msg.key.alt?
+            insert_string(msg.key.to_s)
+          elsif msg.key.type == KeyType::Space
+            insert_string(" ")
+          end
         end
       end
 
@@ -205,7 +201,8 @@ module Term2
         end
 
         if !focused? && val.empty? && !@placeholder.empty?
-          return "#{@prompt_style.apply(@prompt)}#{@placeholder_style.apply(@placeholder)}"
+          content = "#{@prompt_style.render(@prompt)}#{@placeholder_style.render(@placeholder)}"
+          return @id.empty? ? content : Zone.mark(@id, content)
         end
 
         # Cursor handling
@@ -226,12 +223,15 @@ module Term2
         end
 
         # Render
-        String.build do |str|
-          str << @prompt_style.apply(@prompt)
-          str << @text_style.apply(left)
+        content = String.build do |str|
+          str << @prompt_style.render(@prompt)
+          str << @text_style.render(left)
           str << @cursor.view
-          str << @text_style.apply(right)
+          str << @text_style.render(right)
         end
+
+        # Wrap with zone marker if we have an ID
+        @id.empty? ? content : Zone.mark(@id, content)
       end
     end
   end

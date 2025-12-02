@@ -29,16 +29,6 @@ module Term2
     end
   end
 
-  # Disables the renderer for non-TUI applications.
-  #
-  # Use this when you need the event loop but don't want terminal
-  # UI rendering (e.g., for headless processing).
-  struct WithoutRenderer < ProgramOption
-    def apply(program : Program) : Nil
-      program.disable_renderer
-    end
-  end
-
   # Disables automatic panic (exception) recovery.
   #
   # By default, Term2 catches exceptions and attempts to restore
@@ -46,6 +36,15 @@ module Term2
   struct WithoutCatchPanics < ProgramOption
     def apply(program : Program) : Nil
       program.disable_panic_recovery
+    end
+  end
+
+  # Disables the renderer, writing directly to output.
+  # Useful for testing or simple CLI apps.
+  struct WithoutRenderer < ProgramOption
+    def apply(program : Program) : Nil
+      program.disable_renderer
+      program.renderer = Term2::NilRenderer.new
     end
   end
 
@@ -121,7 +120,15 @@ module Term2
   # The filter receives each message before it reaches update()
   # and can transform or replace it.
   struct WithFilter < ProgramOption
-    def initialize(@filter : Message -> Message); end
+    @filter : Proc(Message?, Message?)
+
+    def initialize(filter : Proc(Message?, Message?))
+      @filter = filter
+    end
+
+    def initialize(filter : Proc(Message, Message))
+      @filter = ->(msg : Message?) { msg ? filter.call(msg) : nil }
+    end
 
     def apply(program : Program) : Nil
       program.filter = @filter

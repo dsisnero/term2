@@ -2,7 +2,9 @@ require "../term2"
 
 module Term2
   module Components
-    class Cursor < Model
+    class Cursor
+      include Model
+
       enum Mode
         Blink
         Static
@@ -10,7 +12,7 @@ module Term2
       end
 
       property blink_speed : Time::Span = 530.milliseconds
-      property style : Style = Style.reverse # Default to reverse video
+      property style : Style = Style.new.reverse(true) # Default to reverse video
       property text_style : Style = Style.new
       property char : String = " "
       property? focus : Bool = false
@@ -30,7 +32,7 @@ module Term2
         end
       end
 
-      def update(msg : Message) : {Cursor, Cmd}
+      def update(msg : Msg) : {Cursor, Cmd}
         case msg
         when BlinkMsg
           if @mode == Mode::Blink && @focus && msg.tag == @blink_tag
@@ -38,12 +40,12 @@ module Term2
             return {self, blink_cmd}
           end
         end
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
 
       def blink_cmd : Cmd
         tag = @blink_tag
-        Cmd.tick(@blink_speed) do
+        Cmds.tick(@blink_speed) do
           BlinkMsg.new(tag)
         end
       end
@@ -56,7 +58,7 @@ module Term2
         if @mode == Mode::Blink
           blink_cmd
         else
-          Cmd.none
+          Cmds.none
         end
       end
 
@@ -83,10 +85,10 @@ module Term2
       def view : String
         if @mode == Mode::Hide || !@focus || (@mode == Mode::Blink && !@blink)
           # Render text normally
-          @text_style.apply(@char)
+          @text_style.render(@char)
         else
           # Render cursor block
-          @style.apply(@char)
+          @style.render(@char)
         end
       end
     end

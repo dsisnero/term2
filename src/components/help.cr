@@ -3,7 +3,9 @@ require "./key"
 
 module Term2
   module Components
-    class Help < Model
+    class Help
+      include Model
+
       module KeyMap
         abstract def short_help : Array(Key::Binding)
         abstract def full_help : Array(Array(Key::Binding))
@@ -13,15 +15,15 @@ module Term2
       property width : Int32 = 80
 
       # Styles
-      property key_style : Style = Style.new(faint: true)
-      property desc_style : Style = Style.new(faint: true)
-      property separator_style : Style = Style.new(faint: true)
+      property key_style : Style = Style.new.faint(true)
+      property desc_style : Style = Style.new.faint(true)
+      property separator_style : Style = Style.new.faint(true)
 
       def initialize
       end
 
-      def update(msg : Message) : {Help, Cmd}
-        {self, Cmd.none}
+      def update(msg : Msg) : {Help, Cmd}
+        {self, Cmds.none}
       end
 
       def view : String
@@ -42,10 +44,10 @@ module Term2
 
         parts = bindings.compact_map do |binding|
           next if !binding.enabled?
-          "#{key_style.apply(binding.help_key)} #{desc_style.apply(binding.help_desc)}"
+          "#{key_style.render(binding.help_key)} #{desc_style.render(binding.help_desc)}"
         end
 
-        parts.join(separator_style.apply(" • "))
+        parts.join(separator_style.render(" • "))
       end
 
       def view_full(key_map : KeyMap) : String
@@ -55,7 +57,7 @@ module Term2
         groups.each do |group|
           group.each do |binding|
             next if !binding.enabled?
-            lines << "#{key_style.apply(binding.help_key)}    #{desc_style.apply(binding.help_desc)}"
+            lines << "#{key_style.render(binding.help_key)}    #{desc_style.render(binding.help_desc)}"
           end
           lines << "" unless lines.empty? || lines.last.empty?
         end
