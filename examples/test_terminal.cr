@@ -1,8 +1,10 @@
 require "../src/term2"
 
-class TestModel < Term2::Model
+class TestModel
+  include Term2::Model
+
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
@@ -10,7 +12,7 @@ class TestModel < Term2::Model
     when Term2::WindowSizeMsg
       puts "Window size: #{msg.width}x#{msg.height}"
     end
-    {self, Term2::Cmd.none}
+    {self, Term2::Cmds.none}
   end
 
   def view : String

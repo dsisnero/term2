@@ -1,12 +1,13 @@
 require "../src/term2"
 require "../src/components/spinner"
 
-class SpinnerModel < Term2::Model
+class SpinnerModel
+  include Term2::Model
   property spinner : Term2::Components::Spinner
 
   def initialize
     @spinner = Term2::Components::Spinner.new(Term2::Components::Spinner::DOT)
-    @spinner.style = Term2::Style.magenta
+    @spinner.style = Term2::Style.new.foreground(Term2::Color::MAGENTA)
   end
 
   def init : Term2::Cmd

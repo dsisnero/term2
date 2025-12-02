@@ -1,7 +1,8 @@
 require "../src/term2"
 require "../src/components/text_input"
 
-class TextInputModel < Term2::Model
+class TextInputModel
+  include Term2::Model
   property text_input : Term2::Components::TextInput
   property entered_text : String = ""
 
@@ -24,7 +25,7 @@ class TextInputModel < Term2::Model
         @entered_text = @text_input.value
         @text_input.value = ""
         @text_input.cursor_start
-        return {self, Term2::Cmd.none}
+        return {self, Term2::Cmds.none}
       end
     end
 

@@ -2,7 +2,8 @@ require "../src/term2"
 require "../src/components/list"
 include Term2::Prelude
 
-class ListModel < Term2::Model
+class ListModel
+  include Term2::Model
   property list : TC::List
 
   def initialize
@@ -20,7 +21,7 @@ class ListModel < Term2::Model
   end
 
   def init : Cmd
-    Cmd.none
+    Cmds.none
   end
 
   def update(msg : Message) : {Model, Cmd}

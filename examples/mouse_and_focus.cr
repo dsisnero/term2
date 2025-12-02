@@ -11,7 +11,19 @@
 require "../src/term2"
 include Term2::Prelude
 
-class AppModel < Model
+# Define styles
+TITLE_STYLE = Term2::Style.new
+  .bold(true)
+  .foreground(Term2::Color::CYAN)
+
+LABEL_STYLE   = Term2::Style.new.bold(true)
+HEADER_STYLE  = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
+FOCUSED_STYLE = Term2::Style.new.foreground(Term2::Color::GREEN)
+BLURRED_STYLE = Term2::Style.new.foreground(Term2::Color::RED)
+DIM_STYLE     = Term2::Style.new.foreground(Term2::Color::BRIGHT_BLACK) # gray
+
+class AppModel
+  include Model
   getter mouse_x : Int32
   getter mouse_y : Int32
   getter mouse_button : String
@@ -32,7 +44,7 @@ class AppModel < Model
   def init : Cmd
     # Start with initial model
     @events = ["Started! Move your mouse or click."]
-    Cmd.none
+    Cmds.none
   end
 
   def update(msg : Message) : {Model, Cmd}
@@ -43,7 +55,7 @@ class AppModel < Model
         {self, Term2.quit}
       else
         new_events = add_event(@events, "Key: #{msg.key.inspect}")
-        {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, @focused, new_events), Cmd.none}
+        {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, @focused, new_events), Cmds.none}
       end
     when MouseEvent
       # Handle mouse events
@@ -56,17 +68,17 @@ class AppModel < Model
         focused: @focused,
         events: new_events
       )
-      {new_model, Cmd.none}
+      {new_model, Cmds.none}
     when FocusMsg
       # Terminal gained focus
       new_events = add_event(@events, "Window FOCUSED")
-      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, true, new_events), Cmd.none}
+      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, true, new_events), Cmds.none}
     when BlurMsg
       # Terminal lost focus
       new_events = add_event(@events, "Window BLURRED")
-      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, false, new_events), Cmd.none}
+      {AppModel.new(@mouse_x, @mouse_y, @mouse_button, @mouse_action, false, new_events), Cmds.none}
     else
-      {self, Cmd.none}
+      {self, Cmds.none}
     end
   end
 
@@ -81,29 +93,29 @@ class AppModel < Model
   def view : String
     focus_indicator = @focused ? "●" : "○"
     focus_status = if @focused
-                     "#{focus_indicator} FOCUSED".green
+                     FOCUSED_STYLE.render("#{focus_indicator} FOCUSED")
                    else
-                     "#{focus_indicator} BLURRED".red
+                     BLURRED_STYLE.render("#{focus_indicator} BLURRED")
                    end
 
     String.build do |str|
-      str << "╔══════════════════════════════════════════════════════╗".bold.cyan << "\n"
-      str << "║           Mouse & Focus Demo                         ║".bold.cyan << "\n"
-      str << "╚══════════════════════════════════════════════════════╝".bold.cyan << "\n"
+      str << TITLE_STYLE.render("╔══════════════════════════════════════════════════════╗") << "\n"
+      str << TITLE_STYLE.render("║           Mouse & Focus Demo                         ║") << "\n"
+      str << TITLE_STYLE.render("╚══════════════════════════════════════════════════════╝") << "\n"
       str << "\n"
-      str << "Mouse Position:".bold << " (#{@mouse_x}, #{@mouse_y})\n"
-      str << "Button:".bold << " #{@mouse_button}\n"
-      str << "Action:".bold << " #{@mouse_action}\n"
+      str << LABEL_STYLE.render("Mouse Position:") << " (#{@mouse_x}, #{@mouse_y})\n"
+      str << LABEL_STYLE.render("Button:") << " #{@mouse_button}\n"
+      str << LABEL_STYLE.render("Action:") << " #{@mouse_action}\n"
       str << "\n"
-      str << "Window Status:".bold << " #{focus_status}\n"
+      str << LABEL_STYLE.render("Window Status:") << " #{focus_status}\n"
       str << "\n"
-      str << "Recent Events:".bold.yellow << "\n"
+      str << HEADER_STYLE.render("Recent Events:") << "\n"
       @events.each do |event|
         str << "  • #{event}\n"
       end
       str << "\n"
-      str << "──────────────────────────────────────────────────────".gray << "\n"
-      str << "Press 'q' or Ctrl+C to quit".gray << "\n"
+      str << DIM_STYLE.render("──────────────────────────────────────────────────────") << "\n"
+      str << DIM_STYLE.render("Press 'q' or Ctrl+C to quit") << "\n"
     end
   end
 end

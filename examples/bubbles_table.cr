@@ -1,11 +1,13 @@
 require "../src/term2"
 require "../src/components/table"
+include Term2::Prelude
 
-class TableModel < Term2::Model
-  property table : Term2::Components::Table
+class TableModel
+  include Model
+  property table : TC::Table
 
   def initialize
-    @table = Term2::Components::Table.new(
+    @table = TC::Table.new(
       columns: [
         {"ID", 5},
         {"Name", 20},
@@ -23,13 +25,13 @@ class TableModel < Term2::Model
     )
   end
 
-  def init : Term2::Cmd
-    Term2::Cmd.none
+  def init : Cmd
+    Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when Term2::KeyMsg
+    when KeyMsg
       if msg.key.to_s == "q" || msg.key.to_s == "ctrl+c"
         return {self, Term2.quit}
       end

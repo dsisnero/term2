@@ -1,7 +1,8 @@
 require "../src/term2"
 require "../src/components/file_picker"
 
-class FilePickerModel < Term2::Model
+class FilePickerModel
+  include Term2::Model
   property picker : Term2::Components::FilePicker
   property selected_file : String?
 
@@ -12,7 +13,7 @@ class FilePickerModel < Term2::Model
   end
 
   def init : Term2::Cmd
-    Term2::Cmd.none
+    Term2::Cmds.none
   end
 
   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}

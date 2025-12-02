@@ -7,7 +7,17 @@
 require "../src/term2"
 include Term2::Prelude
 
-class InputModel < Model
+# Define styles
+TITLE_STYLE = Term2::Style.new
+  .bold(true)
+  .foreground(Term2::Color::CYAN)
+
+LABEL_STYLE = Term2::Style.new.bold(true)
+VALUE_STYLE = Term2::Style.new.foreground(Term2::Color::BRIGHT_BLACK) # gray
+KEY_STYLE   = Term2::Style.new.foreground(Term2::Color::CYAN)
+
+class InputModel
+  include Model
   property input : TC::TextInput
 
   def initialize
@@ -29,30 +39,30 @@ class InputModel < Model
         {self, Term2.quit}
       when "enter"
         # Submit
-        {self, Cmd.none}
+        {self, Cmds.none}
       else
         new_input, cmd = @input.update(msg)
         @input = new_input
         {self, cmd}
       end
     else
-      {self, Cmd.none}
+      {self, Cmds.none}
     end
   end
 
   def view : String
     String.build do |str|
       str << "\n"
-      str << "╔════════════════════════════════════════╗".bold.cyan << "\n"
-      str << "║          Text Input Demo               ║".bold.cyan << "\n"
-      str << "╚════════════════════════════════════════╝".bold.cyan << "\n"
+      str << TITLE_STYLE.render("╔════════════════════════════════════════╗") << "\n"
+      str << TITLE_STYLE.render("║          Text Input Demo               ║") << "\n"
+      str << TITLE_STYLE.render("╚════════════════════════════════════════╝") << "\n"
       str << "\n"
-      str << "  " << "Input:".bold << " " << @input.view << "\n"
+      str << "  " << LABEL_STYLE.render("Input:") << " " << @input.view << "\n"
       str << "\n"
-      str << "  " << "Value:".bold << " " << @input.value.inspect.gray << "\n"
+      str << "  " << LABEL_STYLE.render("Value:") << " " << VALUE_STYLE.render(@input.value.inspect) << "\n"
       str << "\n"
       str << "─" * 44 << "\n"
-      str << "Type to enter text, " << "Ctrl+C".cyan << " to quit\n"
+      str << "Type to enter text, " << KEY_STYLE.render("Ctrl+C") << " to quit\n"
     end
   end
 end
