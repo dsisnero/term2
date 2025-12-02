@@ -15,106 +15,202 @@ A minimal example showing the core Term2 architecture:
 
 **Run with:** `crystal run examples/simple.cr`
 
-### 2. `input.cr` - Text Input Component
+### 2. `lipgloss_demo.cr` - Term2::Style API
 
-Demonstrates the TextInput component:
+Demonstrates advanced styling with the Term2::Style API:
 
-- Text input with cursor navigation
+- Style composition
+- Borders and padding
+- Color schemes
+- Text alignment
+- Components (Table, List, Tree)
+
+**Run with:** `crystal run examples/lipgloss_demo.cr`
+
+### 3. `libgloss_list_sublist.cr` - Nested List Example
+
+Demonstrates nested lists with different enumerators and styles:
+
+- Multi-level list nesting
+- Different enumerator types (Arabic, Alphabet, Bullet)
+- Custom styling per list level
+- Mixed content (text and nested lists)
+
+**Run with:** `crystal run examples/libgloss_list_sublist.cr`
+
+### 4. `tabs_demo.cr` - Tabbed Interface
+
+Example of a tabbed interface:
+
+- Tab switching
+- Content area management
+- Focus tracking
+- Keyboard navigation
+
+**Run with:** `crystal run examples/tabs_demo.cr`
+
+### 5. `mouse_and_focus.cr` - Mouse and Focus Events
+
+Demonstrates mouse and focus event handling:
+
+- Mouse click detection
+- Focus reporting
+- Event propagation
+
+**Run with:** `crystal run examples/mouse_and_focus.cr`
+
+### 6. `bubbles_spinner.cr` - Spinner Component
+
+Shows the Spinner component with multiple styles:
+
+- Animated loading indicator
+- Multiple spinner themes
+- Start/stop control
+
+**Run with:** `crystal run examples/bubbles_spinner.cr`
+
+### 7. `bubbles_table.cr` - Table Component
+
+Demonstrates the Table component:
+
+- Column definitions
+- Row data
+- Borders and styling
+- StyleFunc for custom cell styling
+
+**Run with:** `crystal run examples/bubbles_table.cr`
+
+### 8. `bubbles_list.cr` - List Component
+
+Shows the List component with enumerators:
+
+- Bullet, numbered, alphabetic lists
+- Item selection
+- Custom enumerators
+
+**Run with:** `crystal run examples/bubbles_list.cr`
+
+### 9. `bubbles_text_input.cr` - Text Input Component
+
+Full-featured text input with navigation:
+
+- Cursor movement
+- Text editing
 - Placeholder text
-- Focus/blur functionality
-- Key bindings for editing
 
-**Run with:** `crystal run examples/input.cr`
+**Run with:** `crystal run examples/bubbles_text_input.cr`
 
-### 3. `comprehensive_demo.cr` - All Components
+### 10. `stopwatch.cr` - Stopwatch Example
 
-A comprehensive demo showcasing all available Term2 components and features:
+A stopwatch with start/stop/reset functionality:
 
-#### Components Demonstrated
+- Time tracking with milliseconds
+- Key bindings for control
+- Help display
 
-- **Counter**: Basic state management with increment/decrement
-- **Timer**: Countdown timer with start/stop functionality
-- **Spinner**: Animated loading spinner with custom frames
-- **Progress Bar**: Visual progress indicator with percentage
-- **Text Input**: Full-featured text input with navigation
+**Run with:** `crystal run examples/stopwatch.cr`
 
-#### Features Demonstrated
+### 11. `bubblezone/list-default/main.cr` - Clickable List (Bubblezone port)
 
-- Component switching (press 1-5)
-- Multiple concurrent components
-- Message passing between components
-- Custom themes and styling
-- Terminal control sequences
+- Mouse wheel scrolling with `MouseEvent::Button::WheelUp/Down`
+- Highlighted selection and zone-aware click targets
+- Demonstrates translating a Bubblezone example using `Zone.mark`
 
-#### Controls
+**Run with:** `crystal run examples/bubblezone/list-default/main.cr`
 
-- `1-5`: Switch between components
-- `h`: Show help
-- `q` or `Ctrl+C`: Quit
-- Component-specific controls shown in help
+### 12. `bubblezone/full-lipgloss/main.cr` - Full Lip Gloss Dashboard (Bubblezone port)
 
-**Run with:** `crystal run examples/comprehensive_demo.cr`
+- Responsive tabs, list panels, dialog, and history presenter
+- Uses zone buttons, list toggles, and history selections
+- Shows how Bubblezone-style interaction can live in Term2
 
-### 4. `cmd_demo.cr` - Cmd Operations
+**Run with:** `crystal run examples/bubblezone/full-lipgloss/main.cr`
 
-Demonstrates the various Cmd operations available in Term2:
+### 13. `libgloss/layout/main.cr` - Layout overview
 
-#### Cmd Operations Demonstrated
+- Demonstrates tabs, status panels, and responsive content areas
+- Uses `Term2.join_horizontal`/`join_vertical` with styled blocks
+- Navigate tabs with arrow or Tab, `q` to quit
 
-- **Batch**: Execute multiple commands simultaneously
-- **Sequence**: Execute commands in order with delays
-- **After**: Schedule delayed commands
-- **Every**: Execute commands periodically
-- **Timeout**: Execute commands with timeout protection
-- **Map**: Transform messages from commands
-- **Perform**: Execute commands asynchronously
+**Run with:** `crystal run examples/libgloss/layout/main.cr`
 
-#### Controls
+### 14. `libgloss/list/main.cr` - Styled list navigation
 
-- `b`: Batch commands
-- `s`: Sequence commands
-- `d`: Delayed command
-- `p`: Periodic command
-- `t`: Timeout command
-- `m`: Mapped command
-- `+/-`: Counter increment/decrement
-- `q`: Quit
+- Highlights selectable rows, custom list item styles, and real-time feedback
+- Move selection with arrow keys or `j/k`, `q` to exit
+- Shows how `Term2::Style` can mimic Lip Gloss enumerations
 
-**Run with:** `crystal run examples/cmd_demo.cr`
+**Run with:** `crystal run examples/libgloss/list/main.cr`
+
+### 15. `libgloss/table/main.cr` - Table view
+
+- Displays a simple table with header and rows
+- Uses width constraints and separators to emulate columns
+- Great base for data dashboards
+
+**Run with:** `crystal run examples/libgloss/table/main.cr`
+
+### 16. `libgloss/tree/main.cr` - Tree diagram
+
+- Presents a static project tree with branches
+- Styled text and indentation to mimic tree command output
+- Useful for file explorers or project navigation overviews
+
+**Run with:** `crystal run examples/libgloss/tree/main.cr`
+
+### 17. `libgloss/ssh/main.cr` - SSH status card
+
+- Stylized connection metadata and command preview
+- Shows how to render terminal-like info using `Term2::Style`
+- A simple way to prototype connection dashboards
+
+**Run with:** `crystal run examples/libgloss/ssh/main.cr`
 
 ## Key Term2 Concepts
 
 ### Application Architecture
 
-All Term2 applications follow the Elm-inspired architecture:
+All Term2 applications follow the Elm-inspired architecture. Note that `Model` is a module to include, not a class to inherit from:
 
 ```crystal
-class MyApp < Application
-  # Define your model
-  record MyModel, count : Int32 do
-    include Model
+require "term2"
+include Term2::Prelude
+
+# Define your model
+class MyModel
+  include Model
+
+  getter count : Int32
+
+  def initialize(@count = 0); end
+
+  def init : Cmd
+    Cmds.none
   end
 
-  def init
-    # Initialize model and optional command
-    {MyModel.new(0), Cmd.none}
-  end
-
-  def update(msg : Message, model : Model)
-    # Handle messages and update model
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      # Handle keyboard input
+    when KeyMsg
+      case msg.key.to_s
+      when "q", "ctrl+c"
+        {self, Term2.quit}
+      when "+", "="
+        {MyModel.new(@count + 1), Cmds.none}
+      else
+        {self, Cmds.none}
+      end
     else
-      {model, Cmd.none}
+      {self, Cmds.none}
     end
   end
 
-  def view(model : Model) : String
-    # Render the current state
-    "Count: #{model.as(MyModel).count}"
+  def view : String
+    "Count: #{@count}"
   end
 end
+
+# Run the application
+Term2.run(MyModel.new)
 ```
 
 ### Components
@@ -126,20 +222,20 @@ Term2 provides several built-in components:
 - **ProgressBar**: Visual progress indicator
 - **TextInput**: Full-featured text input with navigation
 
-### Cmd Operations
+### Cmds Operations
 
-The `Cmd` struct provides various ways to perform side effects:
+The `Cmds` module provides various ways to perform side effects:
 
-- `Cmd.none`: No operation
-- `Cmd.message(msg)`: Dispatch a message
-- `Cmd.batch(*cmds)`: Execute multiple commands
-- `Cmd.sequence(*cmds)`: Execute commands in sequence
-- `Cmd.after(duration, msg)`: Schedule a delayed message
-- `Cmd.every(duration, &block)`: Execute periodically
-- `Cmd.timeout(duration, timeout_msg, &block)`: Execute with timeout
-- `Cmd.map(cmd, &block)`: Transform messages
-- `Cmd.perform(&block)`: Execute asynchronously
-- `Cmd.quit`: Quit the application
+- `Cmds.none`: No operation
+- `Cmds.message(msg)`: Dispatch a message
+- `Cmds.batch(*cmds)`: Execute multiple commands
+- `Cmds.sequence(*cmds)`: Execute commands in sequence
+- `Cmds.after(duration, msg)`: Schedule a delayed message
+- `Cmds.every(duration, &block)`: Execute periodically
+- `Cmds.timeout(duration, timeout_msg, &block)`: Execute with timeout
+- `Cmds.map(cmd, &block)`: Transform messages
+- `Cmds.perform(&block)`: Execute asynchronously
+- `Term2.quit`: Quit the application
 
 ## Running Examples
 

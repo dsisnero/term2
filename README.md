@@ -10,7 +10,11 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 - **Mouse Support**: SGR and legacy X10 mouse protocols
 - **Focus Reporting**: FocusIn/FocusOut events
 - **Alternate Screen**: Clean terminal restoration
-- **Components**: Spinner, ProgressBar, TextInput, CountdownTimer, Table, List, Tree
+- **Components**: TextInput, Spinner, ProgressBar, CountdownTimer
+- **Zone System**: Built-in focus and click tracking with automatic tab cycling
+- **Tree/List/Table**: Static rendering components for hierarchical data
+- **Rich Command System**: Batch, sequence, timeout, and async commands
+- **Styling API**: Full color and style support with fluent API
 - **Cross-platform**: Works on Linux, macOS, and Windows
 
 ## Installation
@@ -33,12 +37,15 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 require "term2"
 include Term2::Prelude
 
-class CounterModel < Model
+class CounterModel
+  include Model
+
   getter count : Int32
+
   def initialize(@count = 0); end
 
   def init : Cmd
-    Cmd.none
+    Cmds.none
   end
 
   def update(msg : Message) : {Model, Cmd}
@@ -48,14 +55,14 @@ class CounterModel < Model
       when "q", "ctrl+c"
         {self, Term2.quit}
       when "+", "="
-        {CounterModel.new(@count + 1), Cmd.none}
+        {CounterModel.new(@count + 1), Cmds.none}
       when "-", "_"
-        {CounterModel.new(@count - 1), Cmd.none}
+        {CounterModel.new(@count - 1), Cmds.none}
       else
-        {self, Cmd.none}
+        {self, Cmds.none}
       end
     else
-      {self, Cmd.none}
+      {self, Cmds.none}
     end
   end
 
@@ -71,21 +78,21 @@ Term2.run(CounterModel.new)
 
 Including `Term2::Prelude` provides convenient aliases for common types:
 
-- `Model`, `Cmd`, `Message` - Core types
+- `Model`, `Cmd`, `Cmds`, `Message` - Core types
 - `TC` - Alias for `Term2::Components` (e.g., `TC::TextInput`)
-- `KeyMsg`, `WindowSizeMsg`, `QuitMsg` - Common messages
-- `S` - Alias for `Term2::S` (Style builder)
+- `KeyMsg`, `WindowSizeMsg`, `FocusMsg`, `BlurMsg` - Common messages
+- `MouseEvent` - Mouse input events
 
 ## Program Options
 
 Configure your application by passing options to `Term2.run`:
 
 ```crystal
-Term2.run(model, [
+Term2.run(model, options: Term2::ProgramOptions.new(
   WithAltScreen.new,        # Use alternate screen buffer
   WithMouseAllMotion.new,   # Enable mouse tracking
-  WithReportFocus.new,      # Enable focus reporting
-] of Term2::ProgramOption)
+  WithReportFocus.new       # Enable focus reporting
+))
 ```
 
 Available options:
@@ -101,11 +108,13 @@ Available options:
 - `WithoutCatchPanics` - Disable panic recovery
 - `WithoutBracketedPaste` - Disable bracketed paste
 
-## Text Styling DSL
+## Text Styling
 
-Term2 provides a fluent API for styled text output without raw escape codes:
+Term2 provides multiple APIs for styled text output without raw escape codes:
 
 ### Method 1: String Extensions (Simple Single Styles)
+
+For quick, simple styling:
 
 ```crystal
 puts "Hello".bold
@@ -114,6 +123,8 @@ puts "Warning".yellow.bold  # Note: chaining returns nested codes
 ```
 
 ### Method 2: S Builder (Chained/Composed Styles)
+
+For basic color and attribute combinations:
 
 ```crystal
 # Method chaining with .apply()
@@ -130,6 +141,38 @@ puts S.fg(208).bold | "Orange"
 # True color RGB
 puts S.fg(100, 149, 237).bold | "Cornflower Blue"
 puts S.bg(30, 30, 30).white | "Dark background"
+```
+
+### Method 3: Fluent Style API (Recommended for Complex Styling)
+
+For advanced styling with borders, padding, margins, alignment, and complex layouts, use the `Term2::Style` class:
+
+```crystal
+# Create a styled box with border and padding
+style = Term2::Style.new
+  .bold(true)
+  .foreground(Term2::Color::CYAN)
+  .padding(1, 2)
+  .border(Term2::Border.rounded)
+  .width(30)
+  .align(Term2::Position::Center)
+
+puts style.render("Styled Box")
+
+# Complex layout with multiple styles
+title_style = Term2::Style.new
+  .bold(true)
+  .foreground(Term2::Color::WHITE)
+  .background(Term2::Color.from_hex("#3366CC"))
+  .padding(0, 2)
+
+content_style = Term2::Style.new
+  .padding(1)
+  .border(Term2::Border.normal)
+  .width(40)
+
+puts title_style.render("Title")
+puts content_style.render("Content goes here")
 ```
 
 ### Available Styles
@@ -155,154 +198,237 @@ puts S.bg(30, 30, 30).white | "Dark background"
 - 256-color: `.bg(0-255)`
 - RGB: `.bg(r, g, b)`
 
-## LipGloss Styling
+**Style API Features:**
 
-For advanced styling and layout, Term2 includes a port of [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+The `Term2::Style` class provides a comprehensive fluent API:
+
+- **Text Formatting**: `.bold()`, `.italic()`, `.underline()`, `.strikethrough()`, `.reverse()`, `.blink()`, `.faint()`
+- **Colors**: `.foreground()`, `.background()` (accepts `Color`, hex strings, or `AdaptiveColor`)
+- **Dimensions**: `.width()`, `.height()`, `.max_width()`, `.max_height()`
+- **Alignment**: `.align()`, `.align_horizontal()`, `.align_vertical()`
+- **Padding**: `.padding()` (CSS-style shorthand), `.padding_top()`, `.padding_right()`, etc.
+- **Margins**: `.margin()` (CSS-style shorthand), `.margin_top()`, `.margin_right()`, etc.
+- **Borders**: `.border()`, `.border_style()`, `.border_top()`, `.border_foreground()`, `.border_background()`
+- **Layout**: `.inline()`, `.tab_width()`, `.transform()`
+- **Rendering**: `.render()` to apply style to text, `.to_s()` for string representation
+
+## Zone System: Focus and Click Tracking
+
+Term2 includes a built-in Zone system that incorporates BubbleZone functionality for focus and click management. This system allows components to register interactive zones and automatically receive focus/click events without requiring a separate BubbleZone dependency.
+
+### How Zones Work
+
+The Zone system works by embedding invisible markers in the rendered output that are scanned after each frame to determine zone positions:
+
+1. **Zone Registration**: Components define an ID and wrap their output with `Zone.mark(id, content)`
+2. **Automatic Scanning**: After each render, Term2 scans the output to extract zone positions using invisible Unicode markers
+3. **Focus Management**: Zones can be focused via Tab/Shift+Tab or mouse clicks
+4. **Click Handling**: Mouse clicks automatically dispatch to the correct zone with relative coordinates
+5. **Keyboard Navigation**: Tab and Shift+Tab cycle through registered zones
+
+### Basic Zone Usage
 
 ```crystal
-style = Term2::LipGloss::Style.new
+# Mark clickable areas
+Zone.mark("button1", "Click me!")
+Zone.mark("button2", "Or click me!")
+
+  # Handle clicks in update
+  def update(msg : Message) : {Model, Cmd}
+    case msg
+    when ZoneClickMsg
+      case msg.id
+      when "button1"
+        # Handle button1 click at (msg.x, msg.y)
+        {self, Cmds.none}
+      when "button2"
+        # Handle button2 click
+      {self, Cmds.none}
+    end
+    when ZoneFocusMsg
+      # The component for msg.zone_id should focus itself
+      {self, Cmds.none}
+    else
+      {self, Cmds.none}
+    end
+  end
+
+# Tab through focusable zones
+Zone.focus_next  # or Zone.focus_prev
+```
+
+### Component Integration with Zones
+
+Components can easily integrate with the Zone system by implementing `zone_id` and using `Zone.mark`:
+
+```crystal
+class Button
+  include Model
+
+  getter label : String
+  getter id : String
+
+  def initialize(@label, @id); end
+
+  def zone_id : String?
+    @id
+  end
+
+  def view : String
+    style = focused? ? Style.reverse : Style.new
+    Zone.mark(@id, style.apply("[#{@label}]"))
+  end
+
+  def focused? : Bool
+    Zone.focused?(@id)
+  end
+
+  def update(msg : Message) : {Button, Cmd}
+    case msg
+    when ZoneClickMsg
+      if msg.id == @id && msg.action == MouseEvent::Action::Press
+        # Handle button click
+        puts "Button #{@id} clicked at (#{msg.x}, #{msg.y})"
+        {self, Cmds.none}
+      else
+        {self, Cmds.none}
+      end
+    when ZoneFocusMsg
+      # Component should focus itself when it receives focus
+      {self, Cmds.none}
+    else
+      {self, Cmds.none}
+    end
+  end
+end
+```
+
+### Zone Architecture
+
+The Zone system is fully integrated into Term2's core:
+
+- **Zone Module**: Provides global zone management (`Term2::Zone`)
+- **ZoneInfo**: Tracks zone boundaries and coordinates
+- **Zone Messages**: `ZoneClickMsg`, `ZoneFocusMsg` for event handling
+- **Automatic Integration**: Built into the main event loop and render pipeline
+
+### Focus Navigation
+
+- **Tab**: Move focus to next zone (cycles through all registered zones)
+- **Shift+Tab**: Move focus to previous zone
+- **Mouse Click**: Focus clicked zone automatically on press
+- **Programmatic**: Use `Zone.focus(id)` and `Zone.blur(id)`
+- **Auto-focus**: Components can call `focus` method to request focus
+- **Tab dispatch**: `ZoneFocusMsg` is emitted on Tab/Shift+Tab; components should call their own `focus` logic when they receive it
+
+### Advanced Zone Features
+
+- **Z-index Support**: Zones can have different z-index values for overlapping areas
+- **Relative Coordinates**: Click events include coordinates relative to zone bounds
+- **Efficient Scanning**: Zone scanning skips ANSI escape sequences
+- **Spatial Indexing**: Optimized zone lookup by coordinates
+- **Tab Cycle**: Automatic focus cycling through all interactive elements
+
+### Integration with Event System
+
+The Zone system is deeply integrated into Term2's event loop:
+
+```crystal
+# In the main event loop:
+if zone_click = Zone.handle_mouse(mouse_event)
+  # Auto-focus clicked zone on press
+  if mouse_event.action == MouseEvent::Action::Press
+    Zone.focus(zone_click.id)
+  end
+  dispatch(zone_click)
+end
+
+# Tab key handling:
+if key.type == KeyType::Tab
+  if next_id = Zone.focus_next
+    dispatch(ZoneFocusMsg.new(next_id))
+  end
+end
+
+# Components should handle ZoneFocusMsg by focusing themselves (for Tab/Shift+Tab).
+```
+
+### Built-in Components with Zone Support
+
+- **TextInput**: Full-featured text input with cursor navigation and automatic zone registration
+- **Checkbox**: Toggleable checkbox with focus support
+- **Radio**: Radio button groups with keyboard navigation
+- **Custom Components**: Any component can implement `zone_id` and use `Zone.mark`
+
+## Layout System
+
+Term2 provides multiple layout options:
+
+### Join Utilities
+
+Use layout join utilities to combine styled content:
+
+```crystal
+# Join content horizontally
+Term2.join_horizontal(Term2::Position::Top, left_panel, right_panel)
+
+# Join content vertically
+Term2.join_vertical(Term2::Position::Left, header, content, footer)
+
+# Place content at specific position
+Term2.place(80, 24, Term2::Position::Center, Term2::Position::Center, content)
+```
+
+## Fluent Style API
+
+Term2 provides a complete Lipgloss-style fluent API for advanced styling and layout in `Term2::Style`:
+
+```crystal
+style = Term2::Style.new
   .bold(true)
   .foreground(Term2::Color::RED)
   .padding(1, 2)
-  .border(Term2::LipGloss::Border.rounded)
+  .border(Term2::Border.rounded)
   .width(20)
-  .align(Term2::LipGloss::Position::Center)
+  .align(Term2::Position::Center)
 
-puts style.render("Hello LipGloss!")
+puts style.render("Hello Styled Text!")
 ```
 
-LipGloss provides comprehensive styling and layout capabilities:
+The Style API provides comprehensive styling capabilities including:
 
-### Advanced Layout
-
-```crystal
-# Horizontal and vertical joining
-header = Term2::LipGloss::Style.new.bold.render("Header")
-content = Term2::LipGloss::Style.new.render("Content")
-
-# Join horizontally
-row = Term2::LipGloss.join_horizontal(Term2::LipGloss::Center, header, content)
-
-# Join vertically
-layout = Term2::LipGloss.join_vertical(Term2::LipGloss::Left, header, content)
-
-# Place elements
-placed = Term2::LipGloss.place(10, 5, Term2::LipGloss::Center, Term2::LipGloss::Center, content)
-```
-
-### Table Rendering
-
-```crystal
-table = Term2::LipGloss::Table.new
-  .border(Term2::LipGloss::Border.normal)
-  .border_style(Term2::LipGloss::Style.new.foreground(Term2::Color::BLUE))
-  .width(50)
-  .headers("Name", "Age", "City")
-  .row("Alice", "30", "New York")
-  .row("Bob", "25", "London")
-
-puts table.render
-```
-
-### List Rendering
-
-```crystal
-list = Term2::LipGloss::List.new
-  .item("First item")
-  .item("Second item")
-  .item("Third item")
-
-puts list.render
-```
-
-### Tree Rendering
-
-```crystal
-tree = Term2::LipGloss::Tree.new
-  .node("Root")
-    .node("Child 1")
-      .leaf("Leaf 1.1")
-      .leaf("Leaf 1.2")
-    .end
-    .node("Child 2")
-      .leaf("Leaf 2.1")
-    .end
-
-puts tree.render
-```
-
-rendering components (`Table`, `List`, `Tree`).
+- **Layout utilities**: `Term2.join_horizontal`, `Term2.join_vertical`, `Term2.place`
+- **Borders**: Multiple border styles (normal, rounded, thick, double, hidden, block, half-block)
+- **Spacing**: Full padding and margin control with CSS-style shorthand syntax
+- **Alignment**: Horizontal and vertical alignment options
+- **Colors**: Named colors, 256-color palette, true color RGB, adaptive colors, hex support
+- **Text formatting**: Bold, italic, underline, strikethrough, reverse, blink, faint
+- **Dimensions**: Fixed and maximum width/height constraints
+- **Transformations**: Custom text transformation functions
 
 ## Handling Input
-
-### Keyboard
 
 ```crystal
 def update(msg : Message) : {Model, Cmd}
   case msg
   when KeyMsg
     case msg.key.to_s
-    when "q"
-      {self, Term2.quit}
-    when "up", "k"
-      # ...
+    when "q", "ctrl+c" then {self, Term2.quit}
+    when "up", "k"     then move_up
+    when "down", "j"   then move_down
+    else                   {self, Cmds.none}
     end
-  end
-end
-```
-
-## Handling Input
-
-### Keyboard
-
-```crystal
-def update(msg : Message, model : Model)
-  case msg
-  when KeyPress
-    case msg.key
-    when "up", "k"    then move_up(model)
-    when "down", "j"  then move_down(model)
-    when "enter"      then select(model)
-    when "ctrl+c"     then {model, Cmd.quit}
-    else              {model, nil}
-    end
-  else
-    {model, nil}
-  end
-end
-```
-
-### Mouse
-
-```crystal
-def update(msg : Message, model : Model)
-  case msg
   when MouseEvent
-    case msg.action
-    when MouseEvent::Action::Press
-      handle_click(model, msg.x, msg.y, msg.button)
-    when MouseEvent::Action::Move
-      handle_hover(model, msg.x, msg.y)
-    end
-  else
-    {model, nil}
-  end
-end
-```
-
-### Focus
-
-```crystal
-def update(msg : Message, model : Model)
-  case msg
+    handle_mouse(msg.x, msg.y, msg.button, msg.action)
+    {self, Cmds.none}
   when FocusMsg
-    # Window gained focus
-    {model.with_focused(true), nil}
+    {self, Cmds.none} # window gained focus
   when BlurMsg
-    # Window lost focus
-    {model.with_focused(false), nil}
+    {self, Cmds.none} # window lost focus
+  when WindowSizeMsg
+    {self, Cmds.none} # resize to msg.width x msg.height
   else
-    {model, nil}
+    {self, Cmds.none}
   end
 end
 ```
@@ -311,23 +437,22 @@ end
 
 ```crystal
 # No-op
-Cmd.none
-nil
+Cmds.none
 
 # Quit the application
-Cmd.quit
+Term2.quit
 
 # Batch multiple commands
-Cmd.batch(cmd1, cmd2, cmd3)
+Cmds.batch(cmd1, cmd2, cmd3)
 
 # Run commands in sequence
-Cmd.sequence(cmd1, cmd2, cmd3)
+Cmds.sequence(cmd1, cmd2, cmd3)
 
 # Tick command for timers
-Cmd.tick(1.second) { |t| TickMsg.new(t) }
+Cmds.tick(1.second) { TickMsg.new }
 
-# Custom command
-Cmd.new { MyCustomMsg.new(result) }
+# Send a message
+Cmds.message(MyCustomMsg.new(result))
 ```
 
 ## Components
@@ -335,11 +460,28 @@ Cmd.new { MyCustomMsg.new(result) }
 ### Spinner
 
 ```crystal
-spinner = Components::Spinner.new(
-  frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-  interval: 100.milliseconds
-)
-model, cmd = spinner.init("Loading...")
+class SpinnerModel
+  include Model
+  property spinner : TC::Spinner = TC::Spinner.new(TC::Spinner::DOT)
+
+  def init : Cmd
+    @spinner.tick
+  end
+
+  def update(msg : Message) : {Model, Cmd}
+    new_spinner, cmd = @spinner.update(msg)
+    @spinner = new_spinner
+    case msg
+    when KeyMsg
+      return {self, Term2.quit} if msg.key.to_s == "q"
+    end
+    {self, cmd}
+  end
+
+  def view : String
+    "#{@spinner.view} Loading... (press q to quit)"
+  end
+end
 ```
 
 ### ProgressBar
@@ -357,11 +499,54 @@ model, cmd = progress.init
 ### TextInput
 
 ```crystal
+# Create a text input with full features
 input = Components::TextInput.new(
   placeholder: "Type here...",
-  max_length: 50
+  width: 40,
+  prompt: "> ",
+  echo_mode: Components::TextInput::EchoMode::Normal,
+  char_limit: 100,
+  id: "search_input"  # Zone ID for focus management
 )
-model, cmd = input.init(focused: true)
+
+# Use in your model
+class SearchModel
+  include Model
+
+  getter input : Components::TextInput
+
+  def initialize
+    @input = Components::TextInput.new(
+      placeholder: "Search...",
+      width: 50
+    )
+  end
+
+  def update(msg : Message) : {Model, Cmd}
+    case msg
+    when KeyMsg
+      # Handle input focus
+      return {self, Zone.focus_next} if msg.key.to_s == "tab"
+
+      # Delegate to text input
+      new_input, cmd = @input.update(msg)
+      @input = new_input
+      {self, cmd}
+    when ZoneClickMsg
+      if msg.id == "search_input"
+        {self, @input.focus}
+      else
+        {self, Cmds.none}
+      end
+    else
+      {self, Cmds.none}
+    end
+  end
+
+  def view : String
+    @input.view(self)
+  end
+end
 ```
 
 ## Documentation
@@ -389,14 +574,25 @@ crystal run --release benchmarks/benchmark.cr
 
 ```text
 src/
-  term2.cr         # Main module, Program, Cmd, KeyReader
-  base_types.cr    # Model, Message, Key, KeyType
-  key_sequences.cr # Escape sequence mappings
-  mouse.cr         # Mouse event handling
-  renderer.cr      # StandardRenderer, NilRenderer
-  terminal.cr      # Terminal control utilities
-  view.cr          # View layout system
+  term2.cr           # Main module, Program, Cmds, KeyReader
+  base_types.cr      # Model, Message, Key, KeyType
+  key_sequences.cr   # Escape sequence mappings
+  mouse.cr           # Mouse event handling
+  renderer.cr        # StandardRenderer, NilRenderer
+  terminal.cr        # Terminal control utilities, Cursor escapes
+  style.cr           # Lipgloss-style fluent styling API
+  zone.cr            # Zone system for focus/click tracking
   program_options.cr # Program configuration
+  components/        # Built-in UI components
+    text_input.cr    # Full-featured text input component
+    table.cr         # Table component with StyleFunc
+    list.cr          # List with Enumerators
+    tree.cr          # Static tree renderer
+    spinner.cr       # Loading spinner
+    progress.cr      # Progress bar
+    viewport.cr      # Scrollable viewport
+    cursor.cr        # Cursor management
+    key.cr           # Key binding system
 ```
 
 ## Contributing

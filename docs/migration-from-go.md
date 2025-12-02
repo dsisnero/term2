@@ -10,7 +10,7 @@ Term2 is a Crystal port of [BubbleTea](https://github.com/charmbracelet/bubblete
 
 | Concept | BubbleTea (Go) | Term2 (Crystal) |
 |---------|----------------|-----------------|
-| Model | `type model struct` | `class MyModel < Model` |
+| Model | `type model struct` | `class MyModel; include Model; end` |
 | Message | `type myMsg struct` | `class MyMsg < Message` |
 | Command | `func() tea.Msg` | `Cmd` (alias for `Proc(Message?)`) |
 | Update | `func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd)` | `def update(msg, model) : {Model, Cmd?}` |
@@ -32,7 +32,9 @@ type model struct {
 ### Term2 (Crystal)
 
 ```crystal
-class AppModel < Term2::Model
+class AppModel
+  include Term2::Model
+
   getter count : Int32
   getter name : String
   getter? quitting : Bool
@@ -131,41 +133,38 @@ func main() {
 require "term2"
 include Term2::Prelude
 
-class CounterModel < Model
+class CounterModel
+  include Model
+
   getter count : Int32
   def initialize(@count = 0); end
-end
 
-class CounterApp < Application
-  def init
-    CounterModel.new
+  def init : Cmd
+    Cmds.none
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(CounterModel)
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
+    when KeyMsg
+      case msg.key.to_s
       when "q", "ctrl+c"
-        {m, Cmd.quit}
+        {self, Term2.quit}
       when "+"
-        {CounterModel.new(m.count + 1), Cmd.none}
+        {CounterModel.new(@count + 1), Cmds.none}
       else
-        {m, Cmd.none}
+        {self, Cmds.none}
       end
     else
-      {m, Cmd.none}
+      {self, Cmds.none}
     end
   end
 
-  def view(model : Model) : String
-    m = model.as(CounterModel)
-    "Count: #{m.count}\n"
+  def view : String
+    "Count: #{@count}\n"
   end
 end
 
-CounterApp.new.run
+Term2.run(CounterModel.new)
 ```
 
 ## Commands
@@ -195,20 +194,20 @@ tea.Tick(time.Second, func(t time.Time) tea.Msg {
 
 ```crystal
 # No-op command
-Cmd.none
+Cmds.none
 nil  # also works
 
 # Quit command
-Cmd.quit
+Term2.quit
 
 # Batch commands
-Cmd.batch(cmd1, cmd2, cmd3)
+Cmds.batch(cmd1, cmd2, cmd3)
 
 # Sequence commands
-Cmd.sequence(cmd1, cmd2, cmd3)
+Cmds.sequence(cmd1, cmd2, cmd3)
 
 # Tick command (using built-in)
-Cmd.tick(1.second) { |t| TickMsg.new(t) }
+Cmds.tick(1.second) { |t| TickMsg.new(t) }
 ```
 
 ## Key Handling
@@ -244,19 +243,19 @@ def update(msg : Message, model : Model)
   when KeyPress
     case msg.key
     when "q"
-      {model, Cmd.quit}
+      {model, Term2.quit}
     when "up"
       # handle up arrow
-      {model, nil}
+      {model, Cmds.none}
     when "ctrl+c"
-      {model, Cmd.quit}
+      {model, Term2.quit}
     else
-      {model, nil}
+      {model, Cmds.none}
     end
 
     # Or check specific key types
     if msg.key_msg.type == KeyType::CtrlC
-      {model, Cmd.quit}
+      {model, Term2.quit}
     end
   else
     {model, nil}
@@ -420,7 +419,7 @@ class ErrorMsg < Message
 end
 
 # In a command:
-Cmd.new {
+Cmds.message {
   begin
     # ... do work
     SuccessMsg.new(result)

@@ -38,13 +38,14 @@
 
 - **Install deps**: `make install` (or `shards install`)
 - **Build**: `make build`
-- **Run tests (all)**: `make spec-all`
+- **Run tests (all)**: `crystal spec` (or `crystal spec --fail-fast -v` when debugging)
 - **Provider-only specs**: `make spec-provider` (set provider env vars first)
 - **Capture live HTTP fixtures**: `make spec-provider-record` (sets `HTTP_RECORD=1`)
 - **Interactive specs**: `make spec-interactive` (requires `WITH_TERMINAL=1`)
 - **Test single file**: `crystal spec spec/<path_to_file>`
 - **Run examples**: `crystal run examples/<example_name>.cr`
 - **Format code**: `crystal tool format`
+- **Lint & auto-fix**: `ameba --fix`
 - **Clean logs/temp**: `make clean`
 
 ### Language & Version
@@ -68,6 +69,14 @@
 - **Require order**: External dependencies first, then internal requires in alphabetical order
 - **Error handling**: Comprehensive error handling with clear messages
 - **Documentation**: Clear comments for complex logic and public APIs
+
+### API Conventions
+
+- **Model-Update-View**: Follow the Elm architecture.
+- **Cmd**: Use `Term2::Cmd` (alias for `Proc(Msg?)?`) for commands.
+- **Cmds**: Use `Term2::Cmds` module for command constructors (e.g., `Cmds.batch`, `Cmds.tick`).
+- **Update Return**: `update` method must return `{Model, Cmd}`.
+- **Messages**: Use `Term2::Msg` (alias for `Term2::Message`) for messages.
 
 ## Testing Conventions
 

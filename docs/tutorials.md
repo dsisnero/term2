@@ -25,53 +25,50 @@ require "term2"
 include Term2::Prelude
 
 # 1. Define your model (application state)
-class CounterModel < Model
+class CounterModel
+  include Model
+
   getter count : Int32
 
   def initialize(@count = 0)
   end
-end
 
-# 2. Define your application
-class CounterApp < Application
   # Initialize the model
-  def init
-    CounterModel.new
+  def init : Cmd
+    Cmds.none
   end
 
   # Handle messages and update the model
-  def update(msg : Message, model : Model)
-    m = model.as(CounterModel)
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
-      case msg.key
+    when KeyMsg
+      case msg.key.to_s
       when "q", "ctrl+c"
-        {m, Cmd.quit}
+        {self, Term2.quit}
       when "+", "="
-        {CounterModel.new(m.count + 1), nil}
+        {CounterModel.new(@count + 1), Cmds.none}
       when "-", "_"
-        {CounterModel.new(m.count - 1), nil}
+        {CounterModel.new(@count - 1), Cmds.none}
       else
-        {m, nil}
+        {self, Cmds.none}
       end
     else
-      {m, nil}
+      {self, Cmds.none}
     end
   end
 
   # Render the view
-  def view(model : Model) : String
-    m = model.as(CounterModel)
+  def view : String
     <<-VIEW
-    Count: #{m.count}
+    Count: #{@count}
 
     Press +/- to change, q to quit
     VIEW
   end
 end
 
-CounterApp.new.run
+# 2. Run the application
+Term2.run(CounterModel.new)
 ```
 
 **Key Concepts:**
@@ -87,35 +84,33 @@ CounterApp.new.run
 Term2 supports various key types beyond simple characters.
 
 ```crystal
-def update(msg : Message, model : Model)
-  m = model.as(MyModel)
-
+def update(msg : Message) : {Model, Cmd}
   case msg
-  when KeyPress
-    key = msg.key_msg
+  when KeyMsg
+    key = msg.key
 
     # Match by string representation
-    case msg.key
+    case key.to_s
     when "up", "k"
-      move_up(m)
+      move_up
     when "down", "j"
-      move_down(m)
+      move_down
     when "enter"
-      select_item(m)
+      select_item
     when "esc"
-      go_back(m)
+      go_back
     when "ctrl+c", "q"
-      {m, Cmd.quit}
+      return {self, Term2.quit}
     end
 
     # Or match by key type
     case key.type
     when KeyType::Up
-      move_up(m)
+      move_up
     when KeyType::F1
-      show_help(m)
+      show_help
     when KeyType::CtrlC
-      {m, Cmd.quit}
+      return {self, Term2.quit}
     end
 
     # Check for alt modifier
@@ -123,7 +118,7 @@ def update(msg : Message, model : Model)
       # Alt was held
     end
   else
-    {m, nil}
+    {self, Cmds.none}
   end
 end
 ```
@@ -144,108 +139,106 @@ end
 Enable mouse tracking to receive mouse events.
 
 ```crystal
-class MouseApp < Application
-  def options : Array(ProgramOption)
-    [
-      WithMouseAllMotion.new,  # Track all motion (including hover)
-      # Or use WithMouseCellMotion.new for just drag events
-    ]
+require "term2"
+include Term2::Prelude
+
+class MouseModel
+  include Model
+
+  getter x : Int32 = 0
+  getter y : Int32 = 0
+  getter last_action : String = "none"
+
+  def initialize(@x = 0, @y = 0, @last_action = "none")
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(MyModel)
+  def init : Cmd
+    Cmds.none
+  end
 
+  def update(msg : Message) : {Model, Cmd}
     case msg
     when MouseEvent
-      case msg.action
-      when MouseEvent::Action::Press
-        handle_click(m, msg.x, msg.y, msg.button)
-      when MouseEvent::Action::Release
-        handle_release(m, msg.x, msg.y)
-      when MouseEvent::Action::Move
-        handle_hover(m, msg.x, msg.y)
-      when MouseEvent::Action::Drag
-        handle_drag(m, msg.x, msg.y)
+      action = case msg.action
+               when MouseEvent::Action::Press then "click"
+               when MouseEvent::Action::Release then "release"
+               when MouseEvent::Action::Move then "move"
+               when MouseEvent::Action::Drag then "drag"
+               else "unknown"
+               end
+      {MouseModel.new(msg.x, msg.y, action), Cmds.none}
+    when KeyMsg
+      case msg.key.to_s
+      when "q", "ctrl+c"
+        {self, Term2.quit}
+      else
+        {self, Cmds.none}
       end
-
-      # Check for modifiers
-      if msg.ctrl?
-        # Ctrl was held during mouse action
-      end
-
-      # Check specific buttons
-      case msg.button
-      when MouseEvent::Button::Left
-        # Left click
-      when MouseEvent::Button::WheelUp
-        scroll_up(m)
-      when MouseEvent::Button::WheelDown
-        scroll_down(m)
-      end
+    else
+      {self, Cmds.none}
     end
+  end
 
-    {m, nil}
+  def view : String
+    "Mouse: (#{@x}, #{@y}) - #{@last_action}\nPress q to quit"
   end
 end
+
+# Run with mouse tracking enabled
+Term2.run(MouseModel.new, options: Term2::ProgramOptions.new(
+  WithMouseAllMotion.new  # Track all motion (including hover)
+))
 ```
 
 ---
 
 ## Working with Timers {#timers}
 
-Use `Cmd.tick` to create periodic updates.
+Use `Cmds.tick` to create periodic updates.
 
 ```crystal
-class ClockModel < Model
+class ClockModel
+  include Model
+
   getter time : Time
-  getter running : Bool
+  getter? running : Bool
 
   def initialize(@time = Time.local, @running = true)
   end
-end
 
-class ClockApp < Application
-  def init
-    # Return initial model with a tick command
-    model = ClockModel.new
-    cmd = start_tick
-    {model, cmd}
+  def init : Cmd
+    start_tick
   end
 
   private def start_tick : Cmd
-    Cmd.tick(1.second) { |t| TickMsg.new(t) }
+    Cmds.tick(1.second) { |t| TickMsg.new(t) }
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(ClockModel)
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
     when TickMsg
-      if m.running
-        new_model = ClockModel.new(msg.time, true)
-        {new_model, start_tick}  # Schedule next tick
+      if running?
+        {ClockModel.new(msg.time, true), start_tick}
       else
-        {m, nil}  # Stop ticking
+        {self, Cmds.none}
       end
-    when KeyPress
-      case msg.key
+    when KeyMsg
+      case msg.key.to_s
       when "p"
-        # Toggle pause
-        {ClockModel.new(m.time, !m.running), m.running ? nil : start_tick}
+        {ClockModel.new(@time, !@running), @running ? Cmds.none : start_tick}
       when "q"
-        {m, Cmd.quit}
+        {self, Term2.quit}
       else
-        {m, nil}
+        {self, Cmds.none}
       end
     else
-      {m, nil}
+      {self, Cmds.none}
     end
   end
 
-  def view(model : Model) : String
-    m = model.as(ClockModel)
-    status = m.running ? "Running" : "Paused"
-    "Time: #{m.time.to_s("%H:%M:%S")} [#{status}]\nPress p to pause, q to quit"
+  def view : String
+    status = running? ? "Running" : "Paused"
+    "Time: #{@time.to_s("%H:%M:%S")} [#{status}]\nPress p to pause, q to quit"
   end
 end
 
@@ -254,7 +247,7 @@ class TickMsg < Message
   def initialize(@time); end
 end
 
-ClockApp.new.run
+Term2.run(ClockModel.new)
 ```
 
 ---
@@ -270,70 +263,76 @@ enum Screen
   Help
 end
 
-class AppModel < Model
+class AppModel
+  include Model
+
   getter screen : Screen
   getter data : String
 
   def initialize(@screen = Screen::Main, @data = "")
   end
-end
 
-class MultiViewApp < Application
-  def update(msg : Message, model : Model)
-    m = model.as(AppModel)
+  def init : Cmd
+    Cmds.none
+  end
 
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when KeyPress
+    when KeyMsg
       # Global keys
-      case msg.key
+      case msg.key.to_s
       when "q", "ctrl+c"
-        return {m, Cmd.quit}
+        return {self, Term2.quit}
       when "?"
-        return {AppModel.new(Screen::Help, m.data), nil}
+        return {AppModel.new(Screen::Help, @data), Cmds.none}
       when "esc"
-        return {AppModel.new(Screen::Main, m.data), nil}
+        return {AppModel.new(Screen::Main, @data), Cmds.none}
       end
 
       # Screen-specific handling
-      case m.screen
+      case @screen
       when Screen::Main
-        update_main(m, msg)
+        update_main(msg)
       when Screen::Settings
-        update_settings(m, msg)
+        update_settings(msg)
       when Screen::Help
-        update_help(m, msg)
+        update_help(msg)
+      else
+        {self, Cmds.none}
       end
     else
-      {m, nil}
+      {self, Cmds.none}
     end
   end
 
-  def view(model : Model) : String
-    m = model.as(AppModel)
-
-    case m.screen
+  def view : String
+    case @screen
     when Screen::Main
-      view_main(m)
+      view_main
     when Screen::Settings
-      view_settings(m)
+      view_settings
     when Screen::Help
-      view_help(m)
+      view_help
     else
       ""
     end
   end
 
   # Separate methods for each screen...
-  private def update_main(m, msg)
-    case msg.key
+  private def update_main(msg)
+    case msg.key.to_s
     when "s"
-      {AppModel.new(Screen::Settings, m.data), nil}
+      {AppModel.new(Screen::Settings, @data), Cmds.none}
     else
-      {m, nil}
+      {self, Cmds.none}
     end
   end
 
-  # ... etc
+  private def update_settings(msg); {self, Cmds.none}; end
+  private def update_help(msg); {self, Cmds.none}; end
+  private def view_main; "Main Screen"; end
+  private def view_settings; "Settings Screen"; end
+  private def view_help; "Help Screen"; end
 end
 ```
 
@@ -347,115 +346,66 @@ Term2 includes reusable components for common UI patterns.
 require "term2"
 include Term2::Prelude
 
-class MyModel < Model
-  getter spinner : Components::Spinner::Model?
-  getter progress : Components::ProgressBar::Model?
+# Using the Spinner component
+class SpinnerModel
+  include Model
 
-  def initialize(@spinner = nil, @progress = nil)
-  end
-end
-
-class ComponentApp < Application
-  @spinner : Components::Spinner
-  @progress : Components::ProgressBar
+  property spinner : TC::Spinner
 
   def initialize
-    @spinner = Components::Spinner.new(
-      frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-      interval: 100.milliseconds
-    )
-    @progress = Components::ProgressBar.new(
-      width: 30,
-      complete_char: '█',
-      incomplete_char: '░',
-      show_percentage: true
-    )
+    @spinner = TC::Spinner.new(TC::Spinner::DOT)
+    @spinner.style = Style.new.foreground(Color::CYAN)
   end
 
-  def init
-    spinner_model, spinner_cmd = @spinner.init("Loading...")
-    progress_model, progress_cmd = @progress.init
-
-    model = MyModel.new(spinner_model, progress_model)
-    {model, Cmd.batch(spinner_cmd, progress_cmd)}
+  def init : Cmd
+    @spinner.tick  # Start the spinner animation
   end
 
-  def update(msg : Message, model : Model)
-    m = model.as(MyModel)
-
+  def update(msg : Message) : {Model, Cmd}
     case msg
-    when Components::Spinner::Tick
-      if spinner = m.spinner
-        new_spinner, cmd = @spinner.update(msg, spinner)
-        {MyModel.new(new_spinner, m.progress), cmd}
-      else
-        {m, nil}
+    when KeyMsg
+      if msg.key.to_s == "q"
+        return {self, Term2.quit}
       end
-    else
-      {m, nil}
     end
+
+    # Forward messages to spinner
+    new_spinner, cmd = @spinner.update(msg)
+    @spinner = new_spinner
+    {self, cmd}
   end
 
-  def view(model : Model) : String
-    m = model.as(MyModel)
-
-    spinner_view = m.spinner ? @spinner.view(m.spinner.not_nil!) : ""
-    progress_view = m.progress ? @progress.view(m.progress.not_nil!) : ""
-
-    "#{spinner_view}\n#{progress_view}"
+  def view : String
+    "#{@spinner.view} Loading... (press q to quit)"
   end
 end
+
+Term2.run(SpinnerModel.new)
 ```
 
 ---
 
 ## Layout and Positioning {#layout}
 
-Use the `View` struct for layout calculations.
+Use the layout helpers in `Term2::Style` to stitch strings together.
 
 ```crystal
-def view(model : Model) : String
-  m = model.as(MyModel)
+header = (Style.new.bold(true) | "Header")
+sidebar = Style.new | "Sidebar"
+main = Style.new | "Main content"
 
-  # Create a view representing the screen
-  screen = Term2::View.new(0, 0, m.width, m.height)
+# Stack vertically
+body = Term2.join_horizontal(Term2::Position::Top, sidebar, main)
+page = Term2.join_vertical(Term2::Position::Left, header, body)
 
-  # Add margins
-  content = screen.margin(top: 1, bottom: 1, left: 2, right: 2)
-
-  # Split into regions
-  header, body = content.split_vertical(0.1)  # 10% header
-  sidebar, main = body.split_horizontal(0.25)  # 25% sidebar
-
-  # Build the output using the calculated regions
-  String.build do |io|
-    # Position cursor at header
-    io << "\e[#{header.y + 1};#{header.x + 1}H"
-    io << "Header (#{header.width}x#{header.height})"
-
-    # Draw sidebar
-    io << "\e[#{sidebar.y + 1};#{sidebar.x + 1}H"
-    io << "Sidebar"
-
-    # Draw main content
-    io << "\e[#{main.y + 1};#{main.x + 1}H"
-    io << "Main Content Area"
-  end
-end
+# Center within a viewport (width x height)
+centered = Term2.place(80, 24, Term2::Position::Center, Term2::Position::Center, page)
 ```
 
-**View Methods:**
+- `join_horizontal(pos, *blocks)` aligns blocks vertically by position (`Top`, `Center`, `Bottom`) or ratio.
+- `join_vertical(pos, *blocks)` aligns blocks horizontally by position (`Left`, `Center`, `Right`) or ratio.
+- `place(width, height, hpos, vpos, content)` positions content inside a bounding box, padding with spaces as needed.
 
-- `margin(top, right, bottom, left)` - Add margins
-- `padding(all)` or `padding(h, v)` - Add padding
-- `split_horizontal(ratio)` - Split left/right
-- `split_vertical(ratio)` - Split top/bottom
-- `center(width, height)` - Center a subview
-- `contains?(x, y)` - Check if point is in view
-
-## Advanced Styling with Lipgloss {#lipgloss}
-
-For advanced styling and layout, Term2 includes a complete port of Charmbracelet's Lipgloss library.nn### Basic Stylingnn```crystaln# Create a style with borders, padding, and colorsnstyle = Term2::LipGloss::Style.newn  .bold(true)n  .foreground(Term2::Color::RED)n  .background(Term2::Color::WHITE)n  .padding(1, 2)n  .margin(1)n  .border(Term2::LipGloss::Border.rounded)n  .width(30)n  .align(Term2::LipGloss::Position::Center)nnputs style.render("Styled Box")n```nn### Layout Compositionnn```crystaln# Create multiple styled elementsnheader = Term2::LipGloss::Style.newn  .boldn  .foreground(Term2::Color::BLUE)n  .render("Header")nncontent = Term2::LipGloss::Style.newn  .padding(1)n  .render("Content area")nn# Join horizontallynrow = Term2::LipGloss.join_horizontal(Term2::LipGloss::Center, header, content)nn# Join verticallynlayout = Term2::LipGloss.join_vertical(Term2::LipGloss::Left, header, content)nn# Place at specific positionnplaced = Term2::LipGloss.place(10, 5, Term2::LipGloss::Center, Term2::LipGloss::Center, content)n```nn### Table Componentnn```crystalntable = Term2::LipGloss::Table.newn  .border(Term2::LipGloss::Border.normal)n  .border_style(Term2::LipGloss::Style.new.foreground(Term2::Color::BLUE))n  .width(50)n  .headers("Name", "Age", "City")n  .row("Alice", "30", "New York")n  .row("Bob", "25", "London")n  .row("Charlie", "35", "Tokyo")nnputs table.rendern```nn### List Componentnn```crystalnlist = Term2::LipGloss::List.newn  .item("First item")n  .item("Second item")n  .item("Third item")nnputs list.rendern```nn### Tree Componentnn```crystalntree = Term2::LipGloss::Tree.newn  .node("Root")n    .node("Child 1")n      .leaf("Leaf 1.1")n      .leaf("Leaf 1.2")n    .endn    .node("Child 2")n      .leaf("Leaf 2.1")n    .endnnputs tree.rendern```nnLipgloss provides a comprehensive styling system that works seamlessly with Term2's component architecture.n
 ---
 
 ## Error Handling {#error-handling}
@@ -474,7 +424,7 @@ class SuccessMsg < Message
 end
 
 def fetch_data : Cmd
-  Cmd.new {
+  Cmds.message {
     begin
       # Simulate async work
       sleep 0.1
@@ -485,18 +435,14 @@ def fetch_data : Cmd
   }
 end
 
-def update(msg : Message, model : Model)
-  m = model.as(MyModel)
-
+def update(msg : Message) : {Model, Cmd}
   case msg
   when SuccessMsg
-    new_model = MyModel.new(data: msg.result, error: nil)
-    {new_model, nil}
+    {MyModel.new(data: msg.result, error: nil), Cmds.none}
   when ErrorMsg
-    new_model = MyModel.new(data: m.data, error: msg.error.message)
-    {new_model, nil}
+    {MyModel.new(data: @data, error: msg.error.message), Cmds.none}
   else
-    {m, nil}
+    {self, Cmds.none}
   end
 end
 ```
