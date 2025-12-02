@@ -1,0 +1,161 @@
+---
+workstream:
+  id: term2-update-api-improvement
+  title: Term2 Update API Improvement - Model Bubble Tea More Closely
+  status: active
+  created_at: 2025-11-29 08:22:10.518948000
+  updated_at: 2025-11-29 08:22:10.518948000
+assignment:
+  required_skills: []
+dependencies:
+  blocks: []
+  blocked_by: []
+  depends_on: []
+  related_to: []
+requirements:
+  system_requirements: []
+  acceptance_criteria: []
+tasks:
+- id: task-1
+  description: 'Phase 1: Redesign Message Type System'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-2
+  description: '  1.1 Create a Msg type alias as a union type for flexibility (like
+    Go''s interface{})'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-3
+  description: '  1.2 Keep abstract Message class for backwards compatibility'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-4
+  description: '  1.3 Add module-based approach using ''include Term2::Msg'' for type-safe
+    messages'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-5
+  description: 'Phase 2: Redesign Update Function Signature'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-6
+  description: '  2.1 Change Model#update to return Tuple(self.class, Cmd) for type
+    preservation'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-7
+  description: '  2.2 Consider functional approach with UpdateFn = Proc(Model, Msg,
+    Tuple(Model, Cmd))'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-8
+  description: '  2.3 Add macro helpers for defining update functions inline'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-9
+  description: 'Phase 3: Simplify Cmd Type'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-10
+  description: '  3.1 Make Cmd = Proc(Msg)? to match Bubble Tea''s Cmd func() Msg
+    pattern'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-11
+  description: '  3.2 Add Cmd.none as nil/noop'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-12
+  description: '  3.3 Update Cmd.batch, Cmd.sequence to work with new type'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-13
+  description: '  3.4 Add convenience constructors like Cmd.message(msg) that returns
+    the new Cmd type'
+  status: completed
+  dependencies: []
+  acceptance_criteria: []
+- id: task-14
+  description: 'Phase 4: Add Functional Model Alternative'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-15
+  description: '  4.1 Create Term2::App struct that takes init, update, view as Procs'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-16
+  description: '  4.2 Allow users to skip class inheritance entirely'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-17
+  description: '  4.3 Support both class-based and functional styles'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-18
+  description: 'Phase 5: Update Components'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-19
+  description: '  5.1 Update all existing components (Spinner, Timer, etc.) to new
+    API'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-20
+  description: '  5.2 Create component Update method that returns (Component, Cmd)'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-21
+  description: '  5.3 Add helper macros for component composition'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-22
+  description: 'Phase 6: Migration and Documentation'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-23
+  description: '  6.1 Keep backward compatibility with deprecation warnings'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-24
+  description: '  6.2 Update all examples to new API style'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-25
+  description: '  6.3 Write migration guide'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+- id: task-26
+  description: '  6.4 Update tutorials and documentation'
+  status: pending
+  dependencies: []
+  acceptance_criteria: []
+tags:
+- api
+- improvement
+- bubbletea
+- update
+- message

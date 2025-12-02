@@ -46,31 +46,31 @@
 
    36.
 
-1. **Phase 6: Implementation Roadmap**
-2. - Create proof-of-concept minimal terminal application
-3. - Implement core tea.Program equivalent
-4. - Port basic components (text input, spinner, etc.)
-5. - Implement styling system equivalent to Lip Gloss
-6. - Create comprehensive test suite
-7. - Document usage patterns and migration guide
+7. **Phase 6: Implementation Roadmap**
+8. - Create proof-of-concept minimal terminal application
+9. - Implement core tea.Program equivalent
+10. - Port basic components (text input, spinner, etc.)
+11. - Implement styling system equivalent to Lip Gloss
+12. - Create comprehensive test suite
+13. - Document usage patterns and migration guide
 
    44.
 
-1. **Phase 7: Performance and Optimization**
-2. - Benchmark performance against original Go implementation
-3. - Optimize rendering and update cycles
-4. - Profile memory usage and garbage collection
-5. - Test cross-platform compatibility
-6. - Optimize for different terminal environments
+14. **Phase 7: Performance and Optimization**
+15. - Benchmark performance against original Go implementation
+16. - Optimize rendering and update cycles
+17. - Profile memory usage and garbage collection
+18. - Test cross-platform compatibility
+19. - Optimize for different terminal environments
 
    51.
 
-1. **Phase 8: Documentation and Examples**
-2. - Create comprehensive API documentation
-3. - Build example applications demonstrating various use cases
-4. - Create migration guide from Bubble Tea to Crystal version
-5. - Document best practices and patterns
-6. - Create interactive tutorials and demos
+20. **Phase 8: Documentation and Examples**
+21. - Create comprehensive API documentation
+22. - Build example applications demonstrating various use cases
+23. - Create migration guide from Bubble Tea to Crystal version
+24. - Document best practices and patterns
+25. - Create interactive tutorials and demos
 
 ## Tags
 

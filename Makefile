@@ -4,7 +4,7 @@
 export CRYSTAL_CACHE_DIR := $(PWD)/.crystal-cache
 
 # Example source files and their output binaries
-EXAMPLE_SOURCES := $(wildcard examples/*.cr)
+EXAMPLE_SOURCES := $(shell find examples -name '*.cr')
 EXAMPLE_BINARIES := $(EXAMPLE_SOURCES:.cr=)
 
 # Build the library (check for errors)

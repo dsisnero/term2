@@ -2,15 +2,32 @@
 
 ## Current Status
 
-**Overall Progress:** ~90%
+**Overall Progress:** ~92%
 **Active Workstream:** None
-**Recent Completion:** Bubbles Components Port
+**Recent Completion:** BubbleZone Integration
 
 ## Active Workstreams
 
 ### None
 
 ## Completed Workstreams
+
+### [E] BubbleZone Integration
+
+**Status:** ✅ Completed (Jan 2025)
+**Goal:** Integrate zone-based focus management as core part of Term2.
+**Achievements:**
+
+- Created `Zone` module with mark/scan/focus/handle_mouse
+- Updated all focusable components to use Zone-based focus:
+  - TextInput: Zone.mark() in view, handles ZoneClickMsg
+  - List: Zone-based focus, click-to-select items
+  - Table: Zone-based focus with focused?() method
+  - TextArea: Zone integration with cursor management
+  - FilePicker: Zone-based focus for file navigation
+- Automatic Tab/Shift+Tab focus cycling between zones
+- Mouse click auto-focuses clicked zone
+- Messages: ZoneClickMsg, ZoneFocusMsg, ZoneBlurMsg
 
 ### [D] Ergonomics & Namespace Cleanup
 
@@ -59,6 +76,6 @@
 
 ## Backlog
 
-- [x] Advanced Text Layout (Word wrapping, etc.)
-- [x] Lipgloss Port (Advanced Styling)
+- [ ] Advanced Text Layout (Word wrapping, etc.)
+- [ ] Lipgloss Port (Advanced Styling)
 - [ ] Windows Support Optimization

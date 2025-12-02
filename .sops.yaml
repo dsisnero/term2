@@ -1,0 +1,16 @@
+# SOPS configuration for encrypted environment variables
+creation_rules:
+  - path_regex: \.env$
+    encrypted_regex: ^(OPENAI_API_KEY|ANTHROPIC_API_KEY|GROQ_API_KEY)$
+    # Note: Replace with your actual PGP fingerprint
+    # pgp: >-
+    #   YOUR_PGP_FINGERPRINT
+
+    # For development/testing, you can use age encryption instead
+    # age: "age1yourpublickeyhere"
+
+# Example usage:
+# 1. Create .env file with your API keys
+# 2. Encrypt: sops --encrypt --output .env.enc .env
+# 3. Decrypt for testing: sops --decrypt --output .env .env.enc
+# 4. Run tests: crystal spec spec/integration/patch_tool_integration_spec.cr

@@ -50,41 +50,41 @@
 
    40.
 
-1. **Phase 6: API Design and Architecture Planning**
-2. - Design Crystal API that mirrors Bubble Tea functionality
-3. - Plan type-safe interfaces for models, messages, and commands
-4. - Design the core Program class and its lifecycle methods
-5. - Plan component system architecture
-6. - Design styling system equivalent to Lip Gloss
-7. - Plan error handling and exception management strategy
+8. **Phase 6: API Design and Architecture Planning**
+9. - Design Crystal API that mirrors Bubble Tea functionality
+10. - Plan type-safe interfaces for models, messages, and commands
+11. - Design the core Program class and its lifecycle methods
+12. - Plan component system architecture
+13. - Design styling system equivalent to Lip Gloss
+14. - Plan error handling and exception management strategy
 
    48.
 
-1. **Phase 7: Implementation Strategy and Roadmap**
-2. - Create proof-of-concept minimal terminal application
-3. - Implement core Program class with basic event loop
-4. - Port essential components: text input, spinner, progress bar
-5. - Implement styling system with color and layout support
-6. - Create comprehensive test suite with terminal simulation
-7. - Plan incremental development approach
+15. **Phase 7: Implementation Strategy and Roadmap**
+16. - Create proof-of-concept minimal terminal application
+17. - Implement core Program class with basic event loop
+18. - Port essential components: text input, spinner, progress bar
+19. - Implement styling system with color and layout support
+20. - Create comprehensive test suite with terminal simulation
+21. - Plan incremental development approach
 
    56.
 
-1. **Phase 8: Performance and Optimization Research**
-2. - Benchmark performance against original Go implementation
-3. - Analyze rendering performance and optimization opportunities
-4. - Study memory usage patterns and garbage collection impact
-5. - Research cross-platform compatibility considerations
-6. - Test different terminal environments and capabilities
+22. **Phase 8: Performance and Optimization Research**
+23. - Benchmark performance against original Go implementation
+24. - Analyze rendering performance and optimization opportunities
+25. - Study memory usage patterns and garbage collection impact
+26. - Research cross-platform compatibility considerations
+27. - Test different terminal environments and capabilities
 
    63.
 
-1. **Phase 9: Documentation and Community Strategy**
-2. - Create comprehensive API documentation
-3. - Build example applications demonstrating various use cases
-4. - Create migration guide from Bubble Tea to Crystal version
-5. - Document best practices and common patterns
-6. - Plan community engagement and contribution guidelines
+28. **Phase 9: Documentation and Community Strategy**
+29. - Create comprehensive API documentation
+30. - Build example applications demonstrating various use cases
+31. - Create migration guide from Bubble Tea to Crystal version
+32. - Document best practices and common patterns
+33. - Plan community engagement and contribution guidelines
 
 ## Tags
 
