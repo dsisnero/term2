@@ -268,7 +268,7 @@ module Term2
     end
 
     def self.focused_id : String?
-      return nil if @@closed.get
+      return if @@closed.get
       ensure_worker
       reply = CML::Chan(String?).new
       send_zone_update(FocusedIdRequest.new(reply))
@@ -333,7 +333,7 @@ module Term2
     end
 
     def self.find_at(x : Int32, y : Int32) : ZoneInfo?
-      return nil if @@closed.get
+      return if @@closed.get
       ensure_worker
       reply = CML::Chan(ZoneInfo?).new
       send_zone_update(FindAtRequest.new(x, y, reply))
@@ -341,8 +341,8 @@ module Term2
     end
 
     def self.handle_mouse(event : MouseEvent) : ZoneClickMsg?
-      return nil unless enabled?
-      return nil if @@closed.get
+      return unless enabled?
+      return if @@closed.get
 
       if zone = find_at(event.x, event.y)
         rel_x = event.x - zone.start_x
@@ -367,7 +367,7 @@ module Term2
     end
 
     def self.focus_next : String?
-      return nil if @@closed.get
+      return if @@closed.get
       ensure_worker
       reply = CML::Chan(String?).new
       send_zone_update(FocusNextRequest.new(reply))
@@ -375,7 +375,7 @@ module Term2
     end
 
     def self.focus_prev : String?
-      return nil if @@closed.get
+      return if @@closed.get
       ensure_worker
       reply = CML::Chan(String?).new
       send_zone_update(FocusPrevRequest.new(reply))
@@ -408,7 +408,7 @@ module Term2
 
     def self.find_smallest_at(x : Int32, y : Int32) : ZoneInfo?
       zones = find_all_at(x, y)
-      return nil if zones.empty?
+      return if zones.empty?
       zones.min_by do |zone|
         area = zone.width * zone.height
         {-zone.z_index, area}
@@ -562,7 +562,7 @@ module Term2
 
     private def self.find_smallest_at(zones : Hash(String, ZoneInfo), x : Int32, y : Int32) : ZoneInfo?
       matches = find_all_at(zones, x, y)
-      return nil if matches.empty?
+      return if matches.empty?
       matches.min_by do |zone|
         area = zone.width * zone.height
         {-zone.z_index, area}

@@ -143,7 +143,7 @@ module Term2
 
       if timeout
         if mouse_sequence_prefix?(@buffer)
-          return nil
+          return
         end
         return resolve_current_buffer
       end
@@ -160,7 +160,7 @@ module Term2
           # Return a key with the pasted content and paste flag set
           return Key.new(pasted_content.chars, alt: false, paste: true)
         end
-        return nil
+        return
       end
 
       # Add to buffer
@@ -171,12 +171,12 @@ module Term2
         @in_paste = true
         @paste_buffer = ""
         @buffer = ""
-        return nil
+        return
       end
 
       # Check if we might be in a paste start sequence (partial match)
       if PASTE_START.starts_with?(@buffer) && @buffer.size < PASTE_START.size
-        return nil # Need more characters
+        return # Need more characters
       end
 
       # Check for mouse events first
@@ -190,7 +190,7 @@ module Term2
         end
         # If this looks like a mouse prefix but isn't complete yet, keep buffering.
         if mouse_sequence_prefix?(@buffer)
-          return nil
+          return
         end
         # If no mouse event was found, continue to check for key sequences
       end
@@ -212,7 +212,7 @@ module Term2
           return exact_match
         elsif is_prefix
           # It's a prefix (and maybe a match too), need more data
-          return nil
+          return
         end
 
         # Neither a match nor a prefix, so it's an unknown/invalid sequence
@@ -254,7 +254,7 @@ module Term2
     end
 
     private def parse_single_char(str : String) : Key?
-      return nil if str.empty?
+      return if str.empty?
 
       char = str[0]
       case char.ord
@@ -326,6 +326,8 @@ module Term2
     @renderer : Renderer
     @killed : Atomic(Bool)
     @external_context : ProgramContext?
+    @last_window_width : Int32?
+    @last_window_height : Int32?
 
     # Allow options to override the renderer
     def renderer=(renderer : Renderer)
@@ -400,6 +402,8 @@ module Term2
       @renderer = StandardRenderer.new(@output_io)
       @killed = Atomic(Bool).new(false)
       @external_context = nil
+      @last_window_width = nil
+      @last_window_height = nil
       @options.apply(self)
     end
 
@@ -457,6 +461,12 @@ module Term2
         rescue ex
           # Ensure terminal is restored even on crash
           cleanup
+          # Writing to a closed output stream can happen when callers pipe
+          # output and close early; treat those as graceful exits.
+          if ex.is_a?(IO::Error)
+            @killed.set(false)
+            return @model
+          end
           @killed.set(true)
           raise ProgramPanic.new(ex.message)
         end
@@ -577,9 +587,11 @@ module Term2
 
     private def bootstrap
       @running.set(true)
-      # Provide an initial window size message (parity with Bubble Tea)
-      width, height = Terminal.size
-      dispatch(WindowSizeMsg.new(width, height))
+      # Provide an initial window size message when output is a TTY (parity with Bubble Tea)
+      if Terminal.tty?(@output_io)
+        width, height = Terminal.size
+        dispatch(WindowSizeMsg.new(width, height))
+      end
       start_context_watcher
       if @renderer_enabled
         @renderer.start
@@ -593,27 +605,29 @@ module Term2
     end
 
     private def setup_terminal
-      if @alt_screen_enabled
-        Terminal.enter_alt_screen(@output_io)
-      end
+      safe_io do
+        if @alt_screen_enabled
+          Terminal.enter_alt_screen(@output_io)
+        end
 
-      if @focus_reporting_enabled
-        Terminal.enable_focus_reporting(@output_io)
-      end
+        if @focus_reporting_enabled
+          Terminal.enable_focus_reporting(@output_io)
+        end
 
-      unless @bracketed_paste_enabled
-        Terminal.disable_bracketed_paste(@output_io)
-      end
+        unless @bracketed_paste_enabled
+          Terminal.disable_bracketed_paste(@output_io)
+        end
 
-      # Configure mouse modes
-      if @mouse_cell_motion_enabled
-        Mouse.enable_tracking(@output_io)
-      elsif @mouse_all_motion_enabled
-        Mouse.enable_move_reporting(@output_io)
-      end
+        # Configure mouse modes
+        if @mouse_cell_motion_enabled
+          Mouse.enable_tracking(@output_io)
+        elsif @mouse_all_motion_enabled
+          Mouse.enable_move_reporting(@output_io)
+        end
 
-      Terminal.hide_cursor(@output_io)
-      Terminal.clear(@output_io)
+        Terminal.hide_cursor(@output_io)
+        Terminal.clear(@output_io)
+      end
     end
 
     private def start_input_reader
@@ -792,9 +806,16 @@ module Term2
         Terminal.set_window_title(@output_io, filtered_msg.title)
         return
       when RequestWindowSizeMsg
-        # Query window size and dispatch as WindowSizeMsg
-        width, height = Terminal.size
-        dispatch(WindowSizeMsg.new(width, height))
+        # Query window size and dispatch as WindowSizeMsg. If output isn't a TTY,
+        # reuse the last known size (mirrors Bubble Tea behavior in tests).
+        if @output_io.is_a?(IO::FileDescriptor) && @output_io.tty?
+          width, height = Terminal.size
+          @last_window_width = width
+          @last_window_height = height
+          dispatch(WindowSizeMsg.new(width, height))
+        elsif @last_window_width && @last_window_height
+          dispatch(WindowSizeMsg.new(@last_window_width.not_nil!, @last_window_height.not_nil!))
+        end
         return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
@@ -839,6 +860,10 @@ module Term2
       begin
         new_model, cmd = @model.update(filtered_msg)
         @model = new_model.as(M)
+        if filtered_msg.is_a?(WindowSizeMsg)
+          @last_window_width = filtered_msg.width
+          @last_window_height = filtered_msg.height
+        end
         if filtered_msg.is_a?(QuitMsg)
           @pending_shutdown = true
         end
@@ -872,6 +897,12 @@ module Term2
           render_print(op)
         end
       end
+
+      if @pending_shutdown &&
+         @render_mailbox.recv_evt.poll.nil? &&
+         @mailbox.recv_evt.poll.nil?
+        stop
+      end
     end
 
     private def render_frame(frame : String)
@@ -879,26 +910,30 @@ module Term2
       Zone.clear
       stripped = Zone.scan(frame)
 
-      if @renderer_enabled
-        @renderer.render(stripped)
-      else
-        @output_io.print(stripped)
-        @output_io.flush
+      safe_io do
+        if @renderer_enabled
+          @renderer.render(stripped)
+        else
+          @output_io.print(stripped)
+          @output_io.flush
+        end
       end
-      stop if @pending_shutdown
     end
 
     private def render_print(msg : PrintMsg)
-      if @renderer_enabled
-        @renderer.print(msg.text)
-      else
-        @output_io.print(msg.text)
-        @output_io.flush
+      safe_io do
+        if @renderer_enabled
+          @renderer.print(msg.text)
+        else
+          @output_io.print(msg.text)
+          @output_io.flush
+        end
       end
     end
 
     private def run_cmd(cmd : Cmd?)
       return unless cmd
+      return if @pending_shutdown
       spawn do
         if msg = cmd.call
           dispatch(msg.as(Message))
@@ -942,12 +977,18 @@ module Term2
 
     private def cleanup
       if @renderer_enabled
-        @renderer.stop
+        safe_io { @renderer.stop }
       end
-      restore_terminal
+      safe_io { restore_terminal }
       restore_signal_handlers
       @dispatcher.stop
       @done.fill(nil) rescue nil
+    end
+
+    private def safe_io(& : ->) : Nil
+      yield
+    rescue IO::Error
+      # Ignore IO errors during shutdown so cleanup can't crash.
     end
 
     private def suspend_program
@@ -978,43 +1019,47 @@ module Term2
 
     private def reapply_terminal_state
       @signal_handling_enabled = true
-      if io = @input_io.as?(IO::FileDescriptor)
-        begin
-          io.raw!
-        rescue
+      safe_io do
+        if io = @input_io.as?(IO::FileDescriptor)
+          begin
+            io.raw!
+          rescue
+          end
         end
-      end
-      Terminal.enter_alt_screen(@output_io) if @alt_screen_enabled
-      Terminal.hide_cursor(@output_io)
-      Terminal.enable_focus_reporting(@output_io) if @focus_reporting_enabled
-      Terminal.enable_bracketed_paste(@output_io) if @bracketed_paste_enabled
-      if @mouse_cell_motion_enabled
-        enable_mouse_cell_motion
-      elsif @mouse_all_motion_enabled
-        enable_mouse_all_motion
+        Terminal.enter_alt_screen(@output_io) if @alt_screen_enabled
+        Terminal.hide_cursor(@output_io)
+        Terminal.enable_focus_reporting(@output_io) if @focus_reporting_enabled
+        Terminal.enable_bracketed_paste(@output_io) if @bracketed_paste_enabled
+        if @mouse_cell_motion_enabled
+          enable_mouse_cell_motion
+        elsif @mouse_all_motion_enabled
+          enable_mouse_all_motion
+        end
       end
       setup_signal_handlers
       start_input_reader
     end
 
     private def restore_terminal
-      Terminal.show_cursor(@output_io)
+      safe_io do
+        Terminal.show_cursor(@output_io)
 
-      if @alt_screen_enabled
-        Terminal.exit_alt_screen(@output_io)
-      end
+        if @alt_screen_enabled
+          Terminal.exit_alt_screen(@output_io)
+        end
 
-      if @focus_reporting_enabled
-        Terminal.disable_focus_reporting(@output_io)
-      end
+        if @focus_reporting_enabled
+          Terminal.disable_focus_reporting(@output_io)
+        end
 
-      unless @bracketed_paste_enabled
-        Terminal.enable_bracketed_paste(@output_io)
-      end
+        unless @bracketed_paste_enabled
+          Terminal.enable_bracketed_paste(@output_io)
+        end
 
-      # Clean up mouse modes
-      if @mouse_cell_motion_enabled || @mouse_all_motion_enabled
-        Mouse.disable_tracking(@output_io)
+        # Clean up mouse modes
+        if @mouse_cell_motion_enabled || @mouse_all_motion_enabled
+          Mouse.disable_tracking(@output_io)
+        end
       end
     end
 
