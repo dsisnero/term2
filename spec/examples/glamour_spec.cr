@@ -8,6 +8,7 @@ describe "Example: glamour" do
       GlamourModel.new,
       Term2::Teatest.with_initial_term_size(80, 24),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 24))
     tm.quit
     out = tm.final_output
     out.should contain("Today’s Menu")

@@ -8,6 +8,7 @@ describe "Example: pipe" do
       PipeModel.new("hello"),
       Term2::Teatest.with_initial_term_size(50, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(50, 10))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlC)))
     output = tm.final_output(

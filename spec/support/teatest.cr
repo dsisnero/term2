@@ -71,12 +71,12 @@ module Term2
 
         @program = Term2::Program(M).new(@model, input: @input, output: @output, options: program_options)
 
+        @model_channel = Channel(M).new(1)
+        @done = Channel(Nil).new(1)
+
         if size_msg = opts.size
           @program.dispatch(size_msg)
         end
-
-        @model_channel = Channel(M).new(1)
-        @done = Channel(Nil).new(1)
 
         spawn do
           result = @program.run

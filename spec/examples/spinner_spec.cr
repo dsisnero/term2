@@ -8,6 +8,7 @@ describe "Example: spinner" do
       SpinnerModel.new,
       Term2::Teatest.with_initial_term_size(40, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(40, 10))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
     model = tm.final_model

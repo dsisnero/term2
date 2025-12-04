@@ -9,6 +9,7 @@ describe "Example: send-msg" do
       model,
       Term2::Teatest.with_initial_term_size(60, 15),
     )
+    tm.send(Term2::WindowSizeMsg.new(60, 15))
 
     tm.send(ResultMsg.new("tacos", 200.milliseconds))
     tm.quit

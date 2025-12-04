@@ -5,6 +5,7 @@ require "../../examples/bubbletea/exec/main"
 describe "Example: exec" do
   it "toggles alt screen and quits" do
     tm = Term2::Teatest::TestModel(ExecModel).new(ExecModel.new, Term2::Teatest.with_initial_term_size(40, 10))
+    tm.send(Term2::WindowSizeMsg.new(40, 10))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new("a")))
     tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))

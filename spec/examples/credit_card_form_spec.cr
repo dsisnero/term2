@@ -54,6 +54,7 @@ describe "Example: credit-card-form" do
 
   it "rejects invalid input via teatest harness" do
     tm = Term2::Teatest::TestModel(CreditCardModel).new(CreditCardModel.new, Term2::Teatest.with_initial_term_size(40, 12))
+    tm.send(Term2::WindowSizeMsg.new(40, 12))
 
     # Too-long CCN should be clipped/ignored by validator
     tm.type("4505 1234 5678 9012 9999")

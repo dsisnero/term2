@@ -10,6 +10,7 @@ describe "Example: timer" do
       TimerModel.new(50.milliseconds),
       Term2::Teatest.with_initial_term_size(40, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(40, 10))
 
     model = tm.final_model(
       Term2::Teatest.with_final_timeout(1.second),

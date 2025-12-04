@@ -8,6 +8,7 @@ describe "Example: table" do
       TableModel.new,
       Term2::Teatest.with_initial_term_size(80, 15),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 15))
 
     15.times { tm.send(Term2::KeyMsg.new(Term2::Key.new("down"))) }
     tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))

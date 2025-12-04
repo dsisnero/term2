@@ -8,6 +8,7 @@ describe "Example: textarea" do
       TextareaExampleModel.new,
       Term2::Teatest.with_initial_term_size(60, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(60, 10))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new('H')))
     tm.send(Term2::KeyMsg.new(Term2::Key.new('i')))

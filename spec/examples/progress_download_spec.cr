@@ -8,6 +8,7 @@ describe "Example: progress-download" do
       ProgressDownloadModel.new,
       Term2::Teatest.with_initial_term_size(80, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 10))
 
     tm.send(ProgressMsg.new(1.0))
     model = tm.final_model(

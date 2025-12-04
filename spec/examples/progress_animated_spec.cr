@@ -8,6 +8,7 @@ describe "Example: progress-animated" do
       ProgressAnimatedModel.new,
       Term2::Teatest.with_initial_term_size(80, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 10))
 
     model = tm.final_model(
       Term2::Teatest.with_final_timeout(2.seconds),

@@ -8,6 +8,7 @@ describe "Example: textinputs" do
       TextinputsModel.new,
       Term2::Teatest.with_initial_term_size(50, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(50, 10))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new("tab")))
     tm.send(Term2::KeyMsg.new(Term2::Key.new("tab")))

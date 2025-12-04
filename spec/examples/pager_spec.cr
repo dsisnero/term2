@@ -8,6 +8,7 @@ describe "Example: pager" do
       PagerModel.new,
       Term2::Teatest.with_initial_term_size(80, 20),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 20))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
 

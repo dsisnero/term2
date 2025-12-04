@@ -8,6 +8,7 @@ describe "Example: sequence" do
       SequenceModel.new,
       Term2::Teatest.with_initial_term_size(40, 10),
     )
+    tm.send(Term2::WindowSizeMsg.new(40, 10))
 
     model = tm.final_model(
       Term2::Teatest.with_final_timeout(6.seconds),

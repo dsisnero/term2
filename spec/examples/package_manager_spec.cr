@@ -8,6 +8,7 @@ describe "Example: package-manager" do
       PackageManagerModel.new,
       Term2::Teatest.with_initial_term_size(80, 20),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 20))
 
     model = tm.final_model(
       Term2::Teatest.with_final_timeout(3.seconds),

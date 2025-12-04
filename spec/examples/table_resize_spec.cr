@@ -8,6 +8,7 @@ describe "Example: table-resize" do
       TableResizeModel.new,
       Term2::Teatest.with_initial_term_size(80, 20),
     )
+    tm.send(Term2::WindowSizeMsg.new(80, 20))
 
     tm.quit
     output = tm.final_output

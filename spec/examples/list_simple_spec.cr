@@ -8,6 +8,7 @@ describe "Example: list-simple" do
       ListSimpleModel.new,
       Term2::Teatest.with_initial_term_size(40, 15),
     )
+    tm.send(Term2::WindowSizeMsg.new(40, 15))
 
     tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
 
