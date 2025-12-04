@@ -7,6 +7,7 @@ Log.setup_from_env
 
 class FullscreenTickMsg < Term2::Message
   getter time : Time
+
   def initialize(@time : Time); end
 end
 

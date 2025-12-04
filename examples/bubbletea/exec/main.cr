@@ -7,6 +7,7 @@ Log.setup_from_env
 
 class EditorFinishedMsg < Term2::Message
   getter err : Exception?
+
   def initialize(@err : Exception?); end
 end
 

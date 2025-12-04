@@ -5,10 +5,10 @@ include Term2::Prelude
 
 Log.setup_from_env
 
-FPS = 60
-FREQUENCY = 7.5
-DAMPING = 0.15
-ASTERISK = "*"
+FPS       =   60
+FREQUENCY =  7.5
+DAMPING   = 0.15
+ASTERISK  = "*"
 
 class CellBuffer
   property cells : Array(String) = [] of String

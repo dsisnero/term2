@@ -3,17 +3,17 @@ require "../../../src/term2"
 include Term2::Prelude
 
 INITIAL_INPUTS = 2
-MAX_INPUTS = 6
-MIN_INPUTS = 1
-HELP_HEIGHT = 5
+MAX_INPUTS     = 6
+MIN_INPUTS     = 1
+HELP_HEIGHT    = 5
 
 SPLIT_EDITORS_CURSOR_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(212))
-CURSOR_LINE_STYLE = Term2::Style.new.background(Term2::Color.indexed(57)).foreground(Term2::Color.indexed(230))
-PLACEHOLDER_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(238))
-END_OF_BUFFER_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(235))
-FOCUSED_PLACEHOLDER_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(99))
-FOCUSED_BORDER_STYLE = Term2::Style.new.border(Term2::Border.rounded).border_foreground(Term2::Color.indexed(238))
-BLURRED_BORDER_STYLE = Term2::Style.new.border(Term2::Border.hidden)
+CURSOR_LINE_STYLE          = Term2::Style.new.background(Term2::Color.indexed(57)).foreground(Term2::Color.indexed(230))
+PLACEHOLDER_STYLE          = Term2::Style.new.foreground(Term2::Color.indexed(238))
+END_OF_BUFFER_STYLE        = Term2::Style.new.foreground(Term2::Color.indexed(235))
+FOCUSED_PLACEHOLDER_STYLE  = Term2::Style.new.foreground(Term2::Color.indexed(99))
+FOCUSED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.rounded).border_foreground(Term2::Color.indexed(238))
+BLURRED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.hidden)
 
 class SplitEditorsKeymap
   getter next : TC::Key::Binding

@@ -35,7 +35,7 @@ class HttpModel
   end
 
   def init : Term2::Cmd
-    ->{ check_server }
+    -> { check_server }
   end
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}

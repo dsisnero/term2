@@ -8,7 +8,7 @@ INFO_BORDER = Term2::Border.rounded.dup
 INFO_BORDER.left = "┤"
 
 PAGER_TITLE_STYLE = Term2::Style.new.border(TITLE_BORDER).padding(0, 1)
-INFO_STYLE = Term2::Style.new.border(INFO_BORDER).padding(0, 1)
+INFO_STYLE        = Term2::Style.new.border(INFO_BORDER).padding(0, 1)
 
 class PagerModel
   include Term2::Model

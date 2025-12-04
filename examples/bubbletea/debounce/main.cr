@@ -9,6 +9,7 @@ DEBOUNCE_DURATION = 1.second
 
 class ExitMsg < Term2::Message
   getter tag : Int32
+
   def initialize(@tag : Int32); end
 end
 

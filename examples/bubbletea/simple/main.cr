@@ -6,7 +6,7 @@ class SimpleTickMsg < Term2::Message
 end
 
 def tick : Term2::Cmd
-  ->{
+  -> {
     sleep 1.second
     SimpleTickMsg.new.as(Term2::Message)
   }

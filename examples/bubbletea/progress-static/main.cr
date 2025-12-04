@@ -8,8 +8,8 @@ end
 class ProgressStaticModel
   include Term2::Model
 
-  PADDING = 2
-  MAX_WIDTH = 80
+  PADDING    =  2
+  MAX_WIDTH  = 80
   HELP_STYLE = Term2::Style.new.foreground(Term2::Color.from_hex("#626262"))
 
   getter percent : Float64

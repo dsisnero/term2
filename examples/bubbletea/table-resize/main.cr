@@ -2,10 +2,10 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-TABLE_RESIZE_BASE_STYLE = Term2::Style.new.padding(0, 1)
-HEADER_STYLE = TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 252)).bold(true)
+TABLE_RESIZE_BASE_STYLE     = Term2::Style.new.padding(0, 1)
+HEADER_STYLE                = TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 252)).bold(true)
 TABLE_RESIZE_SELECTED_STYLE = TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.from_hex("#01BE85")).background(Term2::Color.from_hex("#00432F"))
-TYPE_COLORS = {
+TYPE_COLORS                 = {
   "Bug"      => Term2::Color.from_hex("#D7FF87"),
   "Electric" => Term2::Color.from_hex("#FDFF90"),
   "Fire"     => Term2::Color.from_hex("#FF7698"),
@@ -29,7 +29,7 @@ DIM_TYPE_COLORS = {
 }
 
 HEADERS = ["#", "NAME", "TYPE 1", "TYPE 2", "JAPANESE", "OFFICIAL ROM."]
-ROWS = [
+ROWS    = [
   {"1", "Bulbasaur", "Grass", "Poison", "フシギダネ", "Bulbasaur"},
   {"2", "Ivysaur", "Grass", "Poison", "フシギソウ", "Ivysaur"},
   {"3", "Venusaur", "Grass", "Poison", "フシギバナ", "Venusaur"},

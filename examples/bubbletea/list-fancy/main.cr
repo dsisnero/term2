@@ -46,7 +46,7 @@ class FancyDelegate
 
   def initialize(@key_map = DelegateKeys.new)
     @remove_enabled = true
-    @update_status = ->(_s : String) : Term2::Cmd { ->{ nil.as(Term2::Message?) } }
+    @update_status = ->(_s : String) : Term2::Cmd { -> { nil.as(Term2::Message?) } }
   end
 
   def update_status=(proc : Proc(String, Term2::Cmd))
@@ -141,7 +141,7 @@ end
 class FancyListModel
   include Term2::Model
 
-  APP_STYLE = Term2::Style.new.padding(1, 2)
+  APP_STYLE   = Term2::Style.new.padding(1, 2)
   TITLE_STYLE = Term2::Style.new.foreground(Term2::Color.from_hex("#FFFDF5")).background(Term2::Color.from_hex("#25A065")).padding(0, 1)
 
   getter list : TC::List
@@ -170,11 +170,11 @@ class FancyListModel
 
     delegate.update_status = ->(text : String) : Term2::Cmd {
       @list.status_message = status_message(text)
-      ->{ nil.as(Term2::Message?) }
+      -> { nil.as(Term2::Message?) }
     }
 
     # Additional help bindings
-    @list.additional_full_help_keys = ->{
+    @list.additional_full_help_keys = -> {
       [
         @keys.toggle_spinner,
         @keys.insert_item,

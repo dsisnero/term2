@@ -14,8 +14,8 @@ end
 class AiChatModel
   include Model
 
-  HEADER_STYLE    = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
-  ROLE_STYLES     = {
+  HEADER_STYLE = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
+  ROLE_STYLES  = {
     "user"      => Term2::Style.new.foreground(Term2::Color::CYAN).bold(true),
     "assistant" => Term2::Style.new.foreground(Term2::Color::GREEN),
     "system"    => Term2::Style.new.faint(true),
@@ -178,7 +178,7 @@ class AiChatModel
     @window_width = width
     @window_height = height
 
-    header_reserved = 2 # header + meta
+    header_reserved = 2  # header + meta
     padding_reserved = 2 # blank lines around viewport/input
     input_reserved = 1
     total_reserved = header_reserved + padding_reserved + input_reserved
@@ -223,7 +223,6 @@ class AiChatModel
     lines << current_words.join(" ") unless current_words.empty?
     lines.join("\n")
   end
-
 end
 
 Term2.run(AiChatModel.new)

@@ -2,7 +2,7 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-CHOICE_STYLE = Term2::Style.new.padding(0, 0, 0, 1).foreground(Term2::Color.new(Term2::Color::Type::Indexed, 241))
+CHOICE_STYLE    = Term2::Style.new.padding(0, 0, 0, 1).foreground(Term2::Color.new(Term2::Color::Type::Indexed, 241))
 SAVE_TEXT_STYLE = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 170))
 QUIT_VIEW_STYLE = Term2::Style.new.padding(1).border(Term2::Border.rounded).border_foreground(Term2::Color.new(Term2::Color::Type::Indexed, 170))
 

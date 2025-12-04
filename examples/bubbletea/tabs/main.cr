@@ -14,12 +14,12 @@ class TabsModel
   end
 
   INACTIVE_TAB_BORDER = tab_border_with_bottom("┴", "─", "┴")
-  ACTIVE_TAB_BORDER = tab_border_with_bottom("┘", " ", "└")
-  DOC_STYLE = Term2::Style.new.padding(1, 2, 1, 2)
-  HIGHLIGHT_COLOR = Term2::AdaptiveColor.new(light: Term2::Color.from_hex("#874BFD"), dark: Term2::Color.from_hex("#7D56F4"))
-  INACTIVE_TAB_STYLE = Term2::Style.new.border(INACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
-  ACTIVE_TAB_STYLE = Term2::Style.new.border(ACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
-  WINDOW_STYLE = Term2::Style.new.border_foreground(HIGHLIGHT_COLOR).padding(2, 0).align(:center).border(Term2::Border.normal).unset_border_top
+  ACTIVE_TAB_BORDER   = tab_border_with_bottom("┘", " ", "└")
+  DOC_STYLE           = Term2::Style.new.padding(1, 2, 1, 2)
+  HIGHLIGHT_COLOR     = Term2::AdaptiveColor.new(light: Term2::Color.from_hex("#874BFD"), dark: Term2::Color.from_hex("#7D56F4"))
+  INACTIVE_TAB_STYLE  = Term2::Style.new.border(INACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
+  ACTIVE_TAB_STYLE    = Term2::Style.new.border(ACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
+  WINDOW_STYLE        = Term2::Style.new.border_foreground(HIGHLIGHT_COLOR).padding(2, 0).align(:center).border(Term2::Border.normal).unset_border_top
 
   getter tabs : Array(String)
   getter tab_content : Array(String)

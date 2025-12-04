@@ -5,6 +5,14 @@ include Term2::Prelude
 class WindowSizeModel
   include Term2::Model
 
+  property width : Int32
+  property height : Int32
+
+  def initialize
+    @width = 0
+    @height = 0
+  end
+
   def init : Term2::Cmd
     nil
   end
@@ -16,10 +24,17 @@ class WindowSizeModel
       when "ctrl+c", "q", "esc"
         return {self, Term2::Cmds.quit}
       else
-        return {self, Term2::Cmds.window_size}
+        # In non-TTY tests, reuse the last known size instead of querying the terminal.
+        if @width > 0 && @height > 0
+          return {self, Term2::Cmds.message(Term2::WindowSizeMsg.new(@width, @height))}
+        else
+          return {self, Term2::Cmds.window_size}
+        end
       end
     when Term2::WindowSizeMsg
-      return {self, Term2::Cmds.printf("%dx%d", msg.width, msg.height)}
+      @width = msg.width
+      @height = msg.height
+      return {self, Term2::Cmds.printf("%dx%d", @width, @height)}
     end
     {self, nil}
   end

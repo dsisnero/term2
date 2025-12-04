@@ -17,6 +17,7 @@ class SequenceModel
 
   class LogMsg < Term2::Message
     getter text : String
+
     def initialize(@text : String); end
   end
 

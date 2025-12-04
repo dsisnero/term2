@@ -2,8 +2,8 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-INSTALLED_STYLE = Term2::Style.new.margin(1, 2)
-CHECK_MARK = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 42)).render("✓")
+INSTALLED_STYLE   = Term2::Style.new.margin(1, 2)
+CHECK_MARK        = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 42)).render("✓")
 CURRENT_PKG_STYLE = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 211))
 
 PACKAGES = [
@@ -19,6 +19,7 @@ PACKAGES = [
 
 class InstalledPkgMsg < Term2::Message
   getter pkg : String
+
   def initialize(@pkg : String); end
 end
 

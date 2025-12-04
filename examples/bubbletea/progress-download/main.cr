@@ -4,19 +4,21 @@ include Term2::Prelude
 
 class ProgressMsg < Term2::Message
   getter delta : Float64
+
   def initialize(@delta : Float64); end
 end
 
 class ProgressErrMsg < Term2::Message
   getter error : Exception
+
   def initialize(@error : Exception); end
 end
 
 class ProgressDownloadModel
   include Term2::Model
 
-  PADDING = 2
-  MAX_WIDTH = 80
+  PADDING    =  2
+  MAX_WIDTH  = 80
   HELP_STYLE = Term2::Style.new.foreground(Term2::Color.from_hex("#626262"))
 
   getter progress : TC::Progress

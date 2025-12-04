@@ -7,17 +7,18 @@ include Term2::Prelude
 
 Log.setup_from_env
 
-EYE_WIDTH = 15
-EYE_HEIGHT = 12
-EYE_SPACING = 40
-BLINK_FRAMES = 20
+EYE_WIDTH     = 15
+EYE_HEIGHT    = 12
+EYE_SPACING   = 40
+BLINK_FRAMES  = 20
 OPEN_TIME_MIN = 1.seconds
 OPEN_TIME_MAX = 4.seconds
-EYE_CHAR = "●"
-BG_CHAR = " "
+EYE_CHAR      = "●"
+BG_CHAR       = " "
 
 class EyesTickMsg < Term2::Message
   getter time : Time
+
   def initialize(@time : Time); end
 end
 
@@ -89,7 +90,7 @@ class EyesModel
                          progress = (@blink_state - BLINK_FRAMES // 2).to_f / (BLINK_FRAMES.to_f / 2)
                          progress * (2.0 - progress)
                        end
-      current_height = { (EYE_HEIGHT * blink_progress).to_i, 1 }.max
+      current_height = {(EYE_HEIGHT * blink_progress).to_i, 1}.max
     end
 
     2.times do |i|

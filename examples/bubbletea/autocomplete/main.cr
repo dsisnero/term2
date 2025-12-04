@@ -8,7 +8,7 @@ alias TC = Term2::Components
 
 Log.setup_from_env
 
-REPOS_URL = "https://api.github.com/orgs/charmbracelet/repos"
+REPOS_URL           = "https://api.github.com/orgs/charmbracelet/repos"
 DEFAULT_SUGGESTIONS = ["bubbletea", "bubbles", "lipgloss", "huh", "wish", "soft-serve", "huh", "glow", "gum"]
 
 struct Repo
@@ -18,11 +18,13 @@ end
 
 class GotReposSuccessMsg < Term2::Message
   getter repos : Array(Repo)
+
   def initialize(@repos : Array(Repo)); end
 end
 
 class GotReposErrMsg < Term2::Message
   getter err : Exception
+
   def initialize(@err : Exception); end
 end
 
@@ -123,9 +125,9 @@ class AutocompleteModel
     -> : Term2::Msg? do
       begin
         headers = HTTP::Headers{
-          "Accept"                => "application/vnd.github+json",
-          "X-GitHub-Api-Version"  => "2022-11-28",
-          "User-Agent"            => "term2-autocomplete",
+          "Accept"               => "application/vnd.github+json",
+          "X-GitHub-Api-Version" => "2022-11-28",
+          "User-Agent"           => "term2-autocomplete",
         }
         response = HTTP::Client.get(REPOS_URL, headers: headers)
         if response.status.success?

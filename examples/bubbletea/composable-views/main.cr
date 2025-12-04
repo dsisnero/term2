@@ -15,10 +15,10 @@ class ComposableModel
 
   DEFAULT_TIME = 60.seconds
 
-  MODEL_STYLE = Term2::Style.new.width(15).height(5).align(:center).border(Term2::Border.hidden)
+  MODEL_STYLE         = Term2::Style.new.width(15).height(5).align(:center).border(Term2::Border.hidden)
   FOCUSED_MODEL_STYLE = Term2::Style.new.width(15).height(5).align(:center).border(Term2::Border.normal).border_foreground(Term2::Color.rgb(69, 69, 69))
-  SPINNER_STYLE = Term2::Style.new.foreground(Term2::Color.rgb(69, 69, 69))
-  HELP_STYLE = Term2::Style.new.foreground(Term2::Color.rgb(241, 241, 241))
+  SPINNER_STYLE       = Term2::Style.new.foreground(Term2::Color.rgb(69, 69, 69))
+  HELP_STYLE          = Term2::Style.new.foreground(Term2::Color.rgb(241, 241, 241))
 
   getter state : SessionState
   getter timer : TC::Timer

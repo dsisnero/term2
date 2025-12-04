@@ -3,18 +3,18 @@ require "colorize"
 
 include Term2::Prelude
 
-PROGRESS_BAR_WIDTH = 71
-PROGRESS_FULL_CHAR = "█"
+PROGRESS_BAR_WIDTH  = 71
+PROGRESS_FULL_CHAR  = "█"
 PROGRESS_EMPTY_CHAR = "░"
-DOT_CHAR = " • "
+DOT_CHAR            = " • "
 
 VIEWS_KEYWORD_STYLE = Style.new.foreground(Color.indexed(211))
-SUBTLE_STYLE = Style.new.foreground(Color.indexed(241))
-TICKS_STYLE = Style.new.foreground(Color.indexed(79))
-CHECKBOX_STYLE = Style.new.foreground(Color.indexed(212))
-PROGRESS_EMPTY = SUBTLE_STYLE.render(PROGRESS_EMPTY_CHAR)
-VIEWS_DOT_STYLE = Style.new.foreground(Color.indexed(236)).render(DOT_CHAR)
-VIEWS_MAIN_STYLE = Style.new.margin(0, 0, 0, 2)
+SUBTLE_STYLE        = Style.new.foreground(Color.indexed(241))
+TICKS_STYLE         = Style.new.foreground(Color.indexed(79))
+CHECKBOX_STYLE      = Style.new.foreground(Color.indexed(212))
+PROGRESS_EMPTY      = SUBTLE_STYLE.render(PROGRESS_EMPTY_CHAR)
+VIEWS_DOT_STYLE     = Style.new.foreground(Color.indexed(236)).render(DOT_CHAR)
+VIEWS_MAIN_STYLE    = Style.new.margin(0, 0, 0, 2)
 
 # Simple gradient ramp for progress bar
 def make_ramp_styles(a_hex : String, b_hex : String, width : Int32) : Array(Style)
@@ -34,6 +34,7 @@ end
 RAMP = make_ramp_styles("#B14FFF", "#00FFA3", PROGRESS_BAR_WIDTH)
 
 class ViewsTickMsg < Message; end
+
 class ViewsFrameMsg < Message; end
 
 def tick_cmd : Cmd
@@ -79,9 +80,9 @@ class ViewsModel
     end
 
     if !@chosen
-      return update_choices(msg)
+      update_choices(msg)
     else
-      return update_chosen(msg)
+      update_chosen(msg)
     end
   end
 
@@ -186,8 +187,8 @@ class ViewsModel
     tpl += "%s\n\n"
     tpl += "Program quits in %s seconds\n\n"
     tpl += SUBTLE_STYLE.render("j/k, up/down: select") + VIEWS_DOT_STYLE +
-      SUBTLE_STYLE.render("enter: choose") + VIEWS_DOT_STYLE +
-      SUBTLE_STYLE.render("q, esc: quit")
+           SUBTLE_STYLE.render("enter: choose") + VIEWS_DOT_STYLE +
+           SUBTLE_STYLE.render("q, esc: quit")
 
     choices = [
       checkbox("Plant carrots", c == 0),

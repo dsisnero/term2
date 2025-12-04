@@ -37,7 +37,7 @@ module Term2
         # Custom style function
         @table.style_func = ->(row : Int32, _col : Int32) do
           case row
-when -1
+          when -1
             Style.new.bold(true).foreground(Color::CYAN)
           when .even?
             Style.new.background(Color.new(Color::Type::Indexed, 236)) # Dark gray

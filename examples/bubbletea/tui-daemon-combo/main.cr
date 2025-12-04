@@ -6,6 +6,7 @@ include Term2::Prelude
 
 class ProcessFinishedMsg < Term2::Message
   getter duration : Time::Span
+
   def initialize(@duration : Time::Span); end
 end
 

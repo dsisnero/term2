@@ -2,11 +2,11 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-LIST_HEIGHT = 14
-ITEM_STYLE = Term2::Style.new.padding(0, 0, 0, 4)
+LIST_HEIGHT                = 14
+ITEM_STYLE                 = Term2::Style.new.padding(0, 0, 0, 4)
 LIST_SIMPLE_SELECTED_STYLE = Term2::Style.new.padding(0, 0, 0, 2).foreground(Term2::Color.new(Term2::Color::Type::Indexed, 170))
-PAGINATION_STYLE = Term2::Style.new.padding(0, 0, 0, 4)
-QUIT_STYLE = Term2::Style.new.margin(1, 0, 2, 4)
+PAGINATION_STYLE           = Term2::Style.new.padding(0, 0, 0, 4)
+QUIT_STYLE                 = Term2::Style.new.margin(1, 0, 2, 4)
 
 struct MenuItem
   include TC::List::Item
