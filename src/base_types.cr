@@ -472,6 +472,19 @@ module Term2
   class ExitAltScreenMsg < Message
   end
 
+  # Message to suspend the program (parity with Bubble Tea).
+  # Use `Cmds.suspend` to send this message.
+  class SuspendMsg < Message
+  end
+
+  # Message sent when program resumes after a suspend.
+  class ResumeMsg < Message
+  end
+
+  # Message to interrupt (parity with Bubble Tea).
+  class InterruptMsg < Message
+  end
+
   # Message to show the cursor.
   # Use `Cmds.show_cursor` to send this message.
   class ShowCursorMsg < Message
@@ -529,6 +542,10 @@ module Term2
 
   # Raised when program is killed.
   class ProgramKilled < Exception
+  end
+
+  # Raised when the program panics (uncaught exception) and recovery is enabled.
+  class ProgramPanic < Exception
   end
 
   # ClearScreenMsg signals a request to clear the screen
@@ -689,12 +706,29 @@ module Term2
       -> : Msg? { BatchMsg.new(normalized).as(Msg) }
     end
 
+    # Accept enumerable collections of Cmd (e.g., arrays)
+    def self.batch(cmds : Enumerable(::Term2::Cmd)) : ::Term2::Cmd
+      normalized = cmds.to_a.compact
+      return none if normalized.empty?
+      return normalized.first if normalized.size == 1
+
+      -> : Msg? { BatchMsg.new(normalized).as(Msg) }
+    end
+
     # Run commands sequentially.
     def self.sequence : ::Term2::Cmd
       none
     end
 
     def self.sequence(*cmds : ::Term2::Cmd) : ::Term2::Cmd
+      normalized = cmds.to_a.compact
+      return none if normalized.empty?
+      return normalized.first if normalized.size == 1
+
+      -> : Msg? { SequenceMsg.new(normalized).as(Msg) }
+    end
+
+    def self.sequence(cmds : Enumerable(::Term2::Cmd)) : ::Term2::Cmd
       normalized = cmds.to_a.compact
       return none if normalized.empty?
       return normalized.first if normalized.size == 1
@@ -824,6 +858,18 @@ module Term2
 
     def self.exit_alt_screen : ::Term2::Cmd
       message(ExitAltScreenMsg.new)
+    end
+
+    def self.suspend : ::Term2::Cmd
+      message(SuspendMsg.new)
+    end
+
+    def self.resume : ::Term2::Cmd
+      message(ResumeMsg.new)
+    end
+
+    def self.interrupt : ::Term2::Cmd
+      message(InterruptMsg.new)
     end
 
     def self.show_cursor : ::Term2::Cmd

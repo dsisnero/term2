@@ -121,6 +121,12 @@ module Term2
       msg.width.should eq(80)
       msg.height.should eq(24)
     end
+
+    it "creates suspend/resume/interrupt messages" do
+      SuspendMsg.new.should be_a(Message)
+      ResumeMsg.new.should be_a(Message)
+      InterruptMsg.new.should be_a(Message)
+    end
   end
 
   describe "terminal commands" do
@@ -152,6 +158,12 @@ module Term2
     it "creates printf command" do
       cmd = Cmds.printf("test %s", "value")
       cmd.should be_a(Cmd)
+    end
+
+    it "creates suspend/resume/interrupt commands" do
+      Cmds.suspend.should be_a(Cmd)
+      Cmds.resume.should be_a(Cmd)
+      Cmds.interrupt.should be_a(Cmd)
     end
   end
 end

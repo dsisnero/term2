@@ -46,6 +46,11 @@ module Term2
         tick_cmd
       end
 
+      # Convenience alias for parity with Bubble Tea API
+      def tick : Cmd
+        tick_cmd
+      end
+
       def update(msg : Msg) : {Timer, Cmd}
         case msg
         when StartStopMsg

@@ -1,8 +1,9 @@
 require "../spec_helper"
 
-describe "BubbleTea parity: nil renderer" do
-  it "supports all no-op operations" do
+describe "Bubbletea parity: nil_renderer_test.go" do
+  it "nil renderer can be instantiated and used" do
     renderer = Term2::NilRenderer.new
+
     renderer.start
     renderer.stop
     renderer.kill

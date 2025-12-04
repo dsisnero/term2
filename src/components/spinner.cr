@@ -34,6 +34,7 @@ module Term2
       ], 140.milliseconds)
       HAMBURGER = Type.new(["☱", "☲", "☴", "☲"], 333.milliseconds)
       ELLIPSIS  = Type.new(["", ".", "..", "..."], 333.milliseconds)
+      SPINNERS  = [LINE, DOT, MINI_DOT, JUMP, PULSE, POINTS, GLOBE, MOON, MONKEY, METER, HAMBURGER, ELLIPSIS]
 
       property type : Type
       property style : Style = Style.new

@@ -22,10 +22,20 @@ module Term2
       property char_limit : Int32 = 0 # 0 means no limit
       property id : String = ""       # Zone ID for focus management
 
+      # Suggestions
+      property? show_suggestions : Bool = false
+      property suggestions : Array(String) = [] of String
+      @matched_suggestions : Array(String) = [] of String
+      @suggestion_index : Int32 = -1
+
+      # Optional validator; returns true if valid, false otherwise.
+      property validate : Proc(String, Bool)? = nil
+
       # Styling
       property prompt_style : Style = Style.new
       property text_style : Style = Style.new
       property placeholder_style : Style = Style.new.faint(true)
+      property completion_style : Style = Style.new.faint(true)
 
       # Components
       property cursor : Cursor
@@ -76,17 +86,20 @@ module Term2
         @cursor.focus_cmd
       end
 
+      # Start cursor blinking (parity helper)
+      def blink : Cmd
+        @cursor.mode = Cursor::Mode::Blink
+        @cursor.blink_cmd
+      end
+
       def blur
         Zone.blur(@id) unless @id.empty?
         @cursor.blur
       end
 
       def focused?
-        if @id.empty?
-          @cursor.focus?
-        else
-          Zone.focused?(@id)
-        end
+        return @cursor.focus? if @id.empty?
+        Zone.focused?(@id) || @cursor.focus?
       end
 
       def update(msg : Msg) : {TextInput, Cmd}
@@ -108,6 +121,8 @@ module Term2
         when KeyMsg
           if focused?
             handle_key(msg)
+          else
+            handle_suggestion_keys(msg)
           end
         end
 
@@ -132,6 +147,12 @@ module Term2
           delete_line_before_cursor
         when @key_map.delete_after_cursor.matches?(msg)
           delete_line_after_cursor
+        when msg.key.to_s == "tab" && @show_suggestions
+          accept_current_suggestion
+        when msg.key.to_s == "ctrl+n" && @show_suggestions
+          next_suggestion
+        when msg.key.to_s == "ctrl+p" && @show_suggestions
+          prev_suggestion
         else
           # Insert character - handle both Runes and Space
           if msg.key.type == KeyType::Runes && !msg.key.alt?
@@ -139,6 +160,15 @@ module Term2
           elsif msg.key.type == KeyType::Space
             insert_string(" ")
           end
+        end
+      end
+
+      private def handle_suggestion_keys(msg : KeyMsg)
+        return unless @show_suggestions
+        case msg.key.to_s
+        when "tab"    then accept_current_suggestion
+        when "ctrl+n" then next_suggestion
+        when "ctrl+p" then prev_suggestion
         end
       end
 
@@ -159,8 +189,22 @@ module Term2
 
         left = @value[0...@cursor_pos]
         right = @value[@cursor_pos..-1]
-        @value = left + s + right
+        candidate = left + s + right
+        return unless valid_input?(candidate)
+
+        @value = candidate
         @cursor_pos += s.size
+        update_suggestions
+      end
+
+      def value=(val : String)
+        if @char_limit > 0 && val.size > @char_limit
+          @value = val[0, @char_limit]
+        else
+          @value = valid_input?(val) ? val : @value
+        end
+        @cursor_pos = @value.size
+        update_suggestions
       end
 
       def delete_before_cursor
@@ -170,6 +214,7 @@ module Term2
         right = @value[@cursor_pos..-1]
         @value = left + right
         @cursor_pos -= 1
+        update_suggestions
       end
 
       def delete_after_cursor
@@ -178,60 +223,149 @@ module Term2
         left = @value[0...@cursor_pos]
         right = @value[(@cursor_pos + 1)..-1]
         @value = left + right
+        update_suggestions
       end
 
       def delete_line_before_cursor
         @value = @value[@cursor_pos..-1]
         @cursor_pos = 0
+        update_suggestions
       end
 
       def delete_line_after_cursor
         @value = @value[0...@cursor_pos]
+        update_suggestions
       end
 
       def view : String
-        # Construct the view
-        # Prompt + Value (with cursor)
+        val = rendered_value
 
-        val = @value
+        content = if !focused? && val.empty? && !@placeholder.empty?
+                    available = available_width
+                    placeholder = truncate_with_ellipsis(@placeholder, available)
+                    @prompt_style.render(@prompt) + @placeholder_style.render(placeholder)
+                  else
+                    render_value(val)
+                  end
+
+        content = pad_to_width(content)
+        @id.empty? ? content : Zone.mark(@id, content)
+      end
+
+      # Suggestions API (parity with Bubbles tests)
+      def set_suggestions(list : Array(String))
+        @suggestions = list
+        update_suggestions
+      end
+
+      def update_suggestions
+        return reset_suggestions unless @show_suggestions
+        return reset_suggestions if @value.empty? || @suggestions.empty?
+
+        prefix = @value.downcase
+        @matched_suggestions = @suggestions.select { |s| s.downcase.starts_with?(prefix) }
+        @suggestion_index = @matched_suggestions.empty? ? -1 : 0
+      end
+
+      private def reset_suggestions
+        @matched_suggestions = [] of String
+        @suggestion_index = -1
+      end
+
+      private def valid_input?(val : String) : Bool
+        return true unless validator = @validate
+        !!validator.call(val)
+      end
+
+      def next_suggestion
+        return if @matched_suggestions.empty?
+        @suggestion_index = (@suggestion_index + 1) % @matched_suggestions.size
+      end
+
+      def prev_suggestion
+        return if @matched_suggestions.empty?
+        size = @matched_suggestions.size
+        @suggestion_index = (@suggestion_index - 1 + size) % size
+      end
+
+      def accept_current_suggestion
+        suggestion = current_suggestion
+        return if suggestion.empty?
+        self.value = suggestion
+        update_suggestions
+        cursor_end
+      end
+
+      def current_suggestion : String
+        return "" if @matched_suggestions.empty? || @suggestion_index < 0
+        @matched_suggestions[@suggestion_index]
+      end
+
+      private def render_value(val : String) : String
+        display = val
         if @echo_mode == EchoMode::Password
-          val = "*" * @value.size
+          display = "*" * @value.size
         elsif @echo_mode == EchoMode::None
-          val = ""
+          display = ""
         end
-
-        if !focused? && val.empty? && !@placeholder.empty?
-          content = "#{@prompt_style.render(@prompt)}#{@placeholder_style.render(@placeholder)}"
-          return @id.empty? ? content : Zone.mark(@id, content)
-        end
-
-        # Cursor handling
-        # We need to split val at cursor_pos
 
         cursor_char = " "
-        if @cursor_pos < val.size
-          cursor_char = val[@cursor_pos].to_s
+        if @cursor_pos < display.size
+          cursor_char = display[@cursor_pos].to_s
         end
 
-        # Update cursor component char
+        suggestion_tail = ""
+        if focused? && @show_suggestions
+          if suggestion = current_suggestion.presence
+            if suggestion.size > @value.size
+              suggestion_tail = suggestion[@value.size..-1]
+              cursor_char = suggestion[@value.size, 1] if @cursor_pos == display.size
+            end
+          end
+        end
+
         @cursor.char = cursor_char
 
-        left = val[0...@cursor_pos]
+        left = display[0...@cursor_pos]
         right = ""
-        if @cursor_pos < val.size
-          right = val[(@cursor_pos + 1)..-1]
+        if @cursor_pos < display.size
+          right = display[(@cursor_pos + 1)..-1]
         end
 
-        # Render
-        content = String.build do |str|
+        String.build do |str|
           str << @prompt_style.render(@prompt)
           str << @text_style.render(left)
           str << @cursor.view
           str << @text_style.render(right)
+          unless suggestion_tail.empty?
+            str << @completion_style.render(suggestion_tail)
+          end
         end
+      end
 
-        # Wrap with zone marker if we have an ID
-        @id.empty? ? content : Zone.mark(@id, content)
+      private def rendered_value : String
+        @value
+      end
+
+      private def available_width : Int32
+        [@width - Term2::Text.width(@prompt), 0].max
+      end
+
+      private def truncate_with_ellipsis(text : String, width : Int32) : String
+        return "" if width <= 0
+        return text if Term2::Text.width(text) <= width
+        truncated = Term2::Text.truncate(text, width - 1)
+        truncated + "…"
+      end
+
+      private def pad_to_width(str : String) : String
+        return str if @width <= 0
+        w = Term2::Text.width(str)
+        if w < @width
+          str + (" " * (@width - w))
+        else
+          Term2::Text.truncate(str, @width)
+        end
       end
     end
   end

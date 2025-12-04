@@ -85,7 +85,7 @@ module Term2
         # Custom style function
         @table.style_func = ->(row : Int32, col : Int32) do
           case row
-          when Table::HEADER_ROW
+when -1
             # Header style
             Style.new.bold(true).foreground(Color.new(Color::Type::Indexed, 252))
           else

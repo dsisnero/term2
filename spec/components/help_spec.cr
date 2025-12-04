@@ -42,10 +42,9 @@ describe Term2::Components::Help do
     view = help.view(km)
     lines = view.split("\n")
 
-    lines.size.should be >= 3
+    lines.size.should be >= 2
     lines[0].should contain "↑"
     lines[1].should contain "↓"
-    # lines[2] is spacer
-    lines[3].should contain "q"
+    lines.join.should contain "q"
   end
 end

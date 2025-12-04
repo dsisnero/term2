@@ -450,6 +450,11 @@ module Term2
       end
     end
 
+    # Height in lines for a given string
+    def self.height(text : String) : Int32
+      text.count('\n') + 1
+    end
+
     # Truncate text to width, respecting ANSI codes
     def self.truncate(text : String, width : Int32) : String
       return text if width <= 0
@@ -882,6 +887,11 @@ module Term2
       @border_style = b
       @props |= Props::BorderStyle
       self
+    end
+
+    # Return current border style (used by components to detect borders)
+    def border_style : Border
+      @border_style
     end
 
     def border_top(v : Bool = true) : Style
@@ -2365,6 +2375,51 @@ module Term2
     join_horizontal_enum(pos, blocks.to_a)
   end
 
+  # Join strings horizontally with alignment (array overload)
+  def self.join_horizontal(pos : Position, blocks : Array(String)) : String
+    join_horizontal_enum(pos, blocks)
+  end
+
+  private def self.join_horizontal_enum(pos : Position, blocks : Array(String)) : String
+    # Normalize widths
+    widths = blocks.map { |b| Text.width(b) }
+    max_height = blocks.map { |b| Text.height(b) }.max? || 0
+
+    padded_blocks = blocks.each_with_index.map do |block, idx|
+      lines = block.split("\n", -1)
+      width = widths[idx]
+      height_diff = max_height - lines.size
+      empty_line = " " * width
+
+      padded = if height_diff <= 0
+                 lines
+               else
+                 top = case pos
+                       when Position::Top
+                         0
+                       when Position::Center
+                         height_diff // 2
+                       when Position::Bottom
+                         height_diff
+                       else
+                         0
+                       end
+                 bottom = height_diff - top
+                 Array.new(top, empty_line) + lines + Array.new(bottom, empty_line)
+               end
+
+      padded.map do |line|
+        gap = width - Text.width(line)
+        gap > 0 ? line + " " * gap : line
+      end
+    end
+
+    result = (0...max_height).map do |i|
+      padded_blocks.map { |block| block[i]? || "" }.join
+    end
+    result.join('\n')
+  end
+
   def self.join_horizontal(pos_ratio : Float64, *blocks : String) : String
     join_horizontal_ratio(pos_ratio, blocks.to_a)
   end
@@ -2440,7 +2495,12 @@ module Term2
 
   def self.join_horizontal(pos_ratio : Float64, blocks : Array(String)) : String
     # Treat ratio 0..1 between Top and Bottom
-    join_horizontal(Position.new(pos_ratio_to_enum(pos_ratio)), blocks)
+    join_horizontal_ratio(pos_ratio, blocks)
+  end
+
+  private def self.join_horizontal_ratio(pos_ratio : Float64, blocks : Array(String)) : String
+    pos = pos_ratio_to_enum(pos_ratio)
+    join_horizontal_enum(pos, blocks)
   end
 
   # Join strings vertically with alignment
@@ -2450,6 +2510,16 @@ module Term2
 
   def self.join_vertical(pos_ratio : Float64, *blocks : String) : String
     join_vertical_ratio(pos_ratio, blocks.to_a)
+  end
+
+  private def self.pos_ratio_to_enum(pos_ratio : Float64) : Position
+    if pos_ratio <= 0.0
+      Position::Top
+    elsif pos_ratio >= 1.0
+      Position::Bottom
+    else
+      Position::Center
+    end
   end
 
   private def self.join_vertical_enum(pos : Position, blocks : Array(String)) : String

@@ -130,9 +130,28 @@ module Term2
       property width : Int32 = 20
       property height : Int32 = 10
       property id : String = "" # Zone ID for focus management
+      property title : String = ""
 
       property paginator : Paginator
       property delegate : ItemDelegate
+
+      property? show_title : Bool = true
+      property? show_filter : Bool = true
+      property? show_status_bar : Bool = true
+      property? show_pagination : Bool = true
+      property? show_help : Bool = true
+      property? filtering_enabled : Bool = true
+      property additional_full_help_keys : Proc(Array(Key::Binding))? = nil
+      enum FilterState
+        Unfiltered
+        Filtering
+        FilterApplied
+      end
+
+      property filter_state : FilterState = FilterState::Unfiltered
+      property item_name_singular : String = "item"
+      property item_name_plural : String = "items"
+      property status_message : String = ""
 
       # Enumerator for list item prefixes (bullet, number, etc.)
       property enumerator : Enumerator = Enumerators::None
@@ -145,12 +164,14 @@ module Term2
         getter cursor_down : Key::Binding
         getter next_page : Key::Binding
         getter prev_page : Key::Binding
+        getter toggle_filter : Key::Binding
 
         def initialize
           @cursor_up = Key::Binding.new(["up", "k"], "up", "up")
           @cursor_down = Key::Binding.new(["down", "j"], "down", "down")
           @next_page = Key::Binding.new(["right", "l", "pgdn"], "right", "next page")
           @prev_page = Key::Binding.new(["left", "h", "pgup"], "left", "prev page")
+          @toggle_filter = Key::Binding.new(["/", "ctrl+f"], "/", "filter")
         end
       end
 
@@ -212,8 +233,8 @@ module Term2
             # Calculate which item was clicked based on y position
             item_height = @delegate.height + @delegate.spacing
             clicked_item_offset = msg.y // item_height
-            range = @paginator.items_on_page(@items.size)
-            clicked_index = range.begin + clicked_item_offset
+            start_idx, _ = @paginator.get_slice_bounds(@items.size)
+            clicked_index = start_idx + clicked_item_offset
             if clicked_index < @items.size
               @index = clicked_index
             end
@@ -236,7 +257,22 @@ module Term2
           cursor_prev_page
         when @key_map.next_page.matches?(msg)
           cursor_next_page
+        when @key_map.toggle_filter.matches?(msg)
+          if @filtering_enabled
+            toggle_filter
+          end
         end
+      end
+
+      def toggle_filter
+        @filter_state = case @filter_state
+                        when FilterState::Unfiltered
+                          FilterState::Filtering
+                        when FilterState::Filtering
+                          FilterState::FilterApplied
+                        else
+                          FilterState::Unfiltered
+                        end
       end
 
       def cursor_up
@@ -270,7 +306,7 @@ module Term2
 
         per_page = [1, available_height // item_height].max
         @paginator.per_page = per_page
-        @paginator.total_pages = @items.size
+        @paginator.set_total_pages(@items.size)
 
         # Sync paginator page with index
         @paginator.page = @index // per_page
@@ -278,10 +314,14 @@ module Term2
 
       def view : String
         content = String.build do |io|
-          # Render items for current page
-          range = @paginator.items_on_page(@items.size)
+          if @show_title && !@title.empty?
+            io << @title << "\n\n"
+          end
 
-          range.each do |i|
+          # Render items for current page
+          start_idx, end_idx = @paginator.get_slice_bounds(@items.size)
+
+          (start_idx...end_idx).each do |i|
             item = @items[i]
             # Generate enumerator prefix for this item
             enum_prefix = @enumerator.call(@items, i)
@@ -291,12 +331,34 @@ module Term2
 
           # Fill empty space?
 
+          if @show_status_bar
+            io << "\n" << status_view
+          end
+
           # Paginator
           io << "\n" << @paginator.view
         end
 
         # Wrap with zone marker if we have an ID
         @id.empty? ? content : Zone.mark(@id, content)
+      end
+
+      def status_view : String
+        count = @items.size
+        label = if count == 1
+                  @item_name_singular
+                else
+                  @item_name_plural
+                end
+
+        msg = if !@status_message.empty?
+                @status_message
+              elsif count == 0
+                "No #{label}"
+              else
+                "#{count} #{label}"
+              end
+        msg
       end
     end
   end

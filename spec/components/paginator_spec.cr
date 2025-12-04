@@ -5,14 +5,14 @@ describe Term2::Components::Paginator do
   it "calculates total pages correctly" do
     p = Term2::Components::Paginator.new
     p.per_page = 10
-    p.total_pages = 25
+    p.set_total_pages(25)
     p.total_pages.should eq 3
   end
 
   it "handles page navigation" do
     p = Term2::Components::Paginator.new
     p.per_page = 10
-    p.total_pages = 25
+    p.set_total_pages(25)
 
     p.page.should eq 0
     p.on_last_page?.should be_false
@@ -31,7 +31,7 @@ describe Term2::Components::Paginator do
     p = Term2::Components::Paginator.new
     p.type = Term2::Components::Paginator::Type::Dots
     p.per_page = 10
-    p.total_pages = 25
+    p.set_total_pages(25)
 
     # Page 0: •○○
     p.view.should contain "•"
@@ -42,7 +42,7 @@ describe Term2::Components::Paginator do
     p = Term2::Components::Paginator.new
     p.type = Term2::Components::Paginator::Type::Arabic
     p.per_page = 10
-    p.total_pages = 25
+    p.set_total_pages(25)
 
     # Page 0: 1/3
     p.view.should contain "1/3"

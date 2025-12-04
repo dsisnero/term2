@@ -71,12 +71,12 @@ module Term2
     end
 
     def to_s : String
-      parts = [] of String
-      parts << "ctrl" if @ctrl
-      parts << "alt" if @alt
-      parts << "shift" if @shift
+      mods = [] of String
+      mods << "ctrl" if @ctrl
+      mods << "alt" if @alt
+      mods << "shift" if @shift
 
-      parts << case @button
+      btn_str = case @button
       when Button::None
         if @action == Action::Move || @action == Action::Release
           action_to_s(@action)
@@ -94,12 +94,22 @@ module Term2
         "unknown"
       end
 
+      action_part = ""
       if @button != Button::None && !wheel_button?(@button)
         act = action_to_s(@action)
-        parts << act unless act.empty?
+        action_part = act unless act.empty?
       end
 
-      parts.compact.join("+").sub("++", "+")
+      base_parts = [] of String
+      base_parts << btn_str unless btn_str.empty?
+      base_parts << action_part unless action_part.empty?
+      base = base_parts.join(" ").strip
+
+      if mods.empty?
+        base
+      else
+        "#{mods.join("+")}+#{base}"
+      end
     end
 
     private def wheel_button?(btn : Button) : Bool
@@ -148,7 +158,7 @@ module Term2
           final_char = $4
 
           @buffer = ""
-          return parse_sgr_mouse(code, x, y, final_char)
+          return Mouse.decode_sgr(code, x, y, final_char)
         elsif @buffer =~ /\e\[M([\x20-\x3f])([\x20-\x7e])([\x20-\x7e])\z/
           # Parse legacy mouse sequence
           button_code = $1.bytes[0]
@@ -156,7 +166,7 @@ module Term2
           y_code = $3.bytes[0]
 
           @buffer = ""
-          return parse_legacy_mouse(button_code, x_code, y_code)
+          return Mouse.decode_x10(button_code - 32, x_code, y_code)
         elsif @buffer.size > 20
           # Buffer too long, clear it
           @buffer = ""
@@ -186,45 +196,93 @@ module Term2
           y = $3.to_i
           final_char = $4
 
-          return parse_sgr_mouse(code, x, y, final_char)
+          return Mouse.decode_sgr(code, x, y, final_char)
         elsif buffer =~ /\e\[M([\x20-\xff])([\x20-\xff])([\x20-\xff])\z/
           # Parse legacy mouse sequence
           button_code = $1.bytes[0]
           x_code = $2.bytes[0]
           y_code = $3.bytes[0]
 
-          return parse_legacy_mouse(button_code, x_code, y_code)
+          return Mouse.decode_x10(button_code - 32, x_code, y_code)
         end
       end
 
       nil
     end
+  end
 
-    private def parse_sgr_mouse(code : Int32, x : Int32, y : Int32, final_char : String) : MouseEvent?
-      # Parse SGR mouse event
-      # Bit layout:
-      # - Bits 0-1: button (0=left, 1=middle, 2=right, 3=no button/release)
-      # - Bit 2: shift
-      # - Bit 3: alt (meta)
-      # - Bit 4: ctrl
-      # - Bit 5: motion (indicates motion while button held, or hover if button bits are 3)
-      # - Bit 6: wheel
-      motion_bit = (code & 32) != 0 # Bit 5 indicates motion
-      wheel_bit = (code & 64) != 0  # Bit 6 indicates wheel
-      button_bits = code & 3        # Bits 0-1 for button
+  # Mouse support utilities
+  module Mouse
+    # Parse a legacy X10 mouse event from a raw byte slice.
+    # Returns nil if the buffer is not a valid X10 sequence.
+    def self.parse_x10(buf : Bytes) : MouseEvent?
+      return nil unless buf.size >= 6
+      return nil unless buf[0] == 0x1b_u8 && buf[1] == '['.ord.to_u8 && buf[2] == 'M'.ord.to_u8
 
-      button = parse_sgr_button(wheel_bit, motion_bit, button_bits)
-      action = parse_sgr_action(wheel_bit, motion_bit, button_bits, final_char)
+      button_code = buf[3].to_i - 32
+      x_code = buf[4].to_i
+      y_code = buf[5].to_i
+
+      decode_x10(button_code, x_code, y_code)
+    end
+
+    # Parse an SGR mouse event from a raw byte slice.
+    # Returns nil if the buffer is not a valid SGR sequence.
+    def self.parse_sgr(buf : Bytes) : MouseEvent?
+      str = String.new(buf)
+      if match = /\e\[<(\d+);(\d+);(\d+)([Mm])/.match(str)
+        code = match[1].to_i
+        x = match[2].to_i
+        y = match[3].to_i
+        final_char = match[4]
+
+        decode_sgr(code, x, y, final_char)
+      end
+    end
+
+    # Decode an SGR mouse event given the parsed codes from the terminal sequence.
+    def self.decode_sgr(code : Int32, x : Int32, y : Int32, final_char : String) : MouseEvent?
+      motion_bit = (code & 32) != 0
+      wheel_bit = (code & 64) != 0
+      button_bits = code & 3
+
+      button = decode_button(wheel_bit, motion_bit, button_bits)
+      action = decode_action(wheel_bit, motion_bit, button_bits, final_char)
 
       shift = (code & 4) != 0
       alt = (code & 8) != 0
       ctrl = (code & 16) != 0
 
-      # Normalize to 0-based coordinates to match Bubble Tea expectations.
       MouseEvent.new(x - 1, y - 1, button, action, alt, ctrl, shift)
     end
 
-    private def parse_sgr_button(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32) : MouseEvent::Button
+    # Decode an X10 mouse event given the raw codes (with the 32 offset removed from button_code).
+    def self.decode_x10(button_code : Int32, x_code : Int32, y_code : Int32) : MouseEvent?
+      shift = (button_code & 4) != 0
+      alt = (button_code & 8) != 0
+      ctrl = (button_code & 16) != 0
+
+      motion_bit = (button_code & 32) != 0
+      wheel_bit = (button_code & 64) != 0
+      button_bits = button_code & 3
+
+      button = decode_button(wheel_bit, motion_bit, button_bits)
+      action = if motion_bit && !wheel_bit
+                 MouseEvent::Action::Move
+               elsif button_bits == 3 && !wheel_bit
+                 MouseEvent::Action::Release
+               else
+                 MouseEvent::Action::Press
+               end
+
+      # Legacy mouse coordinates are offset by 32, and origin is 1-based.
+      x = x_code - 33
+      y = y_code - 33
+
+      MouseEvent.new(x, y, button, action, alt, ctrl, shift)
+    end
+
+    private def self.decode_button(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32) : MouseEvent::Button
       if wheel_bit
         case button_bits
         when 0 then MouseEvent::Button::WheelUp
@@ -245,13 +303,11 @@ module Term2
       end
     end
 
-    private def parse_sgr_action(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32, final_char : String) : MouseEvent::Action
+    private def self.decode_action(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32, final_char : String) : MouseEvent::Action
       if wheel_bit
         MouseEvent::Action::Press
-      elsif motion_bit && button_bits == 3
-        MouseEvent::Action::Move
       elsif motion_bit
-        MouseEvent::Action::Drag
+        MouseEvent::Action::Move
       elsif final_char == "m"
         MouseEvent::Action::Release
       else
@@ -259,29 +315,6 @@ module Term2
       end
     end
 
-    private def parse_legacy_mouse(button_code : Int32, x_code : Int32, y_code : Int32) : MouseEvent?
-      # X10/legacy encoding uses button bits plus modifiers similar to SGR.
-      wheel_bit = (button_code & 64) != 0
-      motion_bit = (button_code & 32) != 0
-      button_bits = button_code & 3
-
-      button = parse_sgr_button(wheel_bit, motion_bit, button_bits)
-      action = if button_code == 35 # explicit release code
-                 MouseEvent::Action::Release
-               else
-                 parse_sgr_action(wheel_bit, motion_bit, button_bits, "M")
-               end
-
-      # Legacy mouse coordinates are offset by 32, and origin is 1-based.
-      x = x_code - 33
-      y = y_code - 33
-
-      MouseEvent.new(x, y, button, action)
-    end
-  end
-
-  # Mouse support utilities
-  module Mouse
     # Enable mouse tracking (clicks and drags)
     def self.enable_tracking(io : IO = STDOUT)
       # Enable SGR mouse mode (preferred - extended coordinates)

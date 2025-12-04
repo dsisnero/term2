@@ -8,6 +8,6 @@ describe Term2::Components::RuneUtil do
   end
 
   it "sanitizes strings" do
-    Term2::Components::RuneUtil.sanitize("hello\tworld\n").should eq "hello    world "
+    Term2::Components::RuneUtil.sanitize("hello\tworld\n", Term2::Components::RuneUtil.replace_newlines(" ")).should eq "hello    world "
   end
 end

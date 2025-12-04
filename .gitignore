@@ -23,12 +23,12 @@ examples/simple
 /.qodo/
 
 # Reference code (Go BubbleTea source)
-/bubbletea/
+# /bubbletea/
 
 # Stray directories
 d:/
 /d/
-/bubbles/
+# /bubbles/
 /layout_example
 
 # Status tracking files (not part of library)

@@ -11,6 +11,9 @@ module Term2
         abstract def full_help : Array(Array(Key::Binding))
       end
 
+      property short_separator : String = " • "
+      property full_separator : String = "    "
+      property ellipsis : String = "…"
       property? show_all : Bool = false
       property width : Int32 = 80
 
@@ -18,6 +21,7 @@ module Term2
       property key_style : Style = Style.new.faint(true)
       property desc_style : Style = Style.new.faint(true)
       property separator_style : Style = Style.new.faint(true)
+      property ellipsis_style : Style = Style.new.faint(true)
 
       def initialize
       end
@@ -47,22 +51,89 @@ module Term2
           "#{key_style.render(binding.help_key)} #{desc_style.render(binding.help_desc)}"
         end
 
-        parts.join(separator_style.render(" • "))
+        line = parts.join(separator_style.render(@short_separator))
+        # Handle width truncation with ellipsis if needed
+        if @width > 0 && Term2::Text.width(line) > @width
+          ell = " " + ellipsis_style.render(@ellipsis)
+          usable_width = @width - Term2::Text.width(ell)
+          line = line[0, usable_width] + ell if usable_width > 0
+        end
+        line
       end
 
       def view_full(key_map : KeyMap) : String
         groups = key_map.full_help
+        return "" if groups.empty?
 
-        lines = [] of String
+        sep_rendered = separator_style.render(@full_separator)
+        sep_width = Term2::Text.width(sep_rendered)
+
+        columns = [] of {lines: Array(String), width: Int32}
         groups.each do |group|
-          group.each do |binding|
-            next if !binding.enabled?
-            lines << "#{key_style.render(binding.help_key)}    #{desc_style.render(binding.help_desc)}"
+          bindings = group.compact_map { |binding| binding if binding.enabled? }
+          next if bindings.empty?
+
+          keys = bindings.map { |b| b.help_key }
+          descs = bindings.map { |b| b.help_desc }
+          max_key_width = keys.map { |k| Term2::Text.width(k) }.max
+          max_desc_width = descs.map { |d| Term2::Text.width(d) }.max
+
+          col_lines = keys.zip(descs).map do |k, d|
+            padded_key = k.ljust(max_key_width)
+            "#{key_style.render(padded_key)} #{desc_style.render(d)}"
           end
-          lines << "" unless lines.empty? || lines.last.empty?
+
+          col_width = max_key_width + 1 + max_desc_width
+          columns << {lines: col_lines, width: col_width}
+        end
+        return "" if columns.empty?
+
+        selected = [] of {lines: Array(String), width: Int32}
+        total_width = 0
+        ellipsis_needed = false
+
+        columns.each do |col|
+          projected = total_width
+          projected += sep_width if !selected.empty?
+          projected += col[:width]
+
+          if @width > 0 && projected > @width
+            ellipsis_needed = true
+            break
+          end
+
+          total_width = projected
+          selected << col
         end
 
-        lines.join("\n").chomp
+        return "" if selected.empty?
+
+        max_lines = selected.map { |c| c[:lines].size }.max
+        output_lines = Array(String).new(max_lines, "")
+
+        max_lines.times do |line_idx|
+          line_parts = [] of String
+          selected.each_with_index do |col, idx|
+            separator = if idx.zero?
+                          ""
+                        else
+                          line_idx.zero? ? sep_rendered : " " * sep_width
+                        end
+            line_parts << separator
+            content = col[:lines][line_idx]? || ""
+            pad_len = col[:width] - Term2::Text.width(content)
+            line_parts << content
+            line_parts << " " * pad_len if pad_len > 0 && idx < selected.size - 1
+          end
+          line = line_parts.join
+          if ellipsis_needed && line_idx == 0
+            ell = " " + ellipsis_style.render(@ellipsis)
+            line += ell if @width <= 0 || Term2::Text.width(line + ell) <= @width
+          end
+          output_lines[line_idx] = line
+        end
+
+        output_lines.join("\n")
       end
     end
   end
