@@ -143,7 +143,7 @@ module Term2
 
     def read_mouse_event(io : IO) : MouseEvent?
       char = io.read_char
-      return nil unless char
+      return unless char
 
       @buffer += char.to_s
 
@@ -216,8 +216,8 @@ module Term2
     # Parse a legacy X10 mouse event from a raw byte slice.
     # Returns nil if the buffer is not a valid X10 sequence.
     def self.parse_x10(buf : Bytes) : MouseEvent?
-      return nil unless buf.size >= 6
-      return nil unless buf[0] == 0x1b_u8 && buf[1] == '['.ord.to_u8 && buf[2] == 'M'.ord.to_u8
+      return unless buf.size >= 6
+      return unless buf[0] == 0x1b_u8 && buf[1] == '['.ord.to_u8 && buf[2] == 'M'.ord.to_u8
 
       button_code = buf[3].to_i - 32
       x_code = buf[4].to_i

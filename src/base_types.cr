@@ -772,7 +772,7 @@ module Term2
       return none unless cmd
       -> : Msg? {
         msg = cmd.call
-        return nil unless msg
+        return unless msg
         block.call(msg)
       }
     end
@@ -781,6 +781,7 @@ module Term2
     # Like Bubble Tea, this sends a single message - to tick repeatedly,
     # return another Every command from your update function.
     def self.every(duration : Time::Span, &block : Time -> Msg) : ::Term2::Cmd
+      return none if duration <= Time::Span.zero
       -> : Msg? {
         CML.sync(CML.timeout(duration))
         block.call(Time.utc)

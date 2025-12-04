@@ -1666,10 +1666,10 @@ module Term2
 
       # For each attribute prop that's set in other, copy both the prop flag and attr bit
       {% for prop in [:Bold, :Faint, :Italic, :Underline, :Blink, :Reverse, :Strikethrough] %}
-        if other.@props.{{prop.id.underscore}}?
-          @props = Props.new(@props.value | Props::{{prop.id}}.value)
+        if other.@props.{{ prop.id.underscore }}?
+          @props = Props.new(@props.value | Props::{{ prop.id }}.value)
           # Copy the attr bit from other
-          bit_mask = 1u32 << Props::{{prop.id}}.value.trailing_zeros_count
+          bit_mask = 1u32 << Props::{{ prop.id }}.value.trailing_zeros_count
           if (other.@attrs & bit_mask) != 0
             @attrs |= bit_mask
           else
