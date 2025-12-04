@@ -1,0 +1,19 @@
+[submodule "bubbles"]
+	path = bubbles
+	url = git@github.com:charmbracelet/bubbles.git
+
+[submodule "bubbletea"]
+	path = bubbletea
+	url = git@github.com:charmbracelet/bubbletea.git
+
+[submodule "bubblezone"]
+	path = bubblezone
+	url = git@github.com:lrstanley/bubblezone.git
+
+[submodule "lipgloss"]
+	path = lipgloss
+	url = git@github.com:charmbracelet/lipgloss.git
+
+[submodule "charm_x"]
+	path = charm_x
+	url = git@github.com:charmbracelet/x.git
