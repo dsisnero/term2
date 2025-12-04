@@ -22,19 +22,10 @@ class FancyItem
 end
 
 class DelegateKeys
-  getter choose : TC::Key::Binding
-  getter remove : TC::Key::Binding
-
-  def initialize
-    @choose = TC::Key::Binding.new(
-      TC::Key.with_keys("enter"),
-      TC::Key.with_help("enter", "choose"),
-    )
-    @remove = TC::Key::Binding.new(
-      TC::Key.with_keys("x", "backspace"),
-      TC::Key.with_help("x", "delete"),
-    )
-  end
+  TC::Key.key_bindings(
+    choose: {["enter"], "enter", "choose"},
+    remove: {["x", "backspace"], "x", "delete"},
+  )
 end
 
 class FancyDelegate
@@ -103,39 +94,14 @@ class FancyDelegate
 end
 
 class FancyListKeys
-  getter toggle_spinner : TC::Key::Binding
-  getter toggle_title_bar : TC::Key::Binding
-  getter toggle_status_bar : TC::Key::Binding
-  getter toggle_pagination : TC::Key::Binding
-  getter toggle_help_menu : TC::Key::Binding
-  getter insert_item : TC::Key::Binding
-
-  def initialize
-    @insert_item = TC::Key::Binding.new(
-      TC::Key.with_keys("a"),
-      TC::Key.with_help("a", "add item"),
-    )
-    @toggle_spinner = TC::Key::Binding.new(
-      TC::Key.with_keys("s"),
-      TC::Key.with_help("s", "toggle spinner"),
-    )
-    @toggle_title_bar = TC::Key::Binding.new(
-      TC::Key.with_keys("T"),
-      TC::Key.with_help("T", "toggle title"),
-    )
-    @toggle_status_bar = TC::Key::Binding.new(
-      TC::Key.with_keys("S"),
-      TC::Key.with_help("S", "toggle status"),
-    )
-    @toggle_pagination = TC::Key::Binding.new(
-      TC::Key.with_keys("P"),
-      TC::Key.with_help("P", "toggle pagination"),
-    )
-    @toggle_help_menu = TC::Key::Binding.new(
-      TC::Key.with_keys("H"),
-      TC::Key.with_help("H", "toggle help"),
-    )
-  end
+  TC::Key.key_bindings(
+    insert_item:       {["a"], "a", "add item"},
+    toggle_spinner:    {["s"], "s", "toggle spinner"},
+    toggle_title_bar:  {["T"], "T", "toggle title"},
+    toggle_status_bar: {["S"], "S", "toggle status"},
+    toggle_pagination: {["P"], "P", "toggle pagination"},
+    toggle_help_menu:  {["H"], "H", "toggle help"},
+  )
 end
 
 class FancyListModel

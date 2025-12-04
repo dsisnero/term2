@@ -7,13 +7,10 @@ SAVE_TEXT_STYLE = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Typ
 QUIT_VIEW_STYLE = Term2::Style.new.padding(1).border(Term2::Border.rounded).border_foreground(Term2::Color.new(Term2::Color::Type::Indexed, 170))
 
 class PreventKeymap
-  getter save : TC::Key::Binding
-  getter quit : TC::Key::Binding
-
-  def initialize
-    @save = TC::Key::Binding.new(TC::Key.with_keys("ctrl+s"), TC::Key.with_help("ctrl+s", "save"))
-    @quit = TC::Key::Binding.new(TC::Key.with_keys("esc", "ctrl+c"), TC::Key.with_help("esc", "quit"))
-  end
+  TC::Key.key_bindings(
+    save: {["ctrl+s"], "ctrl+s", "save"},
+    quit: {["esc", "ctrl+c"], "esc", "quit"},
+  )
 end
 
 class PreventQuitModel

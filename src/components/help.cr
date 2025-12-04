@@ -9,6 +9,19 @@ module Term2
       module KeyMap
         abstract def short_help : Array(Key::Binding)
         abstract def full_help : Array(Array(Key::Binding))
+
+        # Build bindings from a collection of named tuples containing
+        # keys/help/description, mirroring bubbles key bindings helpers.
+        def self.bindings(entries : Array(NamedTuple(keys: Array(String), help: String, description: String))) : Array(Key::Binding)
+          entries.map { |entry| Key::Binding.new(entry[:keys], entry[:help], entry[:description]) }
+        end
+
+        # Build bindings from positional tuples {keys, help, description}.
+        def self.bindings(entries : Array(Tuple(Array(String), String, String))) : Array(Key::Binding)
+          entries.map do |keys, help, desc|
+            Key::Binding.new(keys, help, desc)
+          end
+        end
       end
 
       property short_separator : String = " • "
@@ -108,7 +121,7 @@ module Term2
 
         return "" if selected.empty?
 
-        max_lines = selected.map(&.[:lines].size)
+        max_lines = selected.max_of?(&.[:lines].size) || 0
         output_lines = Array(String).new(max_lines, "")
 
         max_lines.times do |line_idx|

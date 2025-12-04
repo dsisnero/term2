@@ -105,17 +105,12 @@ module StopwatchExample
 
   # Key bindings configuration
   struct KeyMap
-    getter start : Term2::Components::Key::Binding
-    getter stop : Term2::Components::Key::Binding
-    getter reset : Term2::Components::Key::Binding
-    getter quit : Term2::Components::Key::Binding
-
-    def initialize
-      @start = Term2::Components::Key::Binding.new(["s"], "s", "start")
-      @stop = Term2::Components::Key::Binding.new(["s"], "s", "stop")
-      @reset = Term2::Components::Key::Binding.new(["r"], "r", "reset")
-      @quit = Term2::Components::Key::Binding.new(["q", "ctrl+c"], "q", "quit")
-    end
+    Term2::Components::Key.key_bindings(
+      start: {["s"], "s", "start"},
+      stop:  {["s"], "s", "stop"},
+      reset: {["r"], "r", "reset"},
+      quit:  {["q", "ctrl+c"], "q", "quit"},
+    )
   end
 
   # Main application model

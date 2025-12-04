@@ -83,6 +83,42 @@ Including `Term2::Prelude` provides convenient aliases for common types:
 - `KeyMsg`, `WindowSizeMsg`, `FocusMsg`, `BlurMsg` - Common messages
 - `MouseEvent` - Mouse input events
 
+## Key Bindings Helper
+
+Define groups of key bindings with the `key_bindings` macro on `Term2::Components::Key`:
+
+```crystal
+class TimerKeymap
+  Term2::Components::Key.key_bindings(
+    start: { ["s"], "s", "start" },
+    stop:  { ["s"], "s", "stop" },
+    reset: { ["r"], "r", "reset" },
+    quit:  { ["q", "ctrl+c"], "q", "quit" },
+  )
+end
+
+# Usage
+km = TimerKeymap.new
+km.start.matches?(Term2::KeyMsg.new(Term2::Key.new("s")))
+km.bindings # => Array of all bindings
+```
+
+If you include `Term2::Prelude`, you can use the shorter `TC::Key.key_bindings`:
+
+```crystal
+include Term2::Prelude
+
+class SplitKeys
+  TC::Key.key_bindings(
+    next:   { ["tab"], "tab", "next" },
+    prev:   { ["shift+tab"], "shift+tab", "prev" },
+    quit:   { ["q", "esc"], "q", "quit" },
+  )
+end
+```
+
+This macro generates getters for each binding, an initializer, and a `bindings` array.
+
 ## Program Options
 
 Configure your application by passing options to `Term2.run`:

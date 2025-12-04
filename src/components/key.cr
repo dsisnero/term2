@@ -90,6 +90,37 @@ module Term2
       def self.with_disabled : BindingOpt
         ->(b : Binding) { b.disabled = true }
       end
+
+      # Macro helper to declare bindings and getters in one shot.
+      #
+      # Example:
+      # ```
+      # class MyKeys
+      #   Key.key_bindings(
+      #     start: {["s"], "s", "start"},
+      #     quit:  {["q"], "q", "quit"},
+      #   )
+      # end
+      # ```
+      macro key_bindings(**entries)
+        {% for name, tuple in entries %}
+          getter {{name.id}} : ::Term2::Components::Key::Binding
+        {% end %}
+
+        def initialize
+          {% for name, tuple in entries %}
+            @{{name.id}} = ::Term2::Components::Key::Binding.new({{tuple[0]}}, {{tuple[1]}}, {{tuple[2]}})
+          {% end %}
+        end
+
+        def bindings : Array(::Term2::Components::Key::Binding)
+          [
+            {% for name, tuple in entries %}
+              @{{name.id}},
+            {% end %}
+          ]
+        end
+      end
     end
   end
 end

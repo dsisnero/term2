@@ -7,39 +7,14 @@ PINK = Term2::Color.new(Term2::Color::Type::RGB, {255, 117, 183})
 class HelpKeys
   include TC::Help::KeyMap
 
-  getter up : TC::Key::Binding
-  getter down : TC::Key::Binding
-  getter left : TC::Key::Binding
-  getter right : TC::Key::Binding
-  getter help : TC::Key::Binding
-  getter quit : TC::Key::Binding
-
-  def initialize
-    @up = TC::Key::Binding.new(
-      TC::Key.with_keys("up", "k"),
-      TC::Key.with_help("↑/k", "move up"),
-    )
-    @down = TC::Key::Binding.new(
-      TC::Key.with_keys("down", "j"),
-      TC::Key.with_help("↓/j", "move down"),
-    )
-    @left = TC::Key::Binding.new(
-      TC::Key.with_keys("left", "h"),
-      TC::Key.with_help("←/h", "move left"),
-    )
-    @right = TC::Key::Binding.new(
-      TC::Key.with_keys("right", "l"),
-      TC::Key.with_help("→/l", "move right"),
-    )
-    @help = TC::Key::Binding.new(
-      TC::Key.with_keys("?"),
-      TC::Key.with_help("?", "toggle help"),
-    )
-    @quit = TC::Key::Binding.new(
-      TC::Key.with_keys("q", "esc", "ctrl+c"),
-      TC::Key.with_help("q", "quit"),
-    )
-  end
+  TC::Key.key_bindings(
+    up:    {["up", "k"], "↑/k", "move up"},
+    down:  {["down", "j"], "↓/j", "move down"},
+    left:  {["left", "h"], "←/h", "move left"},
+    right: {["right", "l"], "→/l", "move right"},
+    help:  {["?"], "?", "toggle help"},
+    quit:  {["q", "esc", "ctrl+c"], "q", "quit"},
+  )
 
   def short_help : Array(TC::Key::Binding)
     [@help, @quit]

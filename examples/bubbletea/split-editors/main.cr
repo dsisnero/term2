@@ -16,19 +16,13 @@ FOCUSED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.rounded).bord
 BLURRED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.hidden)
 
 class SplitEditorsKeymap
-  getter next : TC::Key::Binding
-  getter prev : TC::Key::Binding
-  getter add : TC::Key::Binding
-  getter remove : TC::Key::Binding
-  getter quit : TC::Key::Binding
-
-  def initialize
-    @next = TC::Key::Binding.new(TC::Key.with_keys("tab"), TC::Key.with_help("tab", "next"))
-    @prev = TC::Key::Binding.new(TC::Key.with_keys("shift+tab"), TC::Key.with_help("shift+tab", "prev"))
-    @add = TC::Key::Binding.new(TC::Key.with_keys("ctrl+n"), TC::Key.with_help("ctrl+n", "add an editor"))
-    @remove = TC::Key::Binding.new(TC::Key.with_keys("ctrl+w"), TC::Key.with_help("ctrl+w", "remove an editor"))
-    @quit = TC::Key::Binding.new(TC::Key.with_keys("esc", "ctrl+c"), TC::Key.with_help("esc", "quit"))
-  end
+  TC::Key.key_bindings(
+    next:   {["tab"], "tab", "next"},
+    prev:   {["shift+tab"], "shift+tab", "prev"},
+    add:    {["ctrl+n"], "ctrl+n", "add an editor"},
+    remove: {["ctrl+w"], "ctrl+w", "remove an editor"},
+    quit:   {["esc", "ctrl+c"], "esc", "quit"},
+  )
 end
 
 def new_textarea : TC::TextArea

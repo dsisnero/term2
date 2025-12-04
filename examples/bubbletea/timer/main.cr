@@ -5,17 +5,12 @@ include Term2::Prelude
 TIMEOUT = (ENV["TERM2_TIMER_TIMEOUT"]? ? ENV["TERM2_TIMER_TIMEOUT"].try &.to_i : 5).seconds
 
 class TimerKeymap
-  getter start : TC::Key::Binding
-  getter stop : TC::Key::Binding
-  getter reset : TC::Key::Binding
-  getter quit : TC::Key::Binding
-
-  def initialize
-    @start = TC::Key::Binding.new(TC::Key.with_keys("s"), TC::Key.with_help("s", "start"))
-    @stop = TC::Key::Binding.new(TC::Key.with_keys("s"), TC::Key.with_help("s", "stop"))
-    @reset = TC::Key::Binding.new(TC::Key.with_keys("r"), TC::Key.with_help("r", "reset"))
-    @quit = TC::Key::Binding.new(TC::Key.with_keys("q", "ctrl+c"), TC::Key.with_help("q", "quit"))
-  end
+  TC::Key.key_bindings(
+    start: {["s"], "s", "start"},
+    stop:  {["s"], "s", "stop"},
+    reset: {["r"], "r", "reset"},
+    quit:  {["q", "ctrl+c"], "q", "quit"},
+  )
 end
 
 class TimerModel

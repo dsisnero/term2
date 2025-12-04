@@ -31,17 +31,12 @@ end
 class Keymap
   include TC::Help::KeyMap
 
-  getter complete : TC::Key::Binding
-  getter next : TC::Key::Binding
-  getter prev : TC::Key::Binding
-  getter quit : TC::Key::Binding
-
-  def initialize
-    @complete = TC::Key::Binding.new(["tab"], "tab", "complete")
-    @next = TC::Key::Binding.new(["ctrl+n"], "ctrl+n", "next")
-    @prev = TC::Key::Binding.new(["ctrl+p"], "ctrl+p", "prev")
-    @quit = TC::Key::Binding.new(["esc", "ctrl+c"], "esc", "quit")
-  end
+  TC::Key.key_bindings(
+    complete: {["tab"], "tab", "complete"},
+    next:     {["ctrl+n"], "ctrl+n", "next"},
+    prev:     {["ctrl+p"], "ctrl+p", "prev"},
+    quit:     {["esc", "ctrl+c"], "esc", "quit"},
+  )
 
   def short_help : Array(TC::Key::Binding)
     [@complete, @next, @prev, @quit]
