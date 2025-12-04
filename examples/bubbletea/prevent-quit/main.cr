@@ -120,7 +120,7 @@ end
 def prevent_filter(model : Term2::Model, msg : Term2::Message?) : Term2::Message?
   return msg unless msg.is_a?(Term2::QuitMsg)
   prevent_model = model.as(PreventQuitModel)
-  return nil if prevent_model.has_changes?
+  return if prevent_model.has_changes?
   msg
 end
 
