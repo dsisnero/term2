@@ -26,7 +26,7 @@ class PipeModel
   def initialize(initial_value : String)
     ti = TC::TextInput.new
     ti.prompt = ""
-    ti.cursor.style = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 63))
+    ti.cursor.style = Term2::Style.new.fg_indexed(63)
     ti.width = 48
     ti.value = initial_value
     ti.cursor_end

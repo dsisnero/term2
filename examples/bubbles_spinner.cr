@@ -7,7 +7,7 @@ class SpinnerModel
 
   def initialize
     @spinner = Term2::Components::Spinner.new(Term2::Components::Spinner::DOT)
-    @spinner.style = Term2::Style.new.foreground(Term2::Color::MAGENTA)
+    @spinner.style = Term2::Style.new.magenta
   end
 
   def init : Term2::Cmd

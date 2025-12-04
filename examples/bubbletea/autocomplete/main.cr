@@ -59,8 +59,8 @@ class AutocompleteModel
     @text_input = TC::TextInput.new("autocomplete-input")
     @text_input.placeholder = "repository"
     @text_input.prompt = "charmbracelet/"
-    @text_input.prompt_style = Term2::Style.new.foreground(Term2::Color::CYAN)
-    @text_input.cursor.style = Term2::Style.new.foreground(Term2::Color::CYAN)
+    @text_input.prompt_style = Term2::Style.new.cyan
+    @text_input.cursor.style = Term2::Style.new.cyan
     @text_input.focus
     @text_input.char_limit = 50
     @text_input.width = 30

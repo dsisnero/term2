@@ -4,8 +4,8 @@ require "./random_items"
 include Term2::Prelude
 
 STATUS_COLOR = Term2::AdaptiveColor.new(
-  light: Term2::Color.from_hex("#04B575"),
-  dark: Term2::Color.from_hex("#04B575"),
+  light: Term2::Color.hex("#04B575"),
+  dark: Term2::Color.hex("#04B575"),
 )
 
 class FancyItem
@@ -57,7 +57,7 @@ class FancyDelegate
     title = fi.title
     desc = fi.description
 
-    title_style = selected ? Term2::Style.new.foreground(Term2::Color::GREEN) : Term2::Style.new
+    title_style = selected ? Term2::Style.new.green : Term2::Style.new
     cursor = selected ? "> " : "  "
     enum_str = enumerator.empty? ? "" : "#{enumerator} "
 
@@ -108,7 +108,7 @@ class FancyListModel
   include Term2::Model
 
   APP_STYLE   = Term2::Style.new.padding(1, 2)
-  TITLE_STYLE = Term2::Style.new.foreground(Term2::Color.from_hex("#FFFDF5")).background(Term2::Color.from_hex("#25A065")).padding(0, 1)
+  TITLE_STYLE = Term2::Style.new.fg_hex("#FFFDF5").bg_hex("#25A065").padding(0, 1)
 
   getter list : TC::List
   getter item_generator : RandomItemGenerator

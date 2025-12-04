@@ -1,12 +1,12 @@
 require "../../src/term2"
 
 module LibglossStyles
-  NORMAL     = Term2::Color.from_hex("#EEEEEE")
-  SUBTLE     = Term2::Color.from_hex("#D9DCCF")
-  HIGHLIGHT  = Term2::Color.from_hex("#874BFD")
-  SPECIAL    = Term2::Color.from_hex("#43BF6D")
-  BACKGROUND = Term2::Color.from_hex("#1C1C1C")
-  ACCENT     = Term2::Color.from_hex("#FF5F87")
+  NORMAL     = Term2::Color.hex("#EEEEEE")
+  SUBTLE     = Term2::Color.hex("#D9DCCF")
+  HIGHLIGHT  = Term2::Color.hex("#874BFD")
+  SPECIAL    = Term2::Color.hex("#43BF6D")
+  BACKGROUND = Term2::Color.hex("#1C1C1C")
+  ACCENT     = Term2::Color.hex("#FF5F87")
 
   DOC_STYLE = Term2::Style.new
     .padding(1, 2, 1, 2)

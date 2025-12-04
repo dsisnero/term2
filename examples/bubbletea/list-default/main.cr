@@ -56,7 +56,7 @@ class ListDefaultModel
     @list.item_name_plural = "things"
     @list.paginator.per_page = 5
     @list.enumerator = TC::List::Enumerators::Bullet
-    @list.delegate.as(TC::List::DefaultDelegate).selected_style = Term2::Style.new.foreground(Term2::Color::MAGENTA)
+    @list.delegate.as(TC::List::DefaultDelegate).selected_style = Term2::Style.new.magenta
     @list.delegate.as(TC::List::DefaultDelegate).desc_style = Term2::Style.new.faint(true)
     @list.delegate.as(TC::List::DefaultDelegate).enumerator_style = Term2::Style.new
     @list_title = "My Fave Things"

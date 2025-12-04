@@ -3,29 +3,29 @@ require "../../../src/term2"
 include Term2::Prelude
 
 TABLE_RESIZE_BASE_STYLE     = Term2::Style.new.padding(0, 1)
-HEADER_STYLE                = TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 252)).bold(true)
-TABLE_RESIZE_SELECTED_STYLE = TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.from_hex("#01BE85")).background(Term2::Color.from_hex("#00432F"))
+HEADER_STYLE                = TABLE_RESIZE_BASE_STYLE.fg_indexed(252).bold(true)
+TABLE_RESIZE_SELECTED_STYLE = TABLE_RESIZE_BASE_STYLE.fg_hex("#01BE85").bg_hex("#00432F")
 TYPE_COLORS                 = {
-  "Bug"      => Term2::Color.from_hex("#D7FF87"),
-  "Electric" => Term2::Color.from_hex("#FDFF90"),
-  "Fire"     => Term2::Color.from_hex("#FF7698"),
-  "Flying"   => Term2::Color.from_hex("#FF87D7"),
-  "Grass"    => Term2::Color.from_hex("#75FBAB"),
-  "Ground"   => Term2::Color.from_hex("#FF875F"),
-  "Normal"   => Term2::Color.from_hex("#929292"),
-  "Poison"   => Term2::Color.from_hex("#7D5AFC"),
-  "Water"    => Term2::Color.from_hex("#00E2C7"),
+  "Bug"      => Term2::Color.hex("#D7FF87"),
+  "Electric" => Term2::Color.hex("#FDFF90"),
+  "Fire"     => Term2::Color.hex("#FF7698"),
+  "Flying"   => Term2::Color.hex("#FF87D7"),
+  "Grass"    => Term2::Color.hex("#75FBAB"),
+  "Ground"   => Term2::Color.hex("#FF875F"),
+  "Normal"   => Term2::Color.hex("#929292"),
+  "Poison"   => Term2::Color.hex("#7D5AFC"),
+  "Water"    => Term2::Color.hex("#00E2C7"),
 }
 DIM_TYPE_COLORS = {
-  "Bug"      => Term2::Color.from_hex("#97AD64"),
-  "Electric" => Term2::Color.from_hex("#FCFF5F"),
-  "Fire"     => Term2::Color.from_hex("#BA5F75"),
-  "Flying"   => Term2::Color.from_hex("#C97AB2"),
-  "Grass"    => Term2::Color.from_hex("#59B980"),
-  "Ground"   => Term2::Color.from_hex("#C77252"),
-  "Normal"   => Term2::Color.from_hex("#727272"),
-  "Poison"   => Term2::Color.from_hex("#634BD0"),
-  "Water"    => Term2::Color.from_hex("#439F8E"),
+  "Bug"      => Term2::Color.hex("#97AD64"),
+  "Electric" => Term2::Color.hex("#FCFF5F"),
+  "Fire"     => Term2::Color.hex("#BA5F75"),
+  "Flying"   => Term2::Color.hex("#C97AB2"),
+  "Grass"    => Term2::Color.hex("#59B980"),
+  "Ground"   => Term2::Color.hex("#C77252"),
+  "Normal"   => Term2::Color.hex("#727272"),
+  "Poison"   => Term2::Color.hex("#634BD0"),
+  "Water"    => Term2::Color.hex("#439F8E"),
 }
 
 HEADERS = ["#", "NAME", "TYPE 1", "TYPE 2", "JAPANESE", "OFFICIAL ROM."]
@@ -70,7 +70,7 @@ class TableResizeModel
     table_rows = ROWS.map(&.to_a)
     t = TC::Table.new(columns: cols, rows: table_rows, height: ROWS.size + 2)
     t.border = Term2::Border.thick
-    t.border_style = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 238))
+    t.border_style = Term2::Style.new.fg_indexed(238)
     t.style_func = ->(row : Int32, col : Int32) do
       # header row
       return HEADER_STYLE if row == -1
@@ -87,9 +87,9 @@ class TableResizeModel
         end
       end
       if even
-        TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 245))
+        TABLE_RESIZE_BASE_STYLE.fg_indexed(245)
       else
-        TABLE_RESIZE_BASE_STYLE.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 252))
+        TABLE_RESIZE_BASE_STYLE.fg_indexed(253)
       end
     end
     @table = t

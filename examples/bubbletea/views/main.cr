@@ -18,8 +18,8 @@ VIEWS_MAIN_STYLE    = Style.new.margin(0, 0, 0, 2)
 
 # Simple gradient ramp for progress bar
 def make_ramp_styles(a_hex : String, b_hex : String, width : Int32) : Array(Style)
-  a = Color.from_hex(a_hex).to_rgb
-  b = Color.from_hex(b_hex).to_rgb
+  a = Color.hex(a_hex).to_rgb
+  b = Color.hex(b_hex).to_rgb
   styles = Array(Style).new(width)
   width.times do |i|
     t = width == 1 ? 0.0 : i / (width - 1).to_f

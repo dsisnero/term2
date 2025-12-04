@@ -223,6 +223,11 @@ module Term2
       rgb(r, g, b)
     end
 
+    # Alias for from_hex for ergonomic usage.
+    def self.hex(hex : String) : Color
+      from_hex(hex)
+    end
+
     # Create an indexed color (0-255)
     def self.indexed(index : Int32) : Color
       new(Type::Indexed, index.clamp(0, 255))
@@ -231,6 +236,31 @@ module Term2
     # Create an RGB color
     def self.rgb(r : Int32, g : Int32, b : Int32) : Color
       new(Type::RGB, {r.clamp(0, 255), g.clamp(0, 255), b.clamp(0, 255)})
+    end
+
+    def self.from_name(name : Symbol | String) : Color?
+      case name.to_s.downcase
+      when "default"
+        nil
+      when "black"       then BLACK
+      when "red"         then RED
+      when "green"       then GREEN
+      when "yellow"      then YELLOW
+      when "blue"        then BLUE
+      when "magenta"     then MAGENTA
+      when "cyan"        then CYAN
+      when "light_gray"  then WHITE
+      when "dark_gray"   then BRIGHT_BLACK
+      when "light_red"   then BRIGHT_RED
+      when "light_green" then BRIGHT_GREEN
+      when "light_yellow" then BRIGHT_YELLOW
+      when "light_blue"  then BRIGHT_BLUE
+      when "light_magenta" then BRIGHT_MAGENTA
+      when "light_cyan"  then BRIGHT_CYAN
+      when "white"       then BRIGHT_WHITE
+      else
+        nil
+      end
     end
 
     # Convert to RGB tuple (using xterm palette for indexed/named)
@@ -700,9 +730,60 @@ module Term2
       self
     end
 
+    def foreground(name : Symbol | String) : Style
+      if color = Color.from_name(name)
+        foreground(color)
+      else
+        unset_foreground
+      end
+    end
+
+    def fg_rgb(r : Int32, g : Int32, b : Int32) : Style
+      foreground(Color.rgb(r, g, b))
+    end
+
+    def fg_indexed(idx : Int32) : Style
+      foreground(Color.indexed(idx))
+    end
+
+    def fg_hex(hex : String) : Style
+      foreground(Color.from_hex(hex))
+    end
+
     def foreground(hex : String) : Style
       foreground(Color.from_hex(hex))
     end
+
+    # Short aliases
+    def fg(c : Color | AdaptiveColor | CompleteColor | Symbol | String) : Style
+      c.is_a?(Symbol) || c.is_a?(String) ? foreground(c.as(Symbol | String)) : foreground(c.as(Color | AdaptiveColor | CompleteColor))
+    end
+
+    # Named foreground helpers (mirror colorize ergonomics)
+    def black(v : Bool = true) : Style; v ? fg(:black) : unset_foreground; self; end
+    def red(v : Bool = true) : Style; v ? fg(:red) : unset_foreground; self; end
+    def green(v : Bool = true) : Style; v ? fg(:green) : unset_foreground; self; end
+    def yellow(v : Bool = true) : Style; v ? fg(:yellow) : unset_foreground; self; end
+    def blue(v : Bool = true) : Style; v ? fg(:blue) : unset_foreground; self; end
+    def magenta(v : Bool = true) : Style; v ? fg(:magenta) : unset_foreground; self; end
+    def cyan(v : Bool = true) : Style; v ? fg(:cyan) : unset_foreground; self; end
+    def light_gray(v : Bool = true) : Style; v ? fg(:light_gray) : unset_foreground; self; end
+    def dark_gray(v : Bool = true) : Style; v ? fg(:dark_gray) : unset_foreground; self; end
+    def light_red(v : Bool = true) : Style; v ? fg(:light_red) : unset_foreground; self; end
+    def light_green(v : Bool = true) : Style; v ? fg(:light_green) : unset_foreground; self; end
+    def light_yellow(v : Bool = true) : Style; v ? fg(:light_yellow) : unset_foreground; self; end
+    def light_blue(v : Bool = true) : Style; v ? fg(:light_blue) : unset_foreground; self; end
+    def light_magenta(v : Bool = true) : Style; v ? fg(:light_magenta) : unset_foreground; self; end
+    def light_cyan(v : Bool = true) : Style; v ? fg(:light_cyan) : unset_foreground; self; end
+    def white(v : Bool = true) : Style; v ? fg(:white) : unset_foreground; self; end
+    def bright_black(v : Bool = true) : Style; v ? fg(:dark_gray) : unset_foreground; self; end
+    def bright_red(v : Bool = true) : Style; v ? fg(:light_red) : unset_foreground; self; end
+    def bright_green(v : Bool = true) : Style; v ? fg(:light_green) : unset_foreground; self; end
+    def bright_yellow(v : Bool = true) : Style; v ? fg(:light_yellow) : unset_foreground; self; end
+    def bright_blue(v : Bool = true) : Style; v ? fg(:light_blue) : unset_foreground; self; end
+    def bright_magenta(v : Bool = true) : Style; v ? fg(:light_magenta) : unset_foreground; self; end
+    def bright_cyan(v : Bool = true) : Style; v ? fg(:light_cyan) : unset_foreground; self; end
+    def bright_white(v : Bool = true) : Style; v ? fg(:white) : unset_foreground; self; end
 
     def background(c : Color | AdaptiveColor | CompleteColor) : Style
       @bg_color = c
@@ -710,9 +791,58 @@ module Term2
       self
     end
 
+    def background(name : Symbol | String) : Style
+      if color = Color.from_name(name)
+        background(color)
+      else
+        unset_background
+      end
+    end
+
+    def bg_rgb(r : Int32, g : Int32, b : Int32) : Style
+      background(Color.rgb(r, g, b))
+    end
+
+    def bg_indexed(idx : Int32) : Style
+      background(Color.indexed(idx))
+    end
+
+    def bg_hex(hex : String) : Style
+      background(Color.from_hex(hex))
+    end
+
     def background(hex : String) : Style
       background(Color.from_hex(hex))
     end
+
+    def bg(c : Color | AdaptiveColor | CompleteColor | Symbol | String) : Style
+      c.is_a?(Symbol) || c.is_a?(String) ? background(c.as(Symbol | String)) : background(c.as(Color | AdaptiveColor | CompleteColor))
+    end
+
+    def on_black(v : Bool = true) : Style; v ? bg(:black) : unset_background; self; end
+    def on_red(v : Bool = true) : Style; v ? bg(:red) : unset_background; self; end
+    def on_green(v : Bool = true) : Style; v ? bg(:green) : unset_background; self; end
+    def on_yellow(v : Bool = true) : Style; v ? bg(:yellow) : unset_background; self; end
+    def on_blue(v : Bool = true) : Style; v ? bg(:blue) : unset_background; self; end
+    def on_magenta(v : Bool = true) : Style; v ? bg(:magenta) : unset_background; self; end
+    def on_cyan(v : Bool = true) : Style; v ? bg(:cyan) : unset_background; self; end
+    def on_light_gray(v : Bool = true) : Style; v ? bg(:light_gray) : unset_background; self; end
+    def on_dark_gray(v : Bool = true) : Style; v ? bg(:dark_gray) : unset_background; self; end
+    def on_light_red(v : Bool = true) : Style; v ? bg(:light_red) : unset_background; self; end
+    def on_light_green(v : Bool = true) : Style; v ? bg(:light_green) : unset_background; self; end
+    def on_light_yellow(v : Bool = true) : Style; v ? bg(:light_yellow) : unset_background; self; end
+    def on_light_blue(v : Bool = true) : Style; v ? bg(:light_blue) : unset_background; self; end
+    def on_light_magenta(v : Bool = true) : Style; v ? bg(:light_magenta) : unset_background; self; end
+    def on_light_cyan(v : Bool = true) : Style; v ? bg(:light_cyan) : unset_background; self; end
+    def on_white(v : Bool = true) : Style; v ? bg(:white) : unset_background; self; end
+    def on_bright_black(v : Bool = true) : Style; v ? bg(:dark_gray) : unset_background; self; end
+    def on_bright_red(v : Bool = true) : Style; v ? bg(:light_red) : unset_background; self; end
+    def on_bright_green(v : Bool = true) : Style; v ? bg(:light_green) : unset_background; self; end
+    def on_bright_yellow(v : Bool = true) : Style; v ? bg(:light_yellow) : unset_background; self; end
+    def on_bright_blue(v : Bool = true) : Style; v ? bg(:light_blue) : unset_background; self; end
+    def on_bright_magenta(v : Bool = true) : Style; v ? bg(:light_magenta) : unset_background; self; end
+    def on_bright_cyan(v : Bool = true) : Style; v ? bg(:light_cyan) : unset_background; self; end
+    def on_bright_white(v : Bool = true) : Style; v ? bg(:white) : unset_background; self; end
 
     # Dimensions
     def width(w : Int32) : Style
@@ -1647,6 +1777,12 @@ module Term2
       new_style = Style.new
       copy_to(new_style)
       new_style
+    end
+
+    def self.build(&block : Style ->) : Style
+      style = Style.new
+      yield style
+      style
     end
 
     # Merge another style into this one

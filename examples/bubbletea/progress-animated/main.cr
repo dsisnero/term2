@@ -10,7 +10,7 @@ class ProgressAnimatedModel
 
   PADDING    =  2
   MAX_WIDTH  = 80
-  HELP_STYLE = Term2::Style.new.foreground(Term2::Color.from_hex("#626262"))
+HELP_STYLE = Term2::Style.new.fg_hex("#626262")
 
   getter progress : TC::Progress
 

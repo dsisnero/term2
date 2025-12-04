@@ -6,9 +6,9 @@ include Term2::Prelude
 
 # Define styles
 LABEL_STYLE  = Term2::Style.new.bold(true)
-VALUE_STYLE  = Term2::Style.new.foreground(Term2::Color::CYAN)
-HEADER_STYLE = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
-KEY_STYLE    = Term2::Style.new.foreground(Term2::Color::CYAN)
+VALUE_STYLE  = Term2::Style.new.cyan
+HEADER_STYLE = Term2::Style.new.bold(true).yellow
+KEY_STYLE    = Term2::Style.new.cyan
 
 class CounterModel
   include Model

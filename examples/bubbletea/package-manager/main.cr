@@ -3,8 +3,8 @@ require "../../../src/term2"
 include Term2::Prelude
 
 INSTALLED_STYLE   = Term2::Style.new.margin(1, 2)
-CHECK_MARK        = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 42)).render("✓")
-CURRENT_PKG_STYLE = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 211))
+CHECK_MARK        = Term2::Style.new.fg_indexed(42).render("✓")
+CURRENT_PKG_STYLE = Term2::Style.new.fg_indexed(211)
 
 PACKAGES = [
   "himalayan-translucency@1.2.3",
@@ -40,7 +40,7 @@ class PackageManagerModel
     @width = 0
     @height = 0
     @spinner = TC::Spinner.new
-    @spinner.style = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 63))
+    @spinner.style = Term2::Style.new.fg_indexed(63)
     @progress = TC::Progress.new
     @progress.use_gradient = true
     @progress.width = 40

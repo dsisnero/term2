@@ -14,10 +14,10 @@ end
 class AiChatModel
   include Model
 
-  HEADER_STYLE = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
+  HEADER_STYLE = Term2::Style.new.bold(true).yellow
   ROLE_STYLES  = {
-    "user"      => Term2::Style.new.foreground(Term2::Color::CYAN).bold(true),
-    "assistant" => Term2::Style.new.foreground(Term2::Color::GREEN),
+    "user"      => Term2::Style.new.cyan.bold(true),
+    "assistant" => Term2::Style.new.green,
     "system"    => Term2::Style.new.faint(true),
   }
   BUBBLE_STYLE   = Term2::Style.new.padding(0, 1)

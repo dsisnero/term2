@@ -14,13 +14,13 @@ include Term2::Prelude
 # Define styles
 TITLE_STYLE = Term2::Style.new
   .bold(true)
-  .foreground(Term2::Color::CYAN)
+  .cyan
 
 LABEL_STYLE   = Term2::Style.new.bold(true)
-HEADER_STYLE  = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
-FOCUSED_STYLE = Term2::Style.new.foreground(Term2::Color::GREEN)
-BLURRED_STYLE = Term2::Style.new.foreground(Term2::Color::RED)
-DIM_STYLE     = Term2::Style.new.foreground(Term2::Color::BRIGHT_BLACK) # gray
+HEADER_STYLE  = Term2::Style.new.bold(true).yellow
+FOCUSED_STYLE = Term2::Style.new.green
+BLURRED_STYLE = Term2::Style.new.red
+DIM_STYLE     = Term2::Style.new.dark_gray # gray
 
 class AppModel
   include Model

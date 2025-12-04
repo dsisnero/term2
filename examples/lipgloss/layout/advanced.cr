@@ -58,7 +58,7 @@ module AdvancedLayout
 
   def self.title_block
     stripes = ["Lipgloss Advanced Layout Examples", "=" * 64].join("\n")
-    Term2::Style.new.bold(true).foreground(Term2::Color.from_hex("#F25D94")).render(stripes)
+    Term2::Style.new.bold(true).fg_hex("#F25D94").render(stripes)
   end
 end
 

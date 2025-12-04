@@ -2,7 +2,7 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-PINK = Term2::Color.new(Term2::Color::Type::RGB, {255, 117, 183})
+PINK = Term2::Color.rgb(255, 117, 183)
 
 class HelpKeys
   include TC::Help::KeyMap

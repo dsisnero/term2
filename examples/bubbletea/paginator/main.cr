@@ -13,8 +13,8 @@ class PaginatorModel
     @paginator = TC::Paginator.new
     @paginator.type = TC::Paginator::Type::Dots
     @paginator.per_page = 10
-    @paginator.active_dot = Term2::Style.new.foreground(Term2::AdaptiveColor.new(light: Term2::Color.from_hex("235"), dark: Term2::Color.from_hex("252"))).render("•")
-    @paginator.inactive_dot = Term2::Style.new.foreground(Term2::AdaptiveColor.new(light: Term2::Color.from_hex("250"), dark: Term2::Color.from_hex("238"))).render("•")
+    @paginator.active_dot = Term2::Style.new.foreground(Term2::AdaptiveColor.new(light: Term2::Color.indexed(235), dark: Term2::Color.indexed(252))).render("•")
+    @paginator.inactive_dot = Term2::Style.new.foreground(Term2::AdaptiveColor.new(light: Term2::Color.indexed(250), dark: Term2::Color.indexed(238))).render("•")
     @paginator.set_total_pages(@items.size)
   end
 

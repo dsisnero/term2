@@ -17,9 +17,9 @@ class SpinnersModel
     TC::Spinner::MONKEY,
   ]
 
-  TEXT_STYLE    = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 252))
-  SPINNER_STYLE = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 69))
-  HELP_STYLE    = Term2::Style.new.foreground(Term2::Color.new(Term2::Color::Type::Indexed, 241))
+  TEXT_STYLE    = Term2::Style.new.fg_indexed(252)
+  SPINNER_STYLE = Term2::Style.new.fg_indexed(69)
+  HELP_STYLE    = Term2::Style.new.fg_indexed(241)
 
   getter index : Int32
   getter spinner : TC::Spinner

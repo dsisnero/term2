@@ -11,8 +11,8 @@ enum Field
   CVV
 end
 
-HOT_PINK  = Term2::Color.new(Term2::Color::Type::RGB, {255, 6, 183})
-DARK_GRAY = Term2::Color.new(Term2::Color::Type::RGB, {118, 118, 118})
+HOT_PINK  = Term2::Color.rgb(255, 6, 183)
+DARK_GRAY = Term2::Color.rgb(118, 118, 118)
 
 INPUT_STYLE    = Term2::Style.new.foreground(HOT_PINK)
 CONTINUE_STYLE = Term2::Style.new.foreground(DARK_GRAY)

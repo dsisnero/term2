@@ -34,7 +34,7 @@ class ChatModel
     @viewport.content = initial_welcome
 
     @messages = [] of String
-    @sender_style = Term2::Style.new.foreground(Term2::Color::MAGENTA)
+    @sender_style = Term2::Style.new.magenta
   end
 
   def init : Cmd

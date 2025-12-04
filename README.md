@@ -199,7 +199,7 @@ puts style.render("Styled Box")
 title_style = Term2::Style.new
   .bold(true)
   .foreground(Term2::Color::WHITE)
-  .background(Term2::Color.from_hex("#3366CC"))
+  .background(Term2::Color.hex("#3366CC"))
   .padding(0, 2)
 
 content_style = Term2::Style.new
@@ -210,6 +210,12 @@ content_style = Term2::Style.new
 puts title_style.render("Title")
 puts content_style.render("Content goes here")
 ```
+
+### Color Shorthands
+
+- Named symbols: `style.foreground(:light_red)`, `style.background(:dark_gray)`, `style.background(:default)` (unset).
+- Hex/RGB/indexed helpers: `style.fg_hex("#ff00aa").bg_rgb(30, 30, 30)`, `style.bg_indexed(240)`, or `style.fg(:red)` / `style.bg(:light_blue)`.
+- Block builder: `style = Term2::Style.build { |s| s.fg_rgb(255, 128, 0).bold(true) }`.
 
 ### Available Styles
 

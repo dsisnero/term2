@@ -1,7 +1,7 @@
 module BubblezoneFullLipgloss
-  SUBTLE    = Term2::Color.from_hex("#D9DCCF")
-  HIGHLIGHT = Term2::Color.from_hex("#874BFD")
-  SPECIAL   = Term2::Color.from_hex("#43BF6D")
+  SUBTLE    = Term2::Color.hex("#D9DCCF")
+  HIGHLIGHT = Term2::Color.hex("#874BFD")
+  SPECIAL   = Term2::Color.hex("#43BF6D")
 
   TAB_BORDER        = Term2::Border.new("─", "─", "│", "│", "╭", "╮", "┴", "┴", "", "", "", "", "")
   ACTIVE_TAB_BORDER = Term2::Border.new("─", " ", "│", "│", "╭", "╮", "┘", "└", "", "", "", "", "")
@@ -34,7 +34,7 @@ module BubblezoneFullLipgloss
     if done
       "#{check_mark}#{Term2::Style.new
                         .strikethrough(true)
-                        .foreground(Term2::Color.from_hex("#969B86"))
+                        .foreground(Term2::Color.hex("#969B86"))
                         .render(text)}"
     else
       Term2::Style.new.padding_left(2).render(text)
@@ -96,8 +96,8 @@ module BubblezoneFullLipgloss
 
   private def self.button_style : Term2::Style
     Term2::Style.new
-      .foreground(Term2::Color.from_hex("#FFF7DB"))
-      .background(Term2::Color.from_hex("#888B7E"))
+      .foreground(Term2::Color.hex("#FFF7DB"))
+      .background(Term2::Color.hex("#888B7E"))
       .padding(0, 3)
       .margin_top(1)
       .margin_right(2)
@@ -105,8 +105,8 @@ module BubblezoneFullLipgloss
 
   private def self.active_button : Term2::Style
     Term2::Style.new
-      .foreground(Term2::Color.from_hex("#FFF7DB"))
-      .background(Term2::Color.from_hex("#F25D94"))
+      .foreground(Term2::Color.hex("#FFF7DB"))
+      .background(Term2::Color.hex("#F25D94"))
       .margin_right(2)
       .underline(true)
   end
