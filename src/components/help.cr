@@ -27,7 +27,7 @@ module Term2
       property short_separator : String = " • "
       property full_separator : String = "    "
       property ellipsis : String = "…"
-      property? show_all : Bool = false
+      property show_all : Bool = false
       property width : Int32 = 80
 
       # Styles
@@ -35,6 +35,10 @@ module Term2
       property desc_style : Style = Style.new.faint(true)
       property separator_style : Style = Style.new.faint(true)
       property ellipsis_style : Style = Style.new.faint(true)
+
+      def show_all? : Bool
+        @show_all
+      end
 
       def initialize
       end
@@ -48,7 +52,7 @@ module Term2
       end
 
       def view(key_map : KeyMap) : String
-        if @show_all
+        if show_all?
           view_full(key_map)
         else
           view_short(key_map)

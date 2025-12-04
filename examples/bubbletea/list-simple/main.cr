@@ -20,12 +20,15 @@ struct MenuItem
   end
 
   def filter_value : String
-    ""
+    @title
   end
 end
 
 class SimpleDelegate
   include TC::List::ItemDelegate
+
+  def initialize(@match_style = Term2::Style.new.underline(true))
+  end
 
   def height : Int32
     1
@@ -35,13 +38,27 @@ class SimpleDelegate
     0
   end
 
-  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
+  def render_with_matches(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String, matches : Array(Int32))
     menu_item = item.as(MenuItem)
-    str = "#{index + 1}. #{menu_item.title}"
-    if selected
-      io << LIST_SIMPLE_SELECTED_STYLE.render("> #{str}")
-    else
-      io << ITEM_STYLE.render(str)
+    str = highlight("#{index + 1}. #{menu_item.title}", matches)
+    line = selected ? LIST_SIMPLE_SELECTED_STYLE.render("> #{str}") : ITEM_STYLE.render(str)
+    io << line
+  end
+
+  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
+    render_with_matches(io, item, index, selected, enumerator, [] of Int32)
+  end
+
+  private def highlight(text : String, matches : Array(Int32)) : String
+    return text if matches.empty?
+    String.build do |s|
+      text.chars.each_with_index do |ch, i|
+        if matches.includes?(i)
+          s << @match_style.render(ch.to_s)
+        else
+          s << ch
+        end
+      end
     end
   end
 end
@@ -72,9 +89,11 @@ class ListSimpleModel
     @list.delegate = delegate
     @list.title = "What do you want for dinner?"
     @list.show_status_bar = false
-    @list.filtering_enabled = false
+    @list.filtering_enabled = true
+    @list.show_filter = true
     @list.show_help = true
     @list.show_pagination = true
+    @list.styles = @list.styles.tap { |s| s.default_filter_character_match = Term2::Style.new.underline(true) }
     @list.enumerator = TC::List::Enumerators::None
     @choice = ""
     @quitting = false

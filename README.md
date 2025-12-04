@@ -12,9 +12,22 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 - **Alternate Screen**: Clean terminal restoration
 - **Components**: TextInput, Spinner, ProgressBar, CountdownTimer
 - **Zone System**: Built-in focus and click tracking with automatic tab cycling
-- **Tree/List/Table**: Static rendering components for hierarchical data
+- **Tree/List/Table**: Static rendering components for hierarchical data; List includes filtering, pagination, help, and fuzzy-ranked matching with match highlighting
 - **Rich Command System**: Batch, sequence, timeout, and async commands
 - **Styling API**: Full color and style support with fluent API
+
+### List filtering (quick start)
+
+```crystal
+list = Term2::Components::List.new(["Alpha", "Bravo", "Charlie"], 30, 10)
+list.title = "Items"
+list.show_filter = true
+list.filtering_enabled = true
+
+# Enter filtering mode (defaults to `/` key) and type; matches are ranked and highlighted.
+list.set_filter_text("br")          # Programmatic apply/filter-applied state
+matches = list.matches_for_item(0)  # Indices of matched characters for highlighting
+```
 - **Cross-platform**: Works on Linux, macOS, and Windows
 
 ## Installation

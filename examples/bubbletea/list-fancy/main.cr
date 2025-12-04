@@ -34,14 +34,25 @@ class FancyDelegate
   getter key_map : DelegateKeys
   getter remove_enabled : Bool
   getter update_status : Proc(String, Term2::Cmd)
+  getter on_remove : Proc(Int32, TC::List::Item, Nil)
+  getter match_style : Term2::Style
 
-  def initialize(@key_map = DelegateKeys.new)
+  def initialize(@key_map = DelegateKeys.new, @match_style = Term2::Style.new.underline(true))
     @remove_enabled = true
     @update_status = ->(_s : String) : Term2::Cmd { -> { nil.as(Term2::Message?) } }
+    @on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
+  end
+
+  def match_style=(style : Term2::Style)
+    @match_style = style
   end
 
   def update_status=(proc : Proc(String, Term2::Cmd))
     @update_status = proc
+  end
+
+  def on_remove=(proc : Proc(Int32, TC::List::Item, Nil))
+    @on_remove = proc
   end
 
   def height : Int32
@@ -52,7 +63,7 @@ class FancyDelegate
     1
   end
 
-  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
+  def render_with_matches(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String, matches : Array(Int32))
     fi = item.as(FancyItem)
     title = fi.title
     desc = fi.description
@@ -61,8 +72,21 @@ class FancyDelegate
     cursor = selected ? "> " : "  "
     enum_str = enumerator.empty? ? "" : "#{enumerator} "
 
-    io << title_style.render("#{cursor}#{enum_str}#{title}") << "\n"
+    io << title_style.render("#{cursor}#{enum_str}#{highlight(title, matches)}") << "\n"
     io << Term2::Style.new.faint(true).render("    #{desc}")
+  end
+
+  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
+    render_with_matches(io, item, index, selected, enumerator, [] of Int32)
+  end
+
+  private def highlight(text : String, matches : Array(Int32)) : String
+    return text if matches.empty?
+    String.build do |s|
+      text.chars.each_with_index do |ch, i|
+        s << (matches.includes?(i) ? @match_style.render(ch.to_s) : ch)
+      end
+    end
   end
 
   def update(msg : Term2::Msg, model : TC::List) : Term2::Cmd
@@ -78,9 +102,9 @@ class FancyDelegate
         return Term2::Cmds.none unless @remove_enabled
         index = model.index
         if item = model.items[index]?
-          model.items.delete_at(index)
-          model.update_pagination
-          @remove_enabled = false if model.items.empty?
+          model.remove_visible_item(index)
+          @on_remove.call(index, item)
+          @remove_enabled = false if model.visible_items.empty?
           return status_cmd("Deleted #{item.as(FancyItem).title}")
         end
       end
@@ -133,11 +157,14 @@ class FancyListModel
     @list.show_status_bar = true
     @list.show_filter = true
     @list.filtering_enabled = true
+    @list.styles = @list.styles.tap { |s| s.default_filter_character_match = Term2::Style.new.underline(true) }
 
     delegate.update_status = ->(text : String) : Term2::Cmd {
       @list.status_message = status_message(text)
       -> { nil.as(Term2::Message?) }
     }
+    delegate.on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
+    delegate.match_style = Term2::Style.new.underline(true)
 
     # Additional help bindings
     @list.additional_full_help_keys = -> {
@@ -174,7 +201,8 @@ class FancyListModel
       else
         case
         when @keys.toggle_spinner.matches?(msg)
-          return {self, nil} # spinner not implemented; no-op
+          cmd = @list.toggle_spinner
+          return {self, cmd}
         when @keys.toggle_title_bar.matches?(msg)
           v = !@list.show_title?
           @list.show_title = v
@@ -193,8 +221,7 @@ class FancyListModel
         when @keys.insert_item.matches?(msg)
           @delegate_keys.remove.enabled = true
           new_item = @item_generator.next
-          @list.items.insert(0, new_item)
-          @list.update_pagination
+          @list.add_item_front(new_item)
           @list.status_message = status_message("Added #{new_item.title}")
           return {self, nil}
         end
@@ -202,6 +229,7 @@ class FancyListModel
     end
 
     @list, cmd = @list.update(msg)
+
     {self, cmd}
   end
 

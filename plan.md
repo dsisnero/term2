@@ -4,7 +4,7 @@
 
 **Overall Progress:** ~96%
 **Active Workstream:** None
-**Recent Completion:** BubbleTea Examples Port
+**Recent Completion:** List filtering parity & style ergonomics
 
 ## Active Workstreams
 
@@ -63,6 +63,16 @@
 - Ported Input Components (TextInput, TextArea)
 - Ported Complex Data Display (Paginator, List, Table, Help, FilePicker)
 **Plan File:** `plans/completed/bubbles-components.yml`
+
+### [G] List Filtering Parity & Ergonomics
+
+**Status:** ✅ Completed (Dec 2025)
+**Goal:** Match Bubble Tea list filtering UX and improve ergonomics.
+**Achievements:**
+
+- Added filter input support with visible item tracking and helper setters
+- Synced status/footer hints and filtered count messaging
+- Added delegate update hook, visible-item removal/insertion helpers, and custom delegate example
 
 ### [C] Crystal Idioms & API Ergonomics
 
