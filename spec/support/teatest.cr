@@ -9,7 +9,7 @@ module Term2
     end
 
     # Wait for the given condition to be true for the IO contents.
-    def self.wait_for(io : IO, *, duration : Time::Span = 1.second, check_interval : Time::Span = 50.milliseconds, &block : String -> Bool) : Nil
+    def self.wait_for(io : IO, *, duration : Time::Span = 1.second, check_interval : Time::Span = 50.milliseconds, & : String -> Bool) : Nil
       start = Time.monotonic
       last = ""
       while Time.monotonic - start <= duration
@@ -61,10 +61,11 @@ module Term2
         @input = IO::Memory.new
         @output = IO::Memory.new
         opts = TestModelOptions.new
-        options.each { |opt| opt.call(opts) }
+        options.each(&.call(opts))
 
         program_options = Term2::ProgramOptions.new(
           Term2::WithoutSignalHandler.new,
+          Term2::WithoutRenderer.new,
           Term2::WithANSICompressor.new,
         )
 
@@ -109,7 +110,7 @@ module Term2
       # Wait for the program to finish.
       def wait_finished(*opts : FinalOpt) : Nil
         options = FinalOpts.new
-        opts.each { |opt| opt.call(options) }
+        opts.each(&.call(options))
 
         if options.timeout > Time::Span.zero
           select
@@ -127,7 +128,7 @@ module Term2
       end
 
       private def default_final_opts : FinalOpt
-        ->(opts : FinalOpts) {}
+        ->(_opts : FinalOpts) { }
       end
 
       # Return final model (waits for completion).

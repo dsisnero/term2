@@ -619,6 +619,17 @@ module Term2
     private def start_input_reader
       return unless io = @input_io
       return if @input_running.get
+
+      # Handle in-memory input eagerly if present (used in tests to feed keys).
+      if io.is_a?(IO::Memory)
+        return if io.to_s.empty?
+        @input_running.set(true)
+        spawn(name: "term2-input") { read_input(io) }
+        return
+      end
+
+      # Only start reader for real TTY file descriptors.
+      return unless io.is_a?(IO::FileDescriptor) && io.tty?
       @input_running.set(true)
       spawn(name: "term2-input") { read_input(io) }
     end
@@ -691,6 +702,18 @@ module Term2
       @running.get
     end
 
+    private abstract class LoopEvent
+    end
+
+    private class InputEvent < LoopEvent
+      getter message : Msg
+
+      def initialize(@message : Msg); end
+    end
+
+    private class DoneEvent < LoopEvent
+    end
+
     private def listen_loop
       loop do
         drain_render_queue
@@ -703,18 +726,6 @@ module Term2
           break
         end
       end
-    end
-
-    private abstract class LoopEvent
-    end
-
-    private class InputEvent < LoopEvent
-      getter message : Msg
-
-      def initialize(@message : Msg); end
-    end
-
-    private class DoneEvent < LoopEvent
     end
 
     private def next_event : CML::Event(LoopEvent)

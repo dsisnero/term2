@@ -38,11 +38,13 @@ end
 
 class CtxImplodeMsg < Term2::Message
   getter cancel : -> Nil
+
   def initialize(@cancel : -> Nil)
   end
 end
 
 class IncrementMsg < Term2::Message; end
+
 class PanicMsg < Term2::Message; end
 
 describe "Bubbletea parity: tea_test.go" do

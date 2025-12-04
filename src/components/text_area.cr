@@ -430,11 +430,11 @@ module Term2
       end
 
       private def lowercase_word_forward(lines : Array(String))
-        mutate_word_forward(lines) { |c| c.downcase }
+        mutate_word_forward(lines, &.downcase)
       end
 
       private def uppercase_word_forward(lines : Array(String))
-        mutate_word_forward(lines) { |c| c.upcase }
+        mutate_word_forward(lines, &.upcase)
       end
 
       private def capitalize_word_forward(lines : Array(String))
@@ -449,7 +449,7 @@ module Term2
         end
       end
 
-      private def mutate_word_forward(lines : Array(String))
+      private def mutate_word_forward(lines : Array(String), &)
         line = lines[@cursor_line]
         return if @cursor_col >= line.size
         chars = line.chars

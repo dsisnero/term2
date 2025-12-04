@@ -36,6 +36,7 @@ end
 
 class ExecErrorMsg < Term2::Message
   getter err : Exception?
+
   def initialize(@err : Exception?)
   end
 end
@@ -70,7 +71,6 @@ end
 describe "Bubbletea parity: exec_test.go" do
   # Mirrors exec_test.go: ensure exec runs commands and captures failures.
   it "exec command runs and captures output" do
-
     tests = [{name: "invalid command", cmd: "invalid", expect_err: true}]
     {% unless flag?(:win32) %}
       tests << {name: "true", cmd: "true", expect_err: false}

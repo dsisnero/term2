@@ -25,7 +25,7 @@ private def strip_string(str : String) : String
   plain = plain.gsub(/\e/, "")
   plain
     .split("\n")
-    .map { |l| l.lstrip.rstrip }
+    .map(&.lstrip.rstrip)
     .reject(&.empty?)
     .join("\n")
 end

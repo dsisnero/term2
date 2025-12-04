@@ -27,12 +27,12 @@ module Term2
 
         def initialize
           @prev_page = Key::Binding.new(
-            [ "pgup", "left", "h" ],
+            ["pgup", "left", "h"],
             "pgup/left/h",
             "prev page"
           )
           @next_page = Key::Binding.new(
-            [ "pgdown", "right", "l" ],
+            ["pgdown", "right", "l"],
             "pgdown/right/l",
             "next page"
           )

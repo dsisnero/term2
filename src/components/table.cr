@@ -99,7 +99,7 @@ module Term2
       # Option-style constructor (parity with Bubbles)
       def self.build(*opts : Option) : Table
         table = Table.new
-        opts.each { |opt| opt.call(table) }
+        opts.each(&.call(table))
         table.update_viewport
         table
       end
@@ -329,12 +329,12 @@ module Term2
 
         header_calc_height = @columns.empty? ? 0 : 1
         effective_height = if @height > 0
-                              (@height - header_calc_height).clamp(0, Int32::MAX)
-                            elsif @viewport.height != 0 && @viewport.height != 20
-                              @viewport.height
-                            else
-                              20
-                            end
+                             (@height - header_calc_height).clamp(0, Int32::MAX)
+                           elsif @viewport.height != 0 && @viewport.height != 20
+                             @viewport.height
+                           else
+                             20
+                           end
         pad_width_source = lines.first? ? Term2::Text.width(lines.first) : 0
         header_width = header_lines.first? ? Term2::Text.width(header_lines.first) : 0
         pad_base_width = pad_width_source > 0 ? pad_width_source : header_width
@@ -492,10 +492,10 @@ module Term2
           render_bordered_row(row)
         else
           main_line = pad_to_viewport(row.map_with_index { |cell, col_idx|
-                                col = @columns[col_idx]?
-                                width = col ? col.width : 10
-                                render_cell(cell, width, get_cell_style(row_idx, col_idx, selected))
-                              }.join)
+            col = @columns[col_idx]?
+            width = col ? col.width : 10
+            render_cell(cell, width, get_cell_style(row_idx, col_idx, selected))
+          }.join)
           style = first_style
           lines = [] of String
           blank = pad_to_viewport(" " * Term2::Text.width(main_line))
@@ -514,7 +514,7 @@ module Term2
         end
 
         mid = String.build do |io|
-          @columns.each_with_index do |col, col_idx|
+          @columns.each_with_index do |col, _|
             content = truncate_with_ellipsis(col.title, col.width)
             pad_len = col.width - Term2::Text.width(content)
             io << "│" << content << (" " * pad_len) << "│"

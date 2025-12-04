@@ -27,7 +27,7 @@ module Term2
         # Option-style initializer (mirrors Bubbles Binding options)
         def self.new(*opts : BindingOpt)
           binding = Binding.new
-          opts.each { |opt| opt.call(binding) }
+          opts.each(&.call(binding))
           binding
         end
 

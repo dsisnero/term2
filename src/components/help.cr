@@ -73,10 +73,10 @@ module Term2
           bindings = group.compact_map { |binding| binding if binding.enabled? }
           next if bindings.empty?
 
-          keys = bindings.map { |b| b.help_key }
-          descs = bindings.map { |b| b.help_desc }
-          max_key_width = keys.map { |k| Term2::Text.width(k) }.max
-          max_desc_width = descs.map { |d| Term2::Text.width(d) }.max
+          keys = bindings.map(&.help_key)
+          descs = bindings.map(&.help_desc)
+          max_key_width = keys.max_of { |k| Term2::Text.width(k) }
+          max_desc_width = descs.max_of { |d| Term2::Text.width(d) }
 
           col_lines = keys.zip(descs).map do |k, d|
             padded_key = k.ljust(max_key_width)
@@ -108,7 +108,7 @@ module Term2
 
         return "" if selected.empty?
 
-        max_lines = selected.map { |c| c[:lines].size }.max
+        max_lines = selected.map(&.[:lines].size)
         output_lines = Array(String).new(max_lines, "")
 
         max_lines.times do |line_idx|

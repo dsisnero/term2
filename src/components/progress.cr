@@ -22,6 +22,7 @@ module Term2
         def initialize(@start : Float64, @target : Float64, @duration : Time::Span, @start_time : Time)
         end
       end
+
       # Styles
       property full_style : Style = Style.new.foreground(Color::GREEN)
       property empty_style : Style = Style.new.foreground(Color::BLACK)

@@ -21,14 +21,14 @@ module Term2
           @order.size
         end
 
-      def get(key : K) : {V?, Bool}
-        hashed = hash_key(key)
-        return {nil, false} unless @cache.has_key?(hashed)
+        def get(key : K) : {V?, Bool}
+          hashed = hash_key(key)
+          return {nil, false} unless @cache.has_key?(hashed)
 
-        value = @cache[hashed]?
-        touch(hashed)
-        {value, true}
-      end
+          value = @cache[hashed]?
+          touch(hashed)
+          {value, true}
+        end
 
         def set(key : K, value : V)
           hashed = hash_key(key)

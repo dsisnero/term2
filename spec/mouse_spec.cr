@@ -22,7 +22,7 @@ module Term2
 
     it "converts to string representation" do
       event = MouseEvent.new(10, 20, MouseEvent::Button::Left, MouseEvent::Action::Press)
-    event.to_s.should eq("left press")
+      event.to_s.should eq("left press")
     end
 
     it "includes modifiers in string representation" do

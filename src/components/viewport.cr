@@ -59,7 +59,7 @@ module Term2
       def content=(content : String)
         @content = content
         @lines = content.split("\n")
-        @longest_line_width = @lines.map { |l| Term2::Text.width(l) }.max? || 0
+        @longest_line_width = @lines.max_of? { |l| Term2::Text.width(l) } || 0
         if @y_offset > @lines.size - 1
           goto_bottom
         end

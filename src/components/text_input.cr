@@ -263,7 +263,7 @@ module Term2
         return reset_suggestions if @value.empty? || @suggestions.empty?
 
         prefix = @value.downcase
-        @matched_suggestions = @suggestions.select { |s| s.downcase.starts_with?(prefix) }
+        @matched_suggestions = @suggestions.select(&.downcase.starts_with?(prefix))
         @suggestion_index = @matched_suggestions.empty? ? -1 : 0
       end
 

@@ -77,22 +77,22 @@ module Term2
       mods << "shift" if @shift
 
       btn_str = case @button
-      when Button::None
-        if @action == Action::Move || @action == Action::Release
-          action_to_s(@action)
-        else
-          "unknown"
-        end
-      when Button::WheelUp    then "wheel up"
-      when Button::WheelDown  then "wheel down"
-      when Button::WheelLeft  then "wheel left"
-      when Button::WheelRight then "wheel right"
-      when Button::Left       then "left"
-      when Button::Right      then "right"
-      when Button::Middle     then "middle"
-      else
-        "unknown"
-      end
+                when Button::None
+                  if @action == Action::Move || @action == Action::Release
+                    action_to_s(@action)
+                  else
+                    "unknown"
+                  end
+                when Button::WheelUp    then "wheel up"
+                when Button::WheelDown  then "wheel down"
+                when Button::WheelLeft  then "wheel left"
+                when Button::WheelRight then "wheel right"
+                when Button::Left       then "left"
+                when Button::Right      then "right"
+                when Button::Middle     then "middle"
+                else
+                  "unknown"
+                end
 
       action_part = ""
       if @button != Button::None && !wheel_button?(@button)

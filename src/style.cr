@@ -2383,7 +2383,7 @@ module Term2
   private def self.join_horizontal_enum(pos : Position, blocks : Array(String)) : String
     # Normalize widths
     widths = blocks.map { |b| Text.width(b) }
-    max_height = blocks.map { |b| Text.height(b) }.max? || 0
+    max_height = blocks.max_of? { |b| Text.height(b) } || 0
 
     padded_blocks = blocks.each_with_index.map do |block, idx|
       lines = block.split("\n", -1)

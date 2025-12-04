@@ -8,7 +8,7 @@ describe Term2::Components::Spinner do
   end
 
   it "accepts custom spinner type" do
-    custom = Term2::Components::Spinner::Type.new(%w(a b c d), 160.milliseconds)
+    custom = Term2::Components::Spinner::Type.new(%w[a b c d], 160.milliseconds)
     spinner = Term2::Components::Spinner.new(custom)
     spinner.type.should eq custom
   end
