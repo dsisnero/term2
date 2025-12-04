@@ -143,7 +143,7 @@ class CellBufferModel
   end
 
   def init : Term2::Cmd
-    Term2::Cmds.batch(Term2::Cmds.window_size, animate)
+    animate
   end
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
