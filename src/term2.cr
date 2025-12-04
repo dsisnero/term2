@@ -1,5 +1,6 @@
 require "cml"
 require "cml/mailbox"
+require "set"
 require "./base_types"
 require "./exec"
 require "./zone"
@@ -10,6 +11,12 @@ require "./mouse"
 require "./style"
 require "./renderer"
 require "./components/*"
+
+{% if flag?(:unix) %}
+  lib LibC
+    fun kill(pid : Int32, sig : Int32) : Int32
+  end
+{% end %}
 
 # Term2 is a Crystal port of the Bubble Tea terminal UI library.
 #
@@ -301,6 +308,9 @@ module Term2
     getter! model
     getter output_io : IO
     getter input_io : IO?
+    getter startup_options : Set(Symbol)
+    getter input_type : Symbol
+    getter context : ProgramContext?
     @model : M
     @pending_shutdown : Bool
     @options : ProgramOptions
@@ -315,6 +325,7 @@ module Term2
     @filter : Proc(Msg?, Msg?)?
     @renderer : Renderer
     @killed : Atomic(Bool)
+    @external_context : ProgramContext?
 
     # Allow options to override the renderer
     def renderer=(renderer : Renderer)
@@ -323,6 +334,18 @@ module Term2
 
     def renderer : Renderer
       @renderer
+    end
+
+    def renderer_enabled? : Bool
+      @renderer_enabled
+    end
+
+    def signal_handling_enabled? : Bool
+      @signal_handling_enabled
+    end
+
+    def filter_present? : Bool
+      !!@filter
     end
 
     def input_tty? : Bool
@@ -341,6 +364,10 @@ module Term2
       @mouse_all_motion_enabled
     end
 
+    def context : ProgramContext?
+      @external_context
+    end
+
     # For testing/internal parity: process a message immediately (bypassing mailbox loop).
     def process_message(msg : Message) : Nil
       handle_message(msg)
@@ -351,11 +378,14 @@ module Term2
     def initialize(@model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
       @input_io = input
       @output_io = output
+      @startup_options = Set(Symbol).new
+      @input_type = input_type_for(input)
       @mailbox = CML::Mailbox(Msg).new
       @render_mailbox = CML::Mailbox(RenderOp).new
       @done = CML::IVar(Nil).new
       @dispatcher = Dispatcher.new(@mailbox)
       @running = Atomic(Bool).new(false)
+      @input_running = Atomic(Bool).new(false)
       @pending_shutdown = false
       @options = options
       @alt_screen_enabled = false
@@ -369,8 +399,7 @@ module Term2
       @filter = nil
       @renderer = StandardRenderer.new(@output_io)
       @killed = Atomic(Bool).new(false)
-
-      # Apply options
+      @external_context = nil
       @options.apply(self)
     end
 
@@ -380,7 +409,12 @@ module Term2
         case io
         when IO::FileDescriptor
           # Log.debug { "Entering raw mode on #{io}" }
-          io.raw do
+          begin
+            io.raw do
+              run_internal
+            end
+          rescue IO::Error
+            # If raw mode is not supported (e.g., non-TTY/pipe), fall back
             run_internal
           end
         else
@@ -389,6 +423,11 @@ module Term2
       else
         run_internal
       end
+      raise ProgramKilled.new("program killed") if @killed.get
+      @model
+    end
+
+    def model : M
       @model
     end
 
@@ -418,7 +457,8 @@ module Term2
         rescue ex
           # Ensure terminal is restored even on crash
           cleanup
-          raise ex
+          @killed.set(true)
+          raise ProgramPanic.new(ex.message)
         end
       else
         bootstrap
@@ -428,8 +468,13 @@ module Term2
       cleanup
     end
 
-    def dispatch(msg : Message) : Nil
+    def send(msg : Message) : Nil
       @dispatcher.dispatch(msg.as(Msg))
+    end
+
+    # Backwards-compatible alias.
+    def dispatch(msg : Message) : Nil
+      send(msg)
     end
 
     def stop : Nil
@@ -441,6 +486,7 @@ module Term2
     # Option methods
     def enable_alt_screen : Nil
       @alt_screen_enabled = true
+      @startup_options << :alt_screen
     end
 
     def disable_renderer : Nil
@@ -449,10 +495,12 @@ module Term2
 
     def disable_panic_recovery : Nil
       @panic_recovery_enabled = false
+      @startup_options << :without_catch_panics
     end
 
     def disable_signal_handling : Nil
       @signal_handling_enabled = false
+      @startup_options << :without_signal_handler
     end
 
     def output=(output : IO) : Nil
@@ -461,9 +509,11 @@ module Term2
 
     def input=(input : IO) : Nil
       @input_io = input
+      @input_type = input_type_for(input)
     end
 
     def force_input_tty : Nil
+      @input_type = :tty
       @input_io = File.open("/dev/tty")
     rescue
       # Ignore if /dev/tty is not available
@@ -485,20 +535,38 @@ module Term2
       @focus_reporting_enabled = true
     end
 
+    def context=(context : ProgramContext) : Nil
+      @external_context = context
+    end
+
     def disable_bracketed_paste : Nil
       @bracketed_paste_enabled = false
+      @startup_options << :without_bracketed_paste
     end
 
     def enable_mouse_cell_motion : Nil
       @mouse_cell_motion_enabled = true
       @mouse_all_motion_enabled = false
+      @startup_options.delete(:mouse_all_motion)
+      @startup_options << :mouse_cell_motion
       Mouse.enable_tracking(@output_io)
     end
 
     def enable_mouse_all_motion : Nil
       @mouse_all_motion_enabled = true
       @mouse_cell_motion_enabled = false
+      @startup_options.delete(:mouse_cell_motion)
+      @startup_options << :mouse_all_motion
       Mouse.enable_move_reporting(@output_io)
+    end
+
+    def enable_ansi_compressor : Nil
+      @startup_options << :ansi_compressor
+    end
+
+    private def input_type_for(io : IO?) : Symbol
+      return :none unless io
+      io.is_a?(IO::FileDescriptor) ? :tty : :custom
     end
 
     def disable_mouse_tracking : Nil
@@ -509,6 +577,10 @@ module Term2
 
     private def bootstrap
       @running.set(true)
+      # Provide an initial window size message (parity with Bubble Tea)
+      width, height = Terminal.size
+      dispatch(WindowSizeMsg.new(width, height))
+      start_context_watcher
       if @renderer_enabled
         @renderer.start
       end
@@ -546,13 +618,15 @@ module Term2
 
     private def start_input_reader
       return unless io = @input_io
+      return if @input_running.get
+      @input_running.set(true)
       spawn(name: "term2-input") { read_input(io) }
     end
 
     private def read_input(io : IO)
       key_reader = KeyReader.new
 
-      while running?
+      while running? && @input_running.get
         begin
           # Read a key (KeyReader handles mouse events internally via check_mouse_event)
           result = key_reader.read_key(io)
@@ -600,6 +674,16 @@ module Term2
         rescue IO::EOFError
           break
         end
+      end
+      @input_running.set(false)
+    end
+
+    private def start_context_watcher
+      return unless ctx = @external_context
+      spawn(name: "term2-context-watch") do
+        ctx.wait
+        @killed.set(true)
+        dispatch(InterruptMsg.new)
       end
     end
 
@@ -675,6 +759,15 @@ module Term2
         Terminal.exit_alt_screen(@output_io)
         @alt_screen_enabled = false
         return
+      when SuspendMsg
+        unless ENV["TERM2_DISABLE_SUSPEND"]?
+          suspend_program
+          # Process will receive SIGCONT and dispatch ResumeMsg via signal handler
+        end
+        return
+      when ResumeMsg
+        reapply_terminal_state
+        # fall through to model.update so application can react
       when ShowCursorMsg
         Terminal.show_cursor(@output_io)
         return
@@ -722,6 +815,11 @@ module Term2
         Terminal.disable_focus_reporting(@output_io)
         @focus_reporting_enabled = false
         return
+      when InterruptMsg
+        @pending_shutdown = true
+        @killed.set(true)
+        stop
+        return
       when ExecMsg
         handle_exec(filtered_msg)
         return
@@ -740,6 +838,8 @@ module Term2
         if @panic_recovery_enabled
           STDERR.puts "Error in update: #{ex.message}"
           STDERR.puts ex.backtrace.join("\n") if ENV["TERM2_DEBUG"]?
+          @killed.set(true)
+          raise ex
         else
           raise ex
         end
@@ -839,6 +939,53 @@ module Term2
       @done.fill(nil) rescue nil
     end
 
+    private def suspend_program
+      @input_running.set(false)
+      # Cancel input reader so it can be reinitialized after suspend.
+      @signal_handling_enabled = false
+      if io = @input_io.as?(IO::FileDescriptor)
+        begin
+          io.cooked!
+        rescue
+        end
+      end
+      Terminal.show_cursor(@output_io)
+      Terminal.exit_alt_screen(@output_io) if @alt_screen_enabled
+      Terminal.disable_focus_reporting(@output_io) if @focus_reporting_enabled
+      Terminal.disable_bracketed_paste(@output_io) if @bracketed_paste_enabled
+      disable_mouse_tracking
+      @output_io.flush
+      # Send SIGTSTP to process group so the shell can resume with SIGCONT
+      begin
+        {% if flag?(:unix) %}
+          ::LibC.kill(0, Signal::TSTP.value)
+        {% end %}
+      rescue
+        # Ignore if platform doesn't support it
+      end
+    end
+
+    private def reapply_terminal_state
+      @signal_handling_enabled = true
+      if io = @input_io.as?(IO::FileDescriptor)
+        begin
+          io.raw!
+        rescue
+        end
+      end
+      Terminal.enter_alt_screen(@output_io) if @alt_screen_enabled
+      Terminal.hide_cursor(@output_io)
+      Terminal.enable_focus_reporting(@output_io) if @focus_reporting_enabled
+      Terminal.enable_bracketed_paste(@output_io) if @bracketed_paste_enabled
+      if @mouse_cell_motion_enabled
+        enable_mouse_cell_motion
+      elsif @mouse_all_motion_enabled
+        enable_mouse_all_motion
+      end
+      setup_signal_handlers
+      start_input_reader
+    end
+
     private def restore_terminal
       Terminal.show_cursor(@output_io)
 
@@ -878,6 +1025,11 @@ module Term2
         width, height = Terminal.size
         dispatch(WindowSizeMsg.new(width, height))
       end
+
+      # Handle resume after SIGCONT
+      Signal::CONT.trap do
+        dispatch(ResumeMsg.new)
+      end
     end
 
     private def restore_signal_handlers
@@ -887,6 +1039,7 @@ module Term2
       Signal::INT.reset
       Signal::TERM.reset
       Signal::WINCH.reset
+      Signal::CONT.reset
     end
   end
 
@@ -909,6 +1062,7 @@ module Term2
     alias Model = Term2::Model
     alias TC = Term2::Components
     alias Message = Term2::Message
+    alias Msg = Term2::Message
     alias Terminal = Term2::Terminal
     alias Program = Term2::Program
     alias KeyPress = Term2::KeyPress

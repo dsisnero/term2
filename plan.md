@@ -2,15 +2,26 @@
 
 ## Current Status
 
-**Overall Progress:** ~92%
+**Overall Progress:** ~96%
 **Active Workstream:** None
-**Recent Completion:** BubbleZone Integration
+**Recent Completion:** BubbleTea Examples Port
 
 ## Active Workstreams
 
 ### None
 
 ## Completed Workstreams
+
+### [F] BubbleTea Examples Port
+
+**Status:** ✅ Completed (Dec 2025)
+**Goal:** Port Bubble Tea's example suite to Term2 under `examples/bubbletea/`.
+**Achievements:**
+
+- Ported 48 Bubble Tea examples with feature parity for keys, mouse, and rendering
+- Added specs in `spec/examples/` to cover each example, including tabs navigation
+- Verified examples build via `make build-examples`
+- Plan File: `plans/active/bubbletea-examples.yml`
 
 ### [E] BubbleZone Integration
 

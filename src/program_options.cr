@@ -85,10 +85,49 @@ module Term2
     end
   end
 
+  # Simple cancelable context used to mirror Bubble Tea's WithContext option.
+  #
+  # A canceled context will request the program to stop.
+  class ProgramContext
+    def initialize
+      @cancelled = Atomic(Bool).new(false)
+      @done = Channel(Nil).new(1)
+    end
+
+    def cancel : Nil
+      return if @cancelled.swap(true)
+      @done.send(nil) rescue nil
+    end
+
+    def cancelled? : Bool
+      @cancelled.get
+    end
+
+    def wait : Nil
+      @done.receive?
+    end
+  end
+
+  # Provide an external cancelable context to the program.
+  struct WithContext < ProgramOption
+    def initialize(@context : ProgramContext); end
+
+    def apply(program : Program) : Nil
+      program.context = @context
+    end
+  end
+
   # Forces TTY input mode even when stdin is not a TTY.
   struct WithInputTTY < ProgramOption
     def apply(program : Program) : Nil
       program.force_input_tty
+    end
+  end
+
+  # Enables ANSI compression (parity flag; currently a no-op).
+  struct WithANSICompressor < ProgramOption
+    def apply(program : Program) : Nil
+      program.enable_ansi_compressor
     end
   end
 
@@ -120,18 +159,31 @@ module Term2
   # The filter receives each message before it reaches update()
   # and can transform or replace it.
   struct WithFilter < ProgramOption
-    @filter : Proc(Message?, Message?)
+    @filter : Proc(Message?, Message?)?
+    @model_filter : Proc(Term2::Model, Message?, Message?)?
 
     def initialize(filter : Proc(Message?, Message?))
       @filter = filter
+      @model_filter = nil
     end
 
     def initialize(filter : Proc(Message, Message))
       @filter = ->(msg : Message?) { msg ? filter.call(msg) : nil }
+      @model_filter = nil
+    end
+
+    def initialize(filter : Proc(Term2::Model, Message?, Message?))
+      @filter = nil
+      @model_filter = filter
     end
 
     def apply(program : Program) : Nil
-      program.filter = @filter
+      if msg_filter = @filter
+        program.filter = msg_filter
+      elsif model_filter = @model_filter
+        model = program.model.as(Term2::Model)
+        program.filter = ->(msg : Message?) { model_filter.call(model, msg) }
+      end
     end
   end
 
