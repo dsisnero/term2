@@ -1,7 +1,34 @@
 require "./base_types"
 
 # Zone provides focus and mouse click management for Term2.
-# Mirrors BubbleZone semantics using CML-style asynchronous worker messaging.
+#
+# Inspired by BubbleZone, this module allows components to register
+# interactive zones and receive focus/click events automatically.
+#
+# Usage:
+#   1. Components define a `zone_id` to participate in zone tracking
+#   2. Wrap output in `Zone.mark` to register clickable areas
+#   3. Use `Zone.focused?` to check focus state
+#   4. Mouse clicks automatically dispatch to the right zone
+#
+# ```
+# class Button
+#   include Term2::Model
+#
+#   getter label : String
+#   getter id : String
+#
+#   def zone_id : String
+#     @id
+#   end
+#
+#   def view : String
+#     style = focused? ? Style.reverse : Style.new
+#     Zone.mark(@id, style.apply("[#{@label}]"))
+#   end
+# end
+# ```
+
 module Term2
   # Zone info for tracking interactive regions
   struct ZoneInfo
@@ -11,32 +38,48 @@ module Term2
     getter end_x : Int32
     getter end_y : Int32
     getter z_index : Int32
-    getter iteration : Int32
 
-    def initialize(@id : String = "", @start_x : Int32 = 0, @start_y : Int32 = 0, @end_x : Int32 = 0, @end_y : Int32 = 0, @z_index : Int32 = 0, @iteration : Int32 = 0)
+    def initialize(@id, @start_x, @start_y, @end_x, @end_y, @z_index = 0)
     end
 
-    def is_zero? : Bool
+    # Returns true if the zone isn't known yet (is zero)
+    def zero? : Bool
       @id.empty?
     end
 
     def in_bounds?(x : Int32, y : Int32) : Bool
-      return false if is_zero?
-      return false if @start_x > @end_x || @start_y > @end_y
+      # For zero-sized zones (width or height <= 0), nothing is in bounds
+      return false if zero?
+      return false if width <= 0 || height <= 0
       x >= @start_x && x <= @end_x && y >= @start_y && y <= @end_y
     end
 
+    def in_bounds?(event : MouseEvent) : Bool
+      in_bounds?(event.x, event.y)
+    end
+
+    # Returns the coordinates relative to the zone, with a basis of (0, 0)
+    # being the top left cell of the zone. If the zone is not known,
+    # or the coordinates are not in the bounds of the zone, returns (-1, -1).
     def pos(x : Int32, y : Int32) : Tuple(Int32, Int32)
-      return {-1, -1} if is_zero? || !in_bounds?(x, y)
+      if zero? || !in_bounds?(x, y)
+        return {-1, -1}
+      end
       {x - @start_x, y - @start_y}
     end
 
+    def pos(event : MouseEvent) : Tuple(Int32, Int32)
+      pos(event.x, event.y)
+    end
+
     def width : Int32
-      @end_x - @start_x + 1
+      val = @end_x - @start_x + 1
+      val < 0 ? 0 : val
     end
 
     def height : Int32
-      @end_y - @start_y + 1
+      val = @end_y - @start_y + 1
+      val < 0 ? 0 : val
     end
   end
 
@@ -80,274 +123,231 @@ module Term2
     action : ZoneMouseAction
 
   module Zone
+    # ANSI escape sequence for zone markers
+    # Format: \x1B[<number>z
     IDENT_START   = '\u001B'
     IDENT_BRACKET = '['
     IDENT_END     = 'z'
 
-    @@enabled = Atomic(Bool).new(true)
-    @@closed = Atomic(Bool).new(false)
-    @@worker_running = Atomic(Bool).new(false)
-    @@worker_mailbox : CML::Mailbox(WorkerMsg)? = nil
-    @@worker_mutex = Mutex.new
-    @@prefix_counter = Atomic(Int64).new(0_i64)
-
-    private enum WorkerSignal
-      Stop
-    end
-
-    private struct ClearIteration
-      getter iteration : Int32
-
-      def initialize(@iteration : Int32); end
-    end
-
-    private struct ClearId
-      getter id : String
-
-      def initialize(@id : String); end
-    end
-
-    private struct ClearAll
-    end
-
-    private struct MarkerRequest
-      getter id : String
-      getter reply : CML::Chan(String)
-
-      def initialize(@id : String, @reply : CML::Chan(String)); end
-    end
-
-    private struct GetRequest
-      getter id : String
-      getter reply : CML::Chan(ZoneInfo)
-
-      def initialize(@id : String, @reply : CML::Chan(ZoneInfo)); end
-    end
-
-    private struct GetAllRequest
-      getter reply : CML::Chan(Hash(String, ZoneInfo))
-
-      def initialize(@reply : CML::Chan(Hash(String, ZoneInfo))); end
-    end
-
-    private struct FocusRequest
-      getter id : String
-
-      def initialize(@id : String); end
-    end
-
-    private struct BlurRequest
-      getter id : String
-
-      def initialize(@id : String); end
-    end
-
-    private struct FocusNextRequest
-      getter reply : CML::Chan(String?)
-
-      def initialize(@reply : CML::Chan(String?)); end
-    end
-
-    private struct FocusPrevRequest
-      getter reply : CML::Chan(String?)
-
-      def initialize(@reply : CML::Chan(String?)); end
-    end
-
-    private struct FindAtRequest
-      getter x : Int32
-      getter y : Int32
-      getter reply : CML::Chan(ZoneInfo?)
-
-      def initialize(@x : Int32, @y : Int32, @reply : CML::Chan(ZoneInfo?)); end
-    end
-
-    private struct FindAllAtRequest
-      getter x : Int32
-      getter y : Int32
-      getter reply : CML::Chan(Array(ZoneInfo))
-
-      def initialize(@x : Int32, @y : Int32, @reply : CML::Chan(Array(ZoneInfo))); end
-    end
-
-    private struct AnyInBoundsRequest
-      getter mouse : MouseEvent
-      getter reply : CML::Chan(Array(ZoneInfo))
-
-      def initialize(@mouse : MouseEvent, @reply : CML::Chan(Array(ZoneInfo))); end
-    end
-
-    private struct FocusedIdRequest
-      getter reply : CML::Chan(String?)
-
-      def initialize(@reply : CML::Chan(String?)); end
-    end
-
-    private struct MarkerCounterRequest
-      getter reply : CML::Chan(UInt64)
-
-      def initialize(@reply : CML::Chan(UInt64)); end
-    end
-
-    private struct RidsRequest
-      getter reply : CML::Chan(Hash(String, String))
-
-      def initialize(@reply : CML::Chan(Hash(String, String))); end
-    end
-
-    private struct ResetRequest
-    end
-
-    private alias WorkerMsg = ZoneInfo | ClearIteration | ClearId | ClearAll | WorkerSignal | MarkerRequest | GetRequest | GetAllRequest | FocusRequest | BlurRequest | FocusNextRequest | FocusPrevRequest | FocusedIdRequest | FindAtRequest | FindAllAtRequest | AnyInBoundsRequest | MarkerCounterRequest | RidsRequest | ResetRequest
+    @@zones = Hash(String, ZoneInfo).new
+    @@ids = Hash(String, String).new  # id -> generated marker
+    @@rids = Hash(String, String).new # generated marker -> id
+    @@marker_counter = 1000_u64
+    @@prefix_counter = 0_u64
+    @@enabled = true
+    @@closed = false
+    @@focused_id : String? = nil
+    @@current_x = 0
+    @@current_y = 0
 
     # Enable/disable zone tracking
     def self.enabled? : Bool
-      @@enabled.get
+      @@enabled
     end
 
     def self.enabled=(value : Bool)
-      ensure_worker
-      @@enabled.set(value)
-      if !value && !@@closed.get
-        iteration = Time.local.nanosecond
-        send_zone_update(ClearIteration.new(iteration))
-      end
+      @@enabled = value
+      @@zones.clear unless value
     end
 
-    def self.clear
-      return if @@closed.get
-      ensure_worker
-      send_zone_update(ClearAll.new)
-    end
-
-    def self.clear(id : String)
-      return if @@closed.get
-      ensure_worker
-      send_zone_update(ClearId.new(id))
-    end
-
-    def self.clear_all
-      clear
-    end
-
+    # Reset all internal state (used by specs)
     def self.reset
-      @@closed.set(false)
-      @@enabled.set(true)
-      ensure_worker
-      send_zone_update(ResetRequest.new)
+      @@zones.clear
+      @@ids.clear
+      @@rids.clear
+      @@marker_counter = 1000_u64
+      @@prefix_counter = 0_u64
+      @@enabled = true
+      @@closed = false
+      @@focused_id = nil
+      @@current_x = 0
+      @@current_y = 0
     end
 
+    # Close the manager and stop tracking zones
     def self.close
-      return if @@closed.get
-      @@closed.set(true)
-      @@enabled.set(false)
-      if mailbox = @@worker_mailbox
-        mailbox.send(WorkerSignal::Stop)
-      end
-      @@worker_running.set(false)
+      @@closed = true
+      @@zones.clear
+      @@focused_id = nil
     end
 
+    # Clear all registered zones
+    def self.clear
+      @@zones.clear
+      @@focused_id = nil
+    end
+
+    # Get zone by ID
     def self.get(id : String) : ZoneInfo
-      return ZoneInfo.new if @@closed.get
-      ensure_worker
-      reply = CML::Chan(ZoneInfo).new
-      send_zone_update(GetRequest.new(id, reply))
-      CML.sync(reply.recv_evt)
+      @@zones[id]? || zero_zone
     end
 
+    # Get all registered zones
     def self.zones : Hash(String, ZoneInfo)
-      return Hash(String, ZoneInfo).new if @@closed.get
-      ensure_worker
-      reply = CML::Chan(Hash(String, ZoneInfo)).new
-      send_zone_update(GetAllRequest.new(reply))
-      CML.sync(reply.recv_evt)
+      @@zones
     end
 
+    # Check if a zone is focused
     def self.focused?(id : String) : Bool
-      focused_id == id
+      @@focused_id == id
     end
 
+    # Get focused zone ID
     def self.focused_id : String?
-      return if @@closed.get
-      ensure_worker
-      reply = CML::Chan(String?).new
-      send_zone_update(FocusedIdRequest.new(reply))
-      CML.sync(reply.recv_evt)
+      @@focused_id
     end
 
+    # Set focused zone ID
     def self.focused_id=(id : String?)
-      return if @@closed.get
-      ensure_worker
-      id ? focus(id) : blur("")
+      @@focused_id = id
     end
 
+    # Focus a zone
     def self.focus(id : String)
-      return if @@closed.get
-      ensure_worker
-      send_zone_update(FocusRequest.new(id))
+      @@focused_id = id
     end
 
+    # Blur a zone
     def self.blur(id : String)
-      return if @@closed.get
-      ensure_worker
-      send_zone_update(BlurRequest.new(id))
+      @@focused_id = nil if @@focused_id == id
     end
 
+    # Register a zone manually (for testing)
     def self.register(id : String, x : Int32, y : Int32, width : Int32, height : Int32, z_index : Int32 = 0)
       end_x = x + width - 1
       end_y = y + height - 1
-      register(id, x, y, end_x, end_y, z_index)
+      @@zones[id] = ZoneInfo.new(id, x, y, end_x, end_y, z_index)
     end
 
-    def self.register(id : String, start_x : Int32, start_y : Int32, end_x : Int32, end_y : Int32, z_index : Int32 = 0)
-      return if @@closed.get
-      ensure_worker
-      iteration = Time.local.nanosecond
-      send_zone_update(ZoneInfo.new(id, start_x, start_y, end_x, end_y, z_index, iteration))
-    end
-
+    # Mark content with zone markers
     def self.mark(id : String, content : String) : String
-      return content unless enabled?
-      return content if id.empty? || content.empty? || @@closed.get
-      ensure_worker
-      reply = CML::Chan(String).new
-      send_zone_update(MarkerRequest.new(id, reply))
-      marker = CML.sync(reply.recv_evt)
+      return content unless @@enabled
+      return content if id.empty? || content.empty?
+
+      # Check if we already have a marker for this ID
+      if marker = @@ids[id]?
+        return marker + content + marker
+      end
+
+      # Generate a new marker
+      marker = "#{IDENT_START}#{IDENT_BRACKET}#{@@marker_counter}#{IDENT_END}"
+      @@marker_counter += 1
+
+      # Store the mapping
+      @@ids[id] = marker
+      @@rids[marker] = id
+
       marker + content + marker
     end
 
+    # Scan output and extract zones
+    # ameba:disable Metrics/CyclomaticComplexity
     def self.scan(output : String) : String
-      return output if @@closed.get
-      ensure_worker
+      open_zones = Hash(String, Tuple(Int32, Int32)).new                # marker -> (start_x, start_y)
+      completed_zones = [] of Tuple(String, Int32, Int32, Int32, Int32) # marker, coords
+      result = String.build do |str|
+        x = 0
+        y = 0
+        i = 0
 
-      rids = request_rids
-      iteration = Time.local.nanosecond
-      enabled = enabled?
-      scanner = Scanner.new(output, iteration, enabled, rids)
-      stripped, zones = scanner.run
+        while i < output.size
+          # Check for marker start
+          if output[i] == IDENT_START && i + 1 < output.size && output[i + 1] == IDENT_BRACKET
+            # Parse marker
+            j = i + 2
+            while j < output.size && output[j].ascii_number?
+              j += 1
+            end
 
-      zones.each { |zone| send_zone_update(zone) } if enabled
-      send_zone_update(ClearIteration.new(iteration))
+            if j < output.size && output[j] == IDENT_END
+              marker = output[i..j]
 
-      stripped
+              if open_zones.has_key?(marker)
+                # End of zone
+                start_x, start_y = open_zones[marker]
+                completed_zones << {marker, start_x, start_y, x - 1, y}
+                open_zones.delete(marker)
+              else
+                # Start of zone
+                open_zones[marker] = {x, y}
+              end
+
+              # Skip marker (don't add to output)
+              i = j + 1
+              next
+            end
+          end
+
+          # Handle regular characters
+          case output[i]
+          when '\n'
+            x = 0
+            y += 1
+          when '\r'
+            x = 0
+          when '\e'
+            # Skip ANSI escape sequences
+            k = i + 1
+            if k < output.size && output[k] == '['
+              k += 1
+              while k < output.size
+                c = output[k]
+                k += 1
+                break if c.ascii_letter?
+              end
+              # Keep ANSI sequences in the result but don't advance x/y
+              str << output[i...(k)]
+              i = k
+              next
+            end
+          else
+            x += 1
+          end
+
+          str << output[i]
+          i += 1
+        end
+      end
+
+      # Register zones
+      @@zones.clear
+
+      return result if @@closed
+      completed_zones.each do |(marker, start_x, start_y, end_x, end_y)|
+        if id = @@rids[marker]?
+          @@zones[id] = ZoneInfo.new(id, start_x, start_y, end_x, end_y, 0)
+        end
+      end
+
+      result
     end
 
+    # Find zone at coordinates
     def self.find_at(x : Int32, y : Int32) : ZoneInfo?
-      return if @@closed.get
-      ensure_worker
-      reply = CML::Chan(ZoneInfo?).new
-      send_zone_update(FindAtRequest.new(x, y, reply))
-      CML.sync(reply.recv_evt)
+      # Find all zones at coordinates
+      zones_at_point = @@zones.values.select do |zone|
+        zone.in_bounds?(x, y)
+      end
+
+      # Return nil if no zones found
+      return if zones_at_point.empty?
+
+      # Return smallest zone by area, then highest z-index
+      zones_at_point.min_by do |zone|
+        area = zone.width * zone.height
+        {-zone.z_index, area} # Negative z-index for descending order
+      end
     end
 
+    # Handle mouse event
     def self.handle_mouse(event : MouseEvent) : ZoneClickMsg?
-      return unless enabled?
-      return if @@closed.get
+      return unless @@enabled
 
       if zone = find_at(event.x, event.y)
         rel_x = event.x - zone.start_x
         rel_y = event.y - zone.start_y
 
+        # Convert MouseEvent button/action to ZoneMouseButton/ZoneMouseAction
         button = case event.button
                  when MouseEvent::Button::Left   then ZoneMouseButton::Left
                  when MouseEvent::Button::Right  then ZoneMouseButton::Right
@@ -366,301 +366,122 @@ module Term2
       end
     end
 
+    # Tab to next zone
     def self.focus_next : String?
-      return if @@closed.get
-      ensure_worker
-      reply = CML::Chan(String?).new
-      send_zone_update(FocusNextRequest.new(reply))
-      CML.sync(reply.recv_evt)
+      ids = @@zones.keys.sort!
+      return if ids.empty?
+
+      current_idx = @@focused_id.try { |id| ids.index(id) }
+      next_idx = current_idx ? (current_idx + 1) % ids.size : 0
+
+      @@focused_id = ids[next_idx]
+      @@focused_id
     end
 
+    # Tab to previous zone
     def self.focus_prev : String?
-      return if @@closed.get
-      ensure_worker
-      reply = CML::Chan(String?).new
-      send_zone_update(FocusPrevRequest.new(reply))
-      CML.sync(reply.recv_evt)
+      ids = @@zones.keys.sort!
+      return if ids.empty?
+
+      current_idx = @@focused_id.try { |id| ids.index(id) }
+      prev_idx = current_idx ? (current_idx - 1 + ids.size) % ids.size : ids.size - 1
+
+      @@focused_id = ids[prev_idx]
+      @@focused_id
     end
 
+    # Clear a specific zone
+    def self.clear(id : String)
+      @@zones.delete(id)
+      @@focused_id = nil if @@focused_id == id
+    end
+
+    # Clear all zones (alias for clear method)
+    def self.clear_all
+      clear
+    end
+
+    # Register a zone directly (for testing)
+    def self.register(id : String, start_x : Int32, start_y : Int32, end_x : Int32, end_y : Int32, z_index : Int32 = 0)
+      @@zones[id] = ZoneInfo.new(id, start_x, start_y, end_x, end_y, z_index)
+    end
+
+    # Generate a new unique prefix for markers
     def self.new_prefix : String
-      "zone_#{@@prefix_counter.add(1)}__"
+      @@prefix_counter += 1
+      "zone_#{@@prefix_counter}__"
     end
 
+    # Get the current marker counter (for testing)
     def self.marker_counter : UInt64
-      return 0_u64 if @@closed.get
-      ensure_worker
-      reply = CML::Chan(UInt64).new
-      send_zone_update(MarkerCounterRequest.new(reply))
-      CML.sync(reply.recv_evt)
+      @@marker_counter
     end
 
+    # Check if any zone is in bounds for the given coordinates
     def self.any_in_bounds?(x : Int32, y : Int32) : Bool
-      !find_all_at(x, y).empty?
-    end
-
-    def self.find_all_at(x : Int32, y : Int32) : Array(ZoneInfo)
-      return [] of ZoneInfo if @@closed.get
-      ensure_worker
-      reply = CML::Chan(Array(ZoneInfo)).new
-      send_zone_update(FindAllAtRequest.new(x, y, reply))
-      CML.sync(reply.recv_evt)
-    end
-
-    def self.find_smallest_at(x : Int32, y : Int32) : ZoneInfo?
-      zones = find_all_at(x, y)
-      return if zones.empty?
-      zones.min_by do |zone|
-        area = zone.width * zone.height
-        {-zone.z_index, area}
+      @@zones.values.any? do |zone|
+        zone.in_bounds?(x, y)
       end
     end
 
+    # Find all zones at the given coordinates
+    def self.find_all_at(x : Int32, y : Int32) : Array(ZoneInfo)
+      @@zones.values.select do |zone|
+        zone.in_bounds?(x, y)
+      end
+    end
+
+    # Get the smallest zone at the given coordinates (by area, then z-index)
+    def self.find_smallest_at(x : Int32, y : Int32) : ZoneInfo?
+      zones = find_all_at(x, y)
+      return if zones.empty?
+
+      zones.min_by do |zone|
+        area = zone.width * zone.height
+        {-zone.z_index, area} # Negative z-index for descending order
+      end
+    end
+
+    # Send ZoneInBoundsMsg for each zone under the mouse to the provided model
     def self.any_in_bounds(model : Model, mouse : MouseEvent)
-      zones = find_in_bounds(mouse)
-      zones.each do |zone|
+      return if @@closed
+
+      find_in_bounds(mouse).each do |zone|
         model.update(ZoneInBoundsMsg.new(zone, mouse))
       end
     end
 
+    # Same as any_in_bounds, but returns updated model and batched command result
     def self.any_in_bounds_and_update(model : Model, mouse : MouseEvent) : {Model, Cmd}
-      zones = find_in_bounds(mouse)
+      return {model, nil} if @@closed
+
       cmds = [] of Cmd
-      zones.each do |zone|
+      find_in_bounds(mouse).each do |zone|
         model, cmd = model.update(ZoneInBoundsMsg.new(zone, mouse))
         cmds << cmd if cmd
       end
-      normalized = cmds.compact_map { |c| c.as(-> Msg?) }
-      cmd = case normalized.size
-            when 0 then nil
-            when 1 then normalized.first
-            else
-              -> : Msg? { Term2::BatchMsg.new(normalized).as(Msg) }
-            end
-      {model, cmd}
+
+      compacted = cmds.compact
+      batched = case compacted.size
+                when 0 then nil
+                when 1 then compacted.first
+                else        Proc(Msg?).new { BatchMsg.new(compacted).as(Msg) }
+                end
+
+      {model, batched}
     end
 
     private def self.find_in_bounds(mouse : MouseEvent) : Array(ZoneInfo)
-      return [] of ZoneInfo if @@closed.get
-      ensure_worker
-      reply = CML::Chan(Array(ZoneInfo)).new
-      send_zone_update(AnyInBoundsRequest.new(mouse, reply))
-      CML.sync(reply.recv_evt)
-    end
-
-    private def self.ensure_worker
-      return if @@closed.get
-      return if @@worker_running.get
-      @@worker_mutex.synchronize do
-        return if @@closed.get
-        return if @@worker_running.get
-        mailbox = CML::Mailbox(WorkerMsg).new
-        @@worker_mailbox = mailbox
-        @@worker_running.set(true)
-        spawn do
-          worker_loop(mailbox)
+      ids = @@zones.keys.sort!
+      ids.compact_map do |id|
+        if zone = @@zones[id]?
+          zone if zone.in_bounds?(mouse.x, mouse.y)
         end
       end
     end
 
-    private def self.send_zone_update(msg : WorkerMsg)
-      return if @@closed.get
-      if mailbox = @@worker_mailbox
-        mailbox.send(msg)
-      end
-    end
-
-    private def self.request_rids : Hash(String, String)
-      reply = CML::Chan(Hash(String, String)).new
-      send_zone_update(RidsRequest.new(reply))
-      CML.sync(reply.recv_evt)
-    end
-
-    private def self.worker_loop(mailbox : CML::Mailbox(WorkerMsg))
-      zones = Hash(String, ZoneInfo).new
-      ids = Hash(String, String).new
-      rids = Hash(String, String).new
-      focused_id : String? = nil
-      marker_counter = 1000_u64
-
-      loop do
-        msg = CML.sync(mailbox.recv_evt)
-        case msg
-        when WorkerSignal
-          break
-        when ZoneInfo
-          zones[msg.id] = msg
-        when ClearIteration
-          zones.reject! { |_, info| info.iteration != msg.iteration }
-        when ClearId
-          zones.delete(msg.id)
-        when ClearAll
-          zones.clear
-        when ResetRequest
-          zones.clear
-          ids.clear
-          rids.clear
-          focused_id = nil
-          marker_counter = 1000_u64
-        when MarkerRequest
-          marker = ids[msg.id]? || begin
-            marker_counter += 1
-            generated = "#{IDENT_START}#{IDENT_BRACKET}#{marker_counter}#{IDENT_END}"
-            ids[msg.id] = generated
-            rids[generated] = msg.id
-            generated
-          end
-          CML.sync(msg.reply.send_evt(marker))
-        when RidsRequest
-          CML.sync(msg.reply.send_evt(rids.dup))
-        when GetRequest
-          CML.sync(msg.reply.send_evt(zones[msg.id]? || ZoneInfo.new))
-        when GetAllRequest
-          CML.sync(msg.reply.send_evt(zones.dup))
-        when FocusRequest
-          focused_id = msg.id if zones.has_key?(msg.id)
-        when BlurRequest
-          if msg.id.empty?
-            focused_id = nil
-          else
-            focused_id = nil if focused_id == msg.id
-          end
-        when FocusNextRequest
-          ids_sorted = zones.keys.sort!
-          next_id = if ids_sorted.empty?
-                      nil
-                    else
-                      idx = focused_id ? ids_sorted.index(focused_id) : nil
-                      ids_sorted[idx ? (idx + 1) % ids_sorted.size : 0]
-                    end
-          focused_id = next_id if next_id
-          CML.sync(msg.reply.send_evt(focused_id))
-        when FocusPrevRequest
-          ids_sorted = zones.keys.sort!
-          prev_id = if ids_sorted.empty?
-                      nil
-                    else
-                      idx = focused_id ? ids_sorted.index(focused_id) : nil
-                      ids_sorted[idx ? (idx - 1 + ids_sorted.size) % ids_sorted.size : ids_sorted.size - 1]
-                    end
-          focused_id = prev_id if prev_id
-          CML.sync(msg.reply.send_evt(focused_id))
-        when FocusedIdRequest
-          CML.sync(msg.reply.send_evt(focused_id))
-        when FindAtRequest
-          CML.sync(msg.reply.send_evt(find_smallest_at(zones, msg.x, msg.y)))
-        when FindAllAtRequest
-          CML.sync(msg.reply.send_evt(find_all_at(zones, msg.x, msg.y)))
-        when AnyInBoundsRequest
-          CML.sync(msg.reply.send_evt(find_in_bounds(zones, msg.mouse)))
-        when MarkerCounterRequest
-          CML.sync(msg.reply.send_evt(marker_counter))
-        end
-      end
-    ensure
-      @@worker_running.set(false)
-    end
-
-    private def self.find_smallest_at(zones : Hash(String, ZoneInfo), x : Int32, y : Int32) : ZoneInfo?
-      matches = find_all_at(zones, x, y)
-      return if matches.empty?
-      matches.min_by do |zone|
-        area = zone.width * zone.height
-        {-zone.z_index, area}
-      end
-    end
-
-    private def self.find_all_at(zones : Hash(String, ZoneInfo), x : Int32, y : Int32) : Array(ZoneInfo)
-      zones.values.select(&.in_bounds?(x, y))
-    end
-
-    private def self.find_in_bounds(zones : Hash(String, ZoneInfo), mouse : MouseEvent) : Array(ZoneInfo)
-      zones.keys.sort!.compact_map do |id|
-        zone = zones[id]
-        zone if zone.in_bounds?(mouse.x, mouse.y)
-      end
-    end
-
-    # Scanner that strips markers and records zone positions.
-    private class Scanner
-      def initialize(@input : String, @iteration : Int32, @enabled : Bool, @rids : Hash(String, String))
-      end
-
-      def run : {String, Array(ZoneInfo)}
-        completed = [] of ZoneInfo
-        open_zones = Hash(String, Tuple(Int32, Int32)).new
-
-        stripped = String.build do |str|
-          x = 0
-          y = 0
-          i = 0
-
-          while i < @input.size
-            if marker_start?(i)
-              marker_end = scan_marker(i + 2)
-              if marker_end && @input[marker_end] == IDENT_END
-                marker = @input[i..marker_end]
-                if id = @rids[marker]?
-                  if coords = open_zones.delete(id)
-                    start_x, start_y = coords
-                    completed << ZoneInfo.new(id, start_x, start_y, x - 1, y, 0, @iteration) if @enabled
-                  else
-                    open_zones[id] = {x, y}
-                  end
-                  i = marker_end + 1
-                  next
-                end
-              end
-            end
-
-            case @input[i]
-            when '\n'
-              x = 0
-              y += 1
-            when '\r'
-              x = 0
-            when '\e'
-              skipped = skip_ansi(i + 1)
-              if skipped > i
-                str << @input[i...skipped]
-                i = skipped
-                next
-              end
-              x += 1
-            else
-              x += 1
-            end
-
-            str << @input[i]
-            i += 1
-          end
-        end
-
-        {stripped, completed}
-      end
-
-      private def marker_start?(index : Int32) : Bool
-        @input[index]? == IDENT_START && @input[index + 1]? == IDENT_BRACKET
-      end
-
-      private def scan_marker(pos : Int32) : Int32?
-        i = pos
-        while i < @input.size && @input[i].ascii_number?
-          i += 1
-        end
-        i
-      end
-
-      private def skip_ansi(pos : Int32) : Int32
-        i = pos
-        return i unless @input[i]? == '['
-        i += 1
-        while i < @input.size
-          char = @input[i]
-          i += 1
-          break if char.ascii_letter?
-        end
-        i
-      end
+    private def self.zero_zone : ZoneInfo
+      ZoneInfo.new("", 0, 0, -1, -1, 0)
     end
   end
 end
