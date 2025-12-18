@@ -7,135 +7,149 @@ require "./history"
 
 include Term2::Prelude
 
-DOC_STYLE = Term2::Style.new
-  .margin(1, 2, 1, 2)
-  .padding(1)
-  .border(Term2::Border.rounded)
-  .border_foreground(BubblezoneFullLipgloss::HIGHLIGHT)
-  .background(BubblezoneFullLipgloss::SUBTLE)
+module BubblezoneFullLipglossExample
+  class FullLipglossModel
+    include Model
 
-class FullLipglossModel
-  include Model
+    @width : Int32
+    @height : Int32
 
-  @width : Int32
-  @height : Int32
+    def initialize
+      tabs_id = Term2::Zone.new_prefix
+      list1_id = Term2::Zone.new_prefix
+      list2_id = Term2::Zone.new_prefix
+      dialog_id = Term2::Zone.new_prefix
+      history_id = Term2::Zone.new_prefix
 
-  def initialize
-    @tabs = TabsComponent.new(
-      ["Lip Gloss", "Blush", "Eye Shadow", "Mascara", "Foundation"],
-      "Lip Gloss"
-    )
+      @tabs = BubblezoneFullLipgloss::TabsComponent.new(
+        tabs_id,
+        ["Lip Gloss", "Blush", "Eye Shadow", "Mascara", "Foundation"],
+        "Lip Gloss"
+      )
 
-    @list1 = ListComponent.new("Citrus Fruits to Try", build_list(list_one_data), "list1_")
-    @list2 = ListComponent.new("Actual Lip Gloss Vendors", build_list(list_two_data), "list2_")
-    @dialog = DialogComponent.new
-    @history = HistoryComponent.new(history_data)
-    width, height = Term2::Terminal.size
-    @width = width
-    @height = height
-  end
-
-  def init : Cmd
-    Cmds.none
-  end
-
-  def update(msg : Message) : {Model, Cmd}
-    case msg
-    when KeyMsg
-      handle_key(msg)
-    when Term2::ZoneClickMsg
-      return {self, Cmds.none} if @tabs.handle_zone_click(msg)
-      return {self, Cmds.none} if @list1.handle_zone_click(msg)
-      return {self, Cmds.none} if @list2.handle_zone_click(msg)
-      return {self, Cmds.none} if @dialog.handle_zone_click(msg)
-      return {self, Cmds.none} if @history.handle_zone_click(msg)
-      {self, Cmds.none}
-    when WindowSizeMsg
-      @width = msg.width
-      @height = msg.height
-      {self, Cmds.none}
-    else
-      {self, Cmds.none}
+      @list1 = BubblezoneFullLipgloss::ListComponent.new(list1_id, "Citrus Fruits to Try", build_list(list_one_data))
+      @list2 = BubblezoneFullLipgloss::ListComponent.new(list2_id, "Actual Lip Gloss Vendors", build_list(list_two_data))
+      @dialog = BubblezoneFullLipgloss::DialogComponent.new(dialog_id)
+      @history = BubblezoneFullLipgloss::HistoryComponent.new(history_id, history_data)
+      @width = 0
+      @height = 0
     end
-  end
 
-  def view : String
-    return "" if @width <= 0 || @height <= 0
-
-    usable_width = [@width - 4, 20].max
-    usable_height = [@height - 4, 20].max
-    dialog_width = 28
-    list_slot = [usable_width - dialog_width - 4, 0].max
-    preferred = list_slot // 2
-    list_width = [[preferred, 16].max, list_slot].min
-    list_width = [[list_width, 1].max, list_slot].min
-    list_height = [[usable_height // 2, 6].max, usable_height].min
-    history_height = 5
-
-    layout = [
-      @tabs.view(usable_width),
-      "",
-      Term2.join_horizontal(Term2::Position::Top,
-        @list1.view(list_width, list_height),
-        @list2.view(list_width, list_height),
-        @dialog.view(dialog_width, list_height)
-      ),
-      "",
-      @history.view(usable_width, history_height),
-    ].join("\n")
-
-    DOC_STYLE.render(layout)
-  end
-
-  private def handle_key(msg : KeyMsg) : {Model, Cmd}
-    case msg.key.to_s
-    when "ctrl+c"
-      {self, Term2.quit}
-    when "ctrl+e"
-      Term2::Zone.enabled = !Term2::Zone.enabled?
-      {self, nil}
-    else
-      {self, Cmds.none}
+    def init : Cmd
+      Cmds.none
     end
-  end
 
-  private def build_list(data : Array(Tuple(String, Bool))) : Array(ListItem)
-    data.map do |name, done|
-      slug = name.downcase.gsub(/[^a-z0-9]+/, "_").gsub(/_+$/, "")
-      ListItem.new(slug, name, done)
+    def update(msg : Message) : {Model, Cmd}
+      unless initialized?
+        return {self, Cmds.none} unless msg.is_a?(WindowSizeMsg)
+      end
+
+      case msg
+      when KeyMsg
+        handle_key(msg)
+      when Term2::ZoneClickMsg
+        return {self, Cmds.none} if @tabs.handle_zone_click(msg)
+        return {self, Cmds.none} if @list1.handle_zone_click(msg)
+        return {self, Cmds.none} if @list2.handle_zone_click(msg)
+        return {self, Cmds.none} if @dialog.handle_zone_click(msg)
+        return {self, Cmds.none} if @history.handle_zone_click(msg)
+        {self, Cmds.none}
+      when WindowSizeMsg
+        @width = msg.width
+        @height = msg.height
+        {self, Cmds.none}
+      else
+        {self, Cmds.none}
+      end
     end
-  end
 
-  private def list_one_data : Array(Tuple(String, Bool))
-    [
-      {"Grapefruit", true},
-      {"Yuzu", false},
-      {"Citron", false},
-      {"Kumquat", true},
-      {"Pomelo", false},
-    ]
-  end
+    def view : String
+      return "" unless initialized?
 
-  private def list_two_data : Array(Tuple(String, Bool))
-    [
-      {"Glossier", true},
-      {"Claire's Boutique", true},
-      {"Nyx", false},
-      {"Mac", false},
-      {"Milk", false},
-    ]
-  end
+      inner_width = @width - 4 # padding(1,2,1,2)
+      inner_height = @height - 2
+      return "" if inner_width <= 0 || inner_height <= 0
 
-  private def history_data : Array(String)
-    [
-      "The Romans learned from the Greeks that quinces slowly cooked with honey would set when cool. Apicius gives a recipe for preserving whole quinces, stems and leaves attached, in a bath of honey diluted with defrutum. Roman marmalade remained a luxury.",
-      "Medieval quince preserves, known as cotignac, were made both clear and fruit pulp style with spices. In the 17th century, La Varenne offered recipes for both thick and clear cotignac, simplifying medieval seasonings.",
-      "In 1524, Henry VIII received a box of marmalade from Mr. Hull of Exeter. It was probably solid quince paste from Portugal and became a favorite treat of Anne Boleyn and her ladies in waiting.",
-    ]
+      tabs_height = 3
+      list_height = 8
+      history_height = inner_height - (tabs_height + list_height)
+      history_height = [history_height, 0].max
+
+      lists = Term2.join_horizontal(Term2::Position::Top,
+        @list1.view(inner_width, list_height),
+        @list2.view(inner_width, list_height),
+        @dialog.view(inner_width, list_height)
+      )
+
+      content = Term2.join_vertical(Term2::Position::Top,
+        @tabs.view(inner_width),
+        "",
+        Term2.place_horizontal(inner_width, Term2::Position::Center, lists),
+        @history.view(inner_width, history_height)
+      )
+
+      Term2::Style.new
+        .max_height(@height)
+        .max_width(@width)
+        .padding(1, 2, 1, 2)
+        .render(content)
+    end
+
+    private def handle_key(msg : KeyMsg) : {Model, Cmd}
+      case msg.key.to_s
+      when "ctrl+c"
+        {self, Term2.quit}
+      when "ctrl+e"
+        Term2::Zone.enabled = !Term2::Zone.enabled?
+        {self, nil}
+      else
+        {self, Cmds.none}
+      end
+    end
+
+    private def initialized? : Bool
+      @width > 0 && @height > 0
+    end
+
+    private def build_list(data : Array(Tuple(String, Bool))) : Array(BubblezoneFullLipgloss::ListItem)
+      data.map do |name, done|
+        BubblezoneFullLipgloss::ListItem.new(name, done)
+      end
+    end
+
+    private def list_one_data : Array(Tuple(String, Bool))
+      [
+        {"Grapefruit", true},
+        {"Yuzu", false},
+        {"Citron", false},
+        {"Kumquat", true},
+        {"Pomelo", false},
+      ]
+    end
+
+    private def list_two_data : Array(Tuple(String, Bool))
+      [
+        {"Glossier", true},
+        {"Claire's Boutique", true},
+        {"Nyx", false},
+        {"Mac", false},
+        {"Milk", false},
+      ]
+    end
+
+    private def history_data : Array(String)
+      [
+        "The Romans learned from the Greeks that quinces slowly cooked with honey would set when cool. Apicius gives a recipe for preserving whole quinces, stems and leaves attached, in a bath of honey diluted with defrutum. Roman marmalade remained a luxury.",
+        "Medieval quince preserves, known as cotignac, were made both clear and fruit pulp style with spices. In the 17th century, La Varenne offered recipes for both thick and clear cotignac, simplifying medieval seasonings.",
+        "In 1524, Henry VIII received a box of marmalade from Mr. Hull of Exeter. It was probably solid quince paste from Portugal and became a favorite treat of Anne Boleyn and her ladies in waiting.",
+      ]
+    end
   end
 end
 
-Term2.run(FullLipglossModel.new, options: Term2::ProgramOptions.new(
-  Term2::WithAltScreen.new,
-  Term2::WithMouseAllMotion.new
-))
+unless ENV["TERM2_REQUIRE_ONLY"]?
+  Term2.run(BubblezoneFullLipglossExample::FullLipglossModel.new, options: Term2::ProgramOptions.new(
+    Term2::WithAltScreen.new,
+    Term2::WithMouseCellMotion.new
+  ))
+end
