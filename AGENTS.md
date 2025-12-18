@@ -6,24 +6,13 @@
 - [Commands Reference](#commands-reference)
 - [Code Style Guidelines](#code-style-guidelines)
 - [Testing Conventions](#testing-conventions)
-- [Tool Usage Guidelines](#tool-usage-guidelines)
-- [Security Considerations](#security-considerations)
-- [Troubleshooting](#troubleshooting)
 
 ## Agent Behavior
 
 ### Core Workflow Principles
 
-- **Always update plan.md** when completing phases or major features
-- **Mark items complete** in plan.md and every plans/**/<name>  `[x]` when done
-- **Update completion docs** when finishing phases (create PHASE_X_COMPLETION.md files)
-- **Add specs for code changes** - add specs to test each code change in spec directory only
-- **Scratch work and temp scripts go under `temp/`** - do not drop throwaway files in repo root
-- **Run tests** after changes: `make spec-all`
-- **Check build** after changes: `shards build` (or `make build`)
 - **Use the shared cache**: export `CRYSTAL_CACHE_DIR=$PWD/.crystal-cache` for every `crystal` invocation
 - **Clean artifacts** with `make clean` before recording logs or re-running flaky specs
-- **Track progress** using plan.md as the source of truth
 
 ### File Safety Protocol
 
@@ -99,103 +88,11 @@
 - Gate interactive terminal or live HTTP tests behind env flags
 - Mark interactive tests as `pending` by default
 
-## Tool Usage Guidelines
-
-### File Operations
-
-- **Read files**: Use `file.read` with verified paths
-- **Write files**: Use `file.patch` for modifications
-- **Directory listing**: Always use `dir.list` before file operations
-- **File discovery**: Use `grep` to search for files by content
-
-### Memory Management
-
-- **Store memories**: Use `memory.write` for persistent storage
-- **Retrieve memories**: Use `memory.read`, `memory.list`, or `memory.search`
-- **Plan management**: Use `plan.create` and `plan.update` only
-
-### Shell Operations
-
-- **Run commands**: Use `shell.run` with explicit `cmd`/`args`
-- **Avoid raw shell**: Never use improvised multi-line shell sessions
-- **Safe commands**: Only use commands listed in `safe_commands`
-
-## Running Live Provider Tests
-
 ### Environment Variables
 
 - `TERM2_DEBUG` - enable debug logging for terminal interactions
 - `TERM2_TEST_TTY` - use real TTY for interactive tests
 - Optional logging: `TERM2_LOG_FILE=$PWD/temp/term2_debug.log`
-
-### Tag Strategy
-
-- **Run everything**: `crystal spec --tag "~interactive"`
-- **Skip interactive tests**: append `--tag "~interactive"`
-- **Run only interactive tests**: `crystal spec --tag interactive`
-- **Run with TTY tests**: `TERM2_TEST_TTY=1 crystal spec`
-
-### Notes
-
-- Interactive tests require a real terminal and may be marked as pending
-- TTY tests require `TERM2_TEST_TTY=1` environment variable
-
-## Security Considerations
-
-### Code Security
-
-- Validate all inputs and sanitize user data
-- Use parameterized queries for database operations
-- Implement proper authentication and authorization
-- Avoid hardcoded secrets and API keys
-
-### File Safety
-
-- Verify file paths before operations
-- Sanitize file names and paths
-- Implement proper error handling for file operations
-- Log security-relevant events
-
-### Network Security
-
-- Use HTTPS for external API calls
-- Validate SSL certificates
-- Implement rate limiting for API calls
-- Sanitize log output to avoid leaking sensitive data
-
-## Troubleshooting
-
-### Common Issues
-
-**Build Failures:**
-
-```bash
-# Clear cache and rebuild
-shards install
-shards build
-```
-
-**Test Failures:**
-
-```bash
-# Run specific test with tracing
-crystal spec spec/path/to/test.cr --error-trace
-```
-
-**Interactive Test Issues:**
-
-```bash
-# Check environment variables
-echo $TERM2_TEST_TTY
-# Enable debug logging
-TERM2_DEBUG=1 crystal spec --tag interactive
-```
-
-**File Path Errors:**
-
-- Always use `dir.list` to discover files before reading
-- Never assume file paths exist
-- Use `grep` to search for files by content
 
 ### Debugging Tips
 
@@ -206,22 +103,28 @@ TERM2_DEBUG=1 crystal spec --tag interactive
 TERM2_DEBUG=1 crystal run examples/simple.cr
 ```
 
-**Memory Issues:**
+## Landing the Plane (Session Completion)
 
-```bash
-# Check memory usage
-memory.list
-# Search memories
-memory.search "keyword"
-```
+**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 
-**Performance Profiling:**
+**MANDATORY WORKFLOW:**
 
-```bash
-# Build with debug info
-shards build --debug
-```
+1. **File issues for remaining work** - Create issues for anything that needs follow-up
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **PUSH TO REMOTE** - This is MANDATORY:
+   ```bash
+   git pull --rebase
+   bd sync
+   git push
+   git status  # MUST show "up to date with origin"
+   ```
+5. **Clean up** - Clear stashes, prune remote branches
+6. **Verify** - All changes committed AND pushed
+7. **Hand off** - Provide context for next session
 
-## Recent Major Accomplishments
-
-- [Add recent accomplishments here as they occur]
+**CRITICAL RULES:**
+- Work is NOT complete until `git push` succeeds
+- NEVER stop before pushing - that leaves work stranded locally
+- NEVER say "ready to push when you are" - YOU must push
+- If push fails, resolve and retry until it succeeds

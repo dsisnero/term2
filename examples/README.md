@@ -110,62 +110,6 @@ A stopwatch with start/stop/reset functionality:
 
 **Run with:** `crystal run examples/stopwatch.cr`
 
-### 11. `bubblezone/list-default/main.cr` - Clickable List (Bubblezone port)
-
-- Mouse wheel scrolling with `MouseEvent::Button::WheelUp/Down`
-- Highlighted selection and zone-aware click targets
-- Demonstrates translating a Bubblezone example using `Zone.mark`
-
-**Run with:** `crystal run examples/bubblezone/list-default/main.cr`
-
-### 12. `bubblezone/full-lipgloss/main.cr` - Full Lip Gloss Dashboard (Bubblezone port)
-
-- Responsive tabs, list panels, dialog, and history presenter
-- Uses zone buttons, list toggles, and history selections
-- Shows how Bubblezone-style interaction can live in Term2
-
-**Run with:** `crystal run examples/bubblezone/full-lipgloss/main.cr`
-
-### 13. `libgloss/layout/main.cr` - Layout overview
-
-- Demonstrates tabs, status panels, and responsive content areas
-- Uses `Term2.join_horizontal`/`join_vertical` with styled blocks
-- Navigate tabs with arrow or Tab, `q` to quit
-
-**Run with:** `crystal run examples/libgloss/layout/main.cr`
-
-### 14. `libgloss/list/main.cr` - Styled list navigation
-
-- Highlights selectable rows, custom list item styles, and real-time feedback
-- Move selection with arrow keys or `j/k`, `q` to exit
-- Shows how `Term2::Style` can mimic Lip Gloss enumerations
-
-**Run with:** `crystal run examples/libgloss/list/main.cr`
-
-### 15. `libgloss/table/main.cr` - Table view
-
-- Displays a simple table with header and rows
-- Uses width constraints and separators to emulate columns
-- Great base for data dashboards
-
-**Run with:** `crystal run examples/libgloss/table/main.cr`
-
-### 16. `libgloss/tree/main.cr` - Tree diagram
-
-- Presents a static project tree with branches
-- Styled text and indentation to mimic tree command output
-- Useful for file explorers or project navigation overviews
-
-**Run with:** `crystal run examples/libgloss/tree/main.cr`
-
-### 17. `libgloss/ssh/main.cr` - SSH status card
-
-- Stylized connection metadata and command preview
-- Shows how to render terminal-like info using `Term2::Style`
-- A simple way to prototype connection dashboards
-
-**Run with:** `crystal run examples/libgloss/ssh/main.cr`
-
 ## Key Term2 Concepts
 
 ### Application Architecture

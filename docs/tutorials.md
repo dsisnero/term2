@@ -84,33 +84,35 @@ Term2.run(CounterModel.new)
 Term2 supports various key types beyond simple characters.
 
 ```crystal
-def update(msg : Message) : {Model, Cmd}
+def update(msg : Message, model : Model)
+  m = model.as(MyModel)
+
   case msg
-  when KeyMsg
-    key = msg.key
+  when KeyPress
+    key = msg.key_msg
 
     # Match by string representation
-    case key.to_s
+    case msg.key
     when "up", "k"
-      move_up
+      move_up(m)
     when "down", "j"
-      move_down
+      move_down(m)
     when "enter"
-      select_item
+      select_item(m)
     when "esc"
-      go_back
+      go_back(m)
     when "ctrl+c", "q"
-      return {self, Term2.quit}
+      {m, Term2.quit}
     end
 
     # Or match by key type
     case key.type
     when KeyType::Up
-      move_up
+      move_up(m)
     when KeyType::F1
-      show_help
+      show_help(m)
     when KeyType::CtrlC
-      return {self, Term2.quit}
+      {m, Term2.quit}
     end
 
     # Check for alt modifier
@@ -118,7 +120,7 @@ def update(msg : Message) : {Model, Cmd}
       # Alt was held
     end
   else
-    {self, Cmds.none}
+    {m, Cmds.none}
   end
 end
 ```
@@ -387,24 +389,47 @@ Term2.run(SpinnerModel.new)
 
 ## Layout and Positioning {#layout}
 
-Use the layout helpers in `Term2::Style` to stitch strings together.
+Use the `View` struct for layout calculations.
 
 ```crystal
-header = (Style.new.bold(true) | "Header")
-sidebar = Style.new | "Sidebar"
-main = Style.new | "Main content"
+def view(model : Model) : String
+  m = model.as(MyModel)
 
-# Stack vertically
-body = Term2.join_horizontal(Term2::Position::Top, sidebar, main)
-page = Term2.join_vertical(Term2::Position::Left, header, body)
+  # Create a view representing the screen
+  screen = Term2::View.new(0, 0, m.width, m.height)
 
-# Center within a viewport (width x height)
-centered = Term2.place(80, 24, Term2::Position::Center, Term2::Position::Center, page)
+  # Add margins
+  content = screen.margin(top: 1, bottom: 1, left: 2, right: 2)
+
+  # Split into regions
+  header, body = content.split_vertical(0.1)  # 10% header
+  sidebar, main = body.split_horizontal(0.25)  # 25% sidebar
+
+  # Build the output using the calculated regions
+  String.build do |io|
+    # Position cursor at header
+    io << "\e[#{header.y + 1};#{header.x + 1}H"
+    io << "Header (#{header.width}x#{header.height})"
+
+    # Draw sidebar
+    io << "\e[#{sidebar.y + 1};#{sidebar.x + 1}H"
+    io << "Sidebar"
+
+    # Draw main content
+    io << "\e[#{main.y + 1};#{main.x + 1}H"
+    io << "Main Content Area"
+  end
+end
 ```
 
-- `join_horizontal(pos, *blocks)` aligns blocks vertically by position (`Top`, `Center`, `Bottom`) or ratio.
-- `join_vertical(pos, *blocks)` aligns blocks horizontally by position (`Left`, `Center`, `Right`) or ratio.
-- `place(width, height, hpos, vpos, content)` positions content inside a bounding box, padding with spaces as needed.
+**View Methods:**
+
+- `margin(top, right, bottom, left)` - Add margins
+- `padding(all)` or `padding(h, v)` - Add padding
+- `split_horizontal(ratio)` - Split left/right
+- `split_vertical(ratio)` - Split top/bottom
+- `center(width, height)` - Center a subview
+- `contains?(x, y)` - Check if point is in view
 
 ---
 

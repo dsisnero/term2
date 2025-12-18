@@ -12,22 +12,9 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 - **Alternate Screen**: Clean terminal restoration
 - **Components**: TextInput, Spinner, ProgressBar, CountdownTimer
 - **Zone System**: Built-in focus and click tracking with automatic tab cycling
-- **Tree/List/Table**: Static rendering components for hierarchical data; List includes filtering, pagination, help, and fuzzy-ranked matching with match highlighting
+- **Tree/List/Table**: Static rendering components for hierarchical data
 - **Rich Command System**: Batch, sequence, timeout, and async commands
 - **Styling API**: Full color and style support with fluent API
-
-### List filtering (quick start)
-
-```crystal
-list = Term2::Components::List.new(["Alpha", "Bravo", "Charlie"], 30, 10)
-list.title = "Items"
-list.show_filter = true
-list.filtering_enabled = true
-
-# Enter filtering mode (defaults to `/` key) and type; matches are ranked and highlighted.
-list.set_filter_text("br")          # Programmatic apply/filter-applied state
-matches = list.matches_for_item(0)  # Indices of matched characters for highlighting
-```
 - **Cross-platform**: Works on Linux, macOS, and Windows
 
 ## Installation
@@ -95,42 +82,6 @@ Including `Term2::Prelude` provides convenient aliases for common types:
 - `TC` - Alias for `Term2::Components` (e.g., `TC::TextInput`)
 - `KeyMsg`, `WindowSizeMsg`, `FocusMsg`, `BlurMsg` - Common messages
 - `MouseEvent` - Mouse input events
-
-## Key Bindings Helper
-
-Define groups of key bindings with the `key_bindings` macro on `Term2::Components::Key`:
-
-```crystal
-class TimerKeymap
-  Term2::Components::Key.key_bindings(
-    start: { ["s"], "s", "start" },
-    stop:  { ["s"], "s", "stop" },
-    reset: { ["r"], "r", "reset" },
-    quit:  { ["q", "ctrl+c"], "q", "quit" },
-  )
-end
-
-# Usage
-km = TimerKeymap.new
-km.start.matches?(Term2::KeyMsg.new(Term2::Key.new("s")))
-km.bindings # => Array of all bindings
-```
-
-If you include `Term2::Prelude`, you can use the shorter `TC::Key.key_bindings`:
-
-```crystal
-include Term2::Prelude
-
-class SplitKeys
-  TC::Key.key_bindings(
-    next:   { ["tab"], "tab", "next" },
-    prev:   { ["shift+tab"], "shift+tab", "prev" },
-    quit:   { ["q", "esc"], "q", "quit" },
-  )
-end
-```
-
-This macro generates getters for each binding, an initializer, and a `bindings` array.
 
 ## Program Options
 
@@ -212,7 +163,7 @@ puts style.render("Styled Box")
 title_style = Term2::Style.new
   .bold(true)
   .foreground(Term2::Color::WHITE)
-  .background(Term2::Color.hex("#3366CC"))
+  .background(Term2::Color.from_hex("#3366CC"))
   .padding(0, 2)
 
 content_style = Term2::Style.new
@@ -223,12 +174,6 @@ content_style = Term2::Style.new
 puts title_style.render("Title")
 puts content_style.render("Content goes here")
 ```
-
-### Color Shorthands
-
-- Named symbols: `style.foreground(:light_red)`, `style.background(:dark_gray)`, `style.background(:default)` (unset).
-- Hex/RGB/indexed helpers: `style.fg_hex("#ff00aa").bg_rgb(30, 30, 30)`, `style.bg_indexed(240)`, or `style.fg(:red)` / `style.bg(:light_blue)`.
-- Block builder: `style = Term2::Style.build { |s| s.fg_rgb(255, 128, 0).bold(true) }`.
 
 ### Available Styles
 
@@ -275,7 +220,7 @@ Term2 includes a built-in Zone system that incorporates BubbleZone functionality
 
 The Zone system works by embedding invisible markers in the rendered output that are scanned after each frame to determine zone positions:
 
-1. **Zone Registration**: Components define an ID and wrap their output with `Zone.mark(id, content)`
+1. **Zone Registration**: Components define a `zone_id` and wrap their output with `Zone.mark(id, content)`
 2. **Automatic Scanning**: After each render, Term2 scans the output to extract zone positions using invisible Unicode markers
 3. **Focus Management**: Zones can be focused via Tab/Shift+Tab or mouse clicks
 4. **Click Handling**: Mouse clicks automatically dispatch to the correct zone with relative coordinates
@@ -288,25 +233,28 @@ The Zone system works by embedding invisible markers in the rendered output that
 Zone.mark("button1", "Click me!")
 Zone.mark("button2", "Or click me!")
 
-  # Handle clicks in update
-  def update(msg : Message) : {Model, Cmd}
-    case msg
-    when ZoneClickMsg
-      case msg.id
-      when "button1"
-        # Handle button1 click at (msg.x, msg.y)
-        {self, Cmds.none}
-      when "button2"
-        # Handle button2 click
+# Handle clicks in update
+def update(msg : Message) : {Model, Cmd}
+  case msg
+  when ZoneClickMsg
+    case msg.zone_id
+    when "button1"
+      # Handle button1 click at (msg.x, msg.y)
+      {self, Cmds.none}
+    when "button2"
+      # Handle button2 click
       {self, Cmds.none}
     end
-    when ZoneFocusMsg
-      # The component for msg.zone_id should focus itself
-      {self, Cmds.none}
-    else
-      {self, Cmds.none}
+  when ZoneFocusMsg
+    # Zone gained focus
+    if msg.zone_id == "button1"
+      # Button 1 is now focused
     end
+    {self, Cmds.none}
+  else
+    {self, Cmds.none}
   end
+end
 
 # Tab through focusable zones
 Zone.focus_next  # or Zone.focus_prev
@@ -341,7 +289,7 @@ class Button
   def update(msg : Message) : {Button, Cmd}
     case msg
     when ZoneClickMsg
-      if msg.id == @id && msg.action == MouseEvent::Action::Press
+      if msg.zone_id == @id && msg.action == MouseEvent::Action::Press
         # Handle button click
         puts "Button #{@id} clicked at (#{msg.x}, #{msg.y})"
         {self, Cmds.none}
@@ -349,8 +297,12 @@ class Button
         {self, Cmds.none}
       end
     when ZoneFocusMsg
-      # Component should focus itself when it receives focus
-      {self, Cmds.none}
+      if msg.zone_id == @id
+        # Button gained focus
+        {self, Cmds.none}
+      else
+        {self, Cmds.none}
+      end
     else
       {self, Cmds.none}
     end
@@ -364,7 +316,7 @@ The Zone system is fully integrated into Term2's core:
 
 - **Zone Module**: Provides global zone management (`Term2::Zone`)
 - **ZoneInfo**: Tracks zone boundaries and coordinates
-- **Zone Messages**: `ZoneClickMsg`, `ZoneFocusMsg` for event handling
+- **Zone Messages**: `ZoneClickMsg`, `ZoneFocusMsg`, `ZoneBlurMsg` for event handling
 - **Automatic Integration**: Built into the main event loop and render pipeline
 
 ### Focus Navigation
@@ -374,7 +326,6 @@ The Zone system is fully integrated into Term2's core:
 - **Mouse Click**: Focus clicked zone automatically on press
 - **Programmatic**: Use `Zone.focus(id)` and `Zone.blur(id)`
 - **Auto-focus**: Components can call `focus` method to request focus
-- **Tab dispatch**: `ZoneFocusMsg` is emitted on Tab/Shift+Tab; components should call their own `focus` logic when they receive it
 
 ### Advanced Zone Features
 
@@ -393,7 +344,7 @@ The Zone system is deeply integrated into Term2's event loop:
 if zone_click = Zone.handle_mouse(mouse_event)
   # Auto-focus clicked zone on press
   if mouse_event.action == MouseEvent::Action::Press
-    Zone.focus(zone_click.id)
+    Zone.focus(zone_click.zone_id)
   end
   dispatch(zone_click)
 end
@@ -404,8 +355,6 @@ if key.type == KeyType::Tab
     dispatch(ZoneFocusMsg.new(next_id))
   end
 end
-
-# Components should handle ZoneFocusMsg by focusing themselves (for Tab/Shift+Tab).
 ```
 
 ### Built-in Components with Zone Support
@@ -463,27 +412,74 @@ The Style API provides comprehensive styling capabilities including:
 
 ## Handling Input
 
+### Keyboard
+
 ```crystal
 def update(msg : Message) : {Model, Cmd}
   case msg
   when KeyMsg
     case msg.key.to_s
-    when "q", "ctrl+c" then {self, Term2.quit}
-    when "up", "k"     then move_up
-    when "down", "j"   then move_down
-    else                   {self, Cmds.none}
+    when "q"
+      {self, Term2.quit}
+    when "up", "k"
+      # ...
     end
-  when MouseEvent
-    handle_mouse(msg.x, msg.y, msg.button, msg.action)
-    {self, Cmds.none}
-  when FocusMsg
-    {self, Cmds.none} # window gained focus
-  when BlurMsg
-    {self, Cmds.none} # window lost focus
-  when WindowSizeMsg
-    {self, Cmds.none} # resize to msg.width x msg.height
+  end
+end
+```
+
+## Handling Input
+
+### Keyboard
+
+```crystal
+def update(msg : Message, model : Model)
+  case msg
+  when KeyPress
+    case msg.key
+    when "up", "k"    then move_up(model)
+    when "down", "j"  then move_down(model)
+    when "enter"      then select(model)
+    when "ctrl+c"     then {model, Term2.quit}
+    else              {model, Cmds.none}
+    end
   else
-    {self, Cmds.none}
+    {model, Cmds.none}
+  end
+end
+```
+
+### Mouse
+
+```crystal
+def update(msg : Message, model : Model)
+  case msg
+  when MouseEvent
+    case msg.action
+    when MouseEvent::Action::Press
+      handle_click(model, msg.x, msg.y, msg.button)
+    when MouseEvent::Action::Move
+      handle_hover(model, msg.x, msg.y)
+    end
+  else
+    {model, nil}
+  end
+end
+```
+
+### Focus
+
+```crystal
+def update(msg : Message, model : Model)
+  case msg
+  when FocusMsg
+    # Window gained focus
+    {model.with_focused(true), nil}
+  when BlurMsg
+    # Window lost focus
+    {model.with_focused(false), nil}
+  else
+    {model, nil}
   end
 end
 ```
@@ -515,28 +511,11 @@ Cmds.message(MyCustomMsg.new(result))
 ### Spinner
 
 ```crystal
-class SpinnerModel
-  include Model
-  property spinner : TC::Spinner = TC::Spinner.new(TC::Spinner::DOT)
-
-  def init : Cmd
-    @spinner.tick
-  end
-
-  def update(msg : Message) : {Model, Cmd}
-    new_spinner, cmd = @spinner.update(msg)
-    @spinner = new_spinner
-    case msg
-    when KeyMsg
-      return {self, Term2.quit} if msg.key.to_s == "q"
-    end
-    {self, cmd}
-  end
-
-  def view : String
-    "#{@spinner.view} Loading... (press q to quit)"
-  end
-end
+spinner = Components::Spinner.new(
+  frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
+  interval: 100.milliseconds
+)
+model, cmd = spinner.init("Loading...")
 ```
 
 ### ProgressBar
@@ -581,17 +560,16 @@ class SearchModel
     case msg
     when KeyMsg
       # Handle input focus
-      return {self, Zone.focus_next} if msg.key.to_s == "tab"
-
-      # Delegate to text input
-      new_input, cmd = @input.update(msg)
-      @input = new_input
-      {self, cmd}
-    when ZoneClickMsg
-      if msg.id == "search_input"
-        {self, @input.focus}
+      if msg.key.to_s == "tab"
+        {self, Zone.focus_next}
       else
-        {self, Cmds.none}
+        # Delegate to text input
+        new_input, cmd = @input.update(msg, self)
+        {SearchModel.new(new_input), cmd}
+      end
+    when Zone::ClickMsg
+      if msg.id == "search_input"
+        {self, Zone.focus("search_input")}
       end
     else
       {self, Cmds.none}
