@@ -132,13 +132,15 @@ describe Term2::Renderer do
       output.to_s.scan("Hello").size.should be >= 2
     end
 
-    it "clears screen before rendering" do
+    it "moves cursor and clears line before rendering" do
       output = IO::Memory.new
       renderer = Term2::StandardRenderer.new(output)
       renderer.fps = 1000.0 # High FPS for testing
       renderer.start
       renderer.render("Test")
-      output.to_s.should contain("\e[H\e[J") # Home + clear
+      output.to_s.should contain("\e[1;1H")
+      output.to_s.should contain("Test")
+      output.to_s.should contain("\e[K") # clear to end of line
     end
   end
 

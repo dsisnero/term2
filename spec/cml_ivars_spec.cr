@@ -6,19 +6,19 @@ describe CML::IVar do
     done = Channel(Nil).new
 
     spawn do
-      CML.sync(ivar.read_evt)
+      CML.sync(ivar.i_get_evt)
       done.send(nil)
     end
 
-    ivar.fill(nil)
+    ivar.i_put(nil)
     done.receive
   end
 
-  it "allows repeated reads after being filled with Nil" do
+  it "allows repeated reads after being i_puted with Nil" do
     ivar = CML::IVar(Nil).new
-    ivar.fill(nil)
+    ivar.i_put(nil)
 
-    CML.sync(ivar.read_evt).should be_nil
-    CML.sync(ivar.read_evt).should be_nil
+    CML.sync(ivar.i_get_evt).should be_nil
+    CML.sync(ivar.i_get_evt).should be_nil
   end
 end

@@ -6,10 +6,10 @@ describe Term2::Components::Progress do
     bar.full_char = '#'
     bar.empty_char = '.'
 
-    # Width 10 includes percentage " 0%" (3 chars)
-    # So bar width is 7.
-    bar.view.should contain(".......")
-    bar.view.should contain("0%")
+    view = bar.view.gsub(/\e\[[0-9;]*m/, "")
+    # Percent uses a 3-wide field: "  0%" (4 chars), so bar width is 6.
+    view.should contain("......")
+    view.should contain("0%")
   end
 
   it "clamps progress and renders percentage" do
@@ -18,25 +18,27 @@ describe Term2::Components::Progress do
     bar.empty_char = '.'
 
     msg = Term2::Components::Progress::SetPercentMsg.new(0.55)
-    bar.update(msg)
+    bar, cmd = bar.update(msg)
+    cmd.should_not be_nil
+    bar.percent.should be_close(0.55, 0.0001)
 
-    # Width 10 includes " 55%" (4 chars)
-    # Bar width is 6.
-    # 55% of 6 is 3.3 -> 3.
-    # So 3 filled, 3 empty.
+    view = bar.view_as(bar.percent).gsub(/\e\[[0-9;]*m/, "")
+    # Width 10 includes " 55%" (4 chars), so bar width is 6.
+    # 55% of 6 is 3.3 -> 3 (rounded).
 
-    bar.view.should contain("###")
-    bar.view.should contain("...")
-    bar.view.should contain("55%")
+    view.should contain("###")
+    view.should contain("...")
+    view.should contain("55%")
 
     msg_inc = Term2::Components::Progress::IncrementMsg.new(1.0)
-    bar.update(msg_inc)
+    bar, cmd2 = bar.update(msg_inc)
+    cmd2.should_not be_nil
+    bar.percent.should eq 1.0
 
-    # Width 10 includes " 100%" (5 chars)
-    # Bar width is 5.
-    # 100% of 5 is 5.
+    view2 = bar.view_as(bar.percent).gsub(/\e\[[0-9;]*m/, "")
+    # Width 10 includes "100%" (4 chars), so bar width is 6.
 
-    bar.view.should contain("#####")
-    bar.view.should contain("100%")
+    view2.should contain("######")
+    view2.should contain("100%")
   end
 end

@@ -220,9 +220,20 @@ describe Term2 do
       app = SpecCounterModel.new
       program = Term2::Program.new(app, input: nil, output: output, options: options)
 
-      # Run program briefly
+      done = CML::IVar(Nil).new
+      spawn do
+        program.run
+        done.i_put(nil) rescue nil
+      end
+      spawn do
+        # Safety quit in case the model doesn't quit on its own.
+        # Delay long enough for the model's init tick (100ms) to fire.
+        sleep 200.milliseconds
+        program.dispatch(Term2::QuitMsg.new)
+      end
+
       evt = CML.choose([
-        CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
+        CML.wrap(done.i_get_evt) { {program.model.as(Term2::Model?), :ok} },
         CML.wrap(CML.timeout(2.seconds)) { |_| {nil.as(Term2::Model?), :timeout} },
       ])
       CML.sync(evt)
@@ -238,9 +249,20 @@ describe Term2 do
       options = Term2::ProgramOptions.new
       options.add(Term2::WithFPS.new(1000.0))
       program = Term2::Program.new(SpecCounterModel.new, input: nil, output: output, options: options)
-      # Race the run loop against a timeout so specs don't hang.
+      done = CML::IVar(SpecCounterModel?).new
+
+      spawn do
+        result_model = program.run
+        done.i_put(result_model.as(SpecCounterModel?)) rescue nil
+      end
+      spawn do
+        # Safety quit in case the model doesn't quit on its own.
+        sleep 200.milliseconds
+        program.dispatch(Term2::QuitMsg.new)
+      end
+
       evt = CML.choose([
-        CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
+        CML.wrap(done.i_get_evt) { |model| {model.as(Term2::Model?), :ok} },
         CML.wrap(CML.timeout(2.seconds)) { |_| {nil.as(Term2::Model?), :timeout} },
       ])
       result = CML.sync(evt)

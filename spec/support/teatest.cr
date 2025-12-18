@@ -66,7 +66,6 @@ module Term2
         program_options = Term2::ProgramOptions.new(
           Term2::WithoutSignalHandler.new,
           Term2::WithoutRenderer.new,
-          Term2::WithANSICompressor.new,
         )
 
         @program = Term2::Program(M).new(@model, input: @input, output: @output, options: program_options)
@@ -117,6 +116,8 @@ module Term2
           when @done.receive
           when timeout(options.timeout)
             options.on_timeout.try &.call
+            @program.stop
+            return
           end
         else
           @done.receive
@@ -134,16 +135,20 @@ module Term2
       # Return final model (waits for completion).
       def final_model(*opts : FinalOpt) : M
         wait_finished(*opts)
-        if val = @model_channel.receive?
+        select
+        when val = @model_channel.receive
           @model = val
+        when timeout(0.seconds)
         end
         @model
       end
 
       def final_model : M
         wait_finished
-        if val = @model_channel.receive?
+        select
+        when val = @model_channel.receive
           @model = val
+        when timeout(0.seconds)
         end
         @model
       end

@@ -38,8 +38,14 @@ describe Term2::Components::CountdownTimer do
     model = TimerTestModel.new(20.milliseconds)
     program = Term2::Program.new(model, input: nil, output: output)
 
+    done = CML::IVar(Term2::Model?).new
+    spawn do
+      res = program.run
+      done.i_put(res.as(Term2::Model?)) rescue nil
+    end
+
     evt = CML.choose([
-      CML.wrap(CML.spawn_evt { program.run }) { |model| {model.as(Term2::Model?), :ok} },
+      CML.wrap(done.i_get_evt) { |model| {model.as(Term2::Model?), :ok} },
       CML.wrap(CML.timeout(1.second)) { |_| {nil.as(Term2::Model?), :timeout} },
     ])
 

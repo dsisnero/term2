@@ -15,7 +15,8 @@ describe Term2::Components::Cursor do
     # Focus
     cmd = cursor.focus_cmd
     cursor.focus?.should be_true
-    cursor.blink?.should be_true
+    # Bubble Tea parity: focused cursor starts in the visible "block" phase.
+    cursor.blink?.should be_false
     cmd.should_not be_nil # Should return a blink command
 
     # Blur
@@ -34,19 +35,19 @@ describe Term2::Components::Cursor do
     # The tag starts at 0 and increments on focus.
     # So after one focus, tag should be 1.
 
-    msg = Term2::Components::Cursor::BlinkMsg.new(1)
-
-    # Initial state after focus is blink=true
-    cursor.blink?.should be_true
-
-    # Update with matching tag
-    cursor, cmd = cursor.update(msg)
+    # Initial state after focus is blink=false (visible block).
     cursor.blink?.should be_false
-    cmd.should_not be_nil # Should schedule next blink
 
-    # Update again
-    cursor, _ = cursor.update(msg)
+    # First blink tick (tag 1) toggles to hidden (blink=true) and schedules next tick (tag 2).
+    msg1 = Term2::Components::Cursor::BlinkMsg.new(1)
+    cursor, cmd = cursor.update(msg1)
     cursor.blink?.should be_true
+    cmd.should_not be_nil
+
+    # Next tick (tag 2) toggles back to visible (blink=false).
+    msg2 = Term2::Components::Cursor::BlinkMsg.new(2)
+    cursor, _ = cursor.update(msg2)
+    cursor.blink?.should be_false
   end
 
   it "ignores BlinkMsg with wrong tag" do
@@ -56,7 +57,7 @@ describe Term2::Components::Cursor do
     msg = Term2::Components::Cursor::BlinkMsg.new(999)
 
     cursor, _ = cursor.update(msg)
-    cursor.blink?.should be_true # No change
+    cursor.blink?.should be_false # No change
     # cmd should be none? Wait, update returns {self, Cmd.none} by default.
     # We can't easily check if Cmd is none because it's a struct wrapping a proc.
     # But we can check if state changed.

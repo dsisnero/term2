@@ -107,8 +107,8 @@ describe Term2::Components::TextInput do
     ti, _ = ti.update(msg)
     ti.value.should eq "a"
 
-    # Insert space (using KeyType::Space as that's how the parser handles it)
-    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    # Insert space (Bubble Tea parity: space is a rune key)
+    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
     ti, _ = ti.update(msg)
     ti.value.should eq "a "
     ti.cursor_pos.should eq 2
@@ -131,7 +131,7 @@ describe Term2::Components::TextInput do
     end
 
     # Insert space
-    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
     ti, _ = ti.update(msg)
 
     # Insert "world"
@@ -149,7 +149,7 @@ describe Term2::Components::TextInput do
     ti.focus
 
     # Insert space as first character
-    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
     ti, _ = ti.update(msg)
     ti.value.should eq " "
     ti.cursor_pos.should eq 1

@@ -4,7 +4,7 @@ require "../../src/components/key"
 class MacroKeymap
   Term2::Components::Key.key_bindings(
     start: {["s"], "s", "start"},
-    stop:  {["t"], "t", "stop"},
+    stop: {["t"], "t", "stop"},
   )
 end
 

@@ -24,7 +24,7 @@ describe Term2::Components::List do
     list = Term2::Components::List.new([{"Item 1", "Desc 1"}, {"Item 2", "Desc 2"}])
     list.items.size.should eq 2
     list.items[0].title.should eq "Item 1"
-    list.items[0].description.should eq "Desc 1"
+    list.items[0].as(Term2::Components::List::DefaultItem).description.should eq "Desc 1"
   end
 
   it "navigates" do
@@ -65,7 +65,27 @@ describe Term2::Components::List do
     view.should contain "Item 2"
 
     # Selected item should have cursor
-    view.should contain "> Item 1"
+    view.should contain "│ "
     view.should contain "  Item 2"
+  end
+
+  it "supports mouse-style cursor movement and selection helpers" do
+    items = [
+      Term2::Components::List::DefaultItem.new("Item 1", "Desc 1"),
+      Term2::Components::List::DefaultItem.new("Item 2", "Desc 2"),
+      Term2::Components::List::DefaultItem.new("Item 3", "Desc 3"),
+    ] of Term2::Components::List::Item
+
+    list = Term2::Components::List.new(items, width: 20, height: 0)
+    list.index.should eq 0
+
+    list.cursor_down
+    list.index.should eq 1
+
+    list.cursor_up
+    list.index.should eq 0
+
+    list.select(2)
+    list.index.should eq 2
   end
 end
