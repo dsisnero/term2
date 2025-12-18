@@ -190,10 +190,14 @@ module Term2
 
       return BLACK if hex.size < 6
 
-      r = hex[0, 2].to_i(16)
-      g = hex[2, 2].to_i(16)
-      b = hex[4, 2].to_i(16)
-      rgb(r, g, b)
+      begin
+        r = hex[0, 2].to_i(16)
+        g = hex[2, 2].to_i(16)
+        b = hex[4, 2].to_i(16)
+        rgb(r, g, b)
+      rescue ArgumentError
+        BLACK
+      end
     end
 
     # Compatibility alias used by some example ports.
@@ -1113,28 +1117,63 @@ module Term2
       get_bool(Props::Bold)
     end
 
+    def bold=(value : Bool) : Bool
+      set_bool(Props::Bold, value)
+      value
+    end
+
     def italic? : Bool
       get_bool(Props::Italic)
+    end
+
+    def italic=(value : Bool) : Bool
+      set_bool(Props::Italic, value)
+      value
     end
 
     def underline? : Bool
       get_bool(Props::Underline)
     end
 
+    def underline=(value : Bool) : Bool
+      set_bool(Props::Underline, value)
+      value
+    end
+
     def strikethrough? : Bool
       get_bool(Props::Strikethrough)
+    end
+
+    def strikethrough=(value : Bool) : Bool
+      set_bool(Props::Strikethrough, value)
+      value
     end
 
     def reverse? : Bool
       get_bool(Props::Reverse)
     end
 
+    def reverse=(value : Bool) : Bool
+      set_bool(Props::Reverse, value)
+      value
+    end
+
     def blink? : Bool
       get_bool(Props::Blink)
     end
 
+    def blink=(value : Bool) : Bool
+      set_bool(Props::Blink, value)
+      value
+    end
+
     def faint? : Bool
       get_bool(Props::Faint)
+    end
+
+    def faint=(value : Bool) : Bool
+      set_bool(Props::Faint, value)
+      value
     end
 
     def underline_spaces? : Bool
@@ -1150,11 +1189,29 @@ module Term2
     end
 
     def foreground_color : Color?
-      resolve_color(@fg_color)
+      case fg = @fg_color
+      when Color
+        fg
+      when AdaptiveColor
+        fg.resolve
+      when CompleteColor
+        fg.resolve
+      else
+        nil
+      end
     end
 
     def background_color : Color?
-      resolve_color(@bg_color)
+      case bg = @bg_color
+      when Color
+        bg
+      when AdaptiveColor
+        bg.resolve
+      when CompleteColor
+        bg.resolve
+      else
+        nil
+      end
     end
 
     # Aliases for backwards compatibility
@@ -1366,19 +1423,19 @@ module Term2
     end
 
     def get_border_top_size : Int32
-      get_border_top ? @border_style.get_top_size : 0
+      get_border_top ? @border_style.top_size : 0
     end
 
     def get_border_right_size : Int32
-      get_border_right ? @border_style.get_right_size : 0
+      get_border_right ? @border_style.right_size : 0
     end
 
     def get_border_bottom_size : Int32
-      get_border_bottom ? @border_style.get_bottom_size : 0
+      get_border_bottom ? @border_style.bottom_size : 0
     end
 
     def get_border_left_size : Int32
-      get_border_left ? @border_style.get_left_size : 0
+      get_border_left ? @border_style.left_size : 0
     end
 
     def get_horizontal_border_size : Int32
@@ -1665,9 +1722,13 @@ module Term2
         @bg_color = other.@bg_color
         @props |= Props::Background
         # Background also sets margin background if not already set
+        # Only if background is not a CompleteColor (which margin_bg_color doesn't support)
         if !is_set?(Props::MarginBackground) && !other.is_set?(Props::MarginBackground)
-          @margin_bg_color = other.@bg_color
-          @props |= Props::MarginBackground
+          bg = other.@bg_color
+          unless bg.is_a?(CompleteColor)
+            @margin_bg_color = bg
+            @props |= Props::MarginBackground
+          end
         end
       end
 
@@ -2030,7 +2091,7 @@ module Term2
       bottom_padding = @padding_bottom
       left_padding = @padding_left
 
-      color_whitespace = get_color_whitespace
+      color_whitespace = color_whitespace?
       inline_val = get_bool(Props::Inline)
       max_width_val = @max_width
       max_height_val = @max_height
@@ -2192,12 +2253,12 @@ module Term2
       self
     end
 
-    private def get_bool(prop : Props) : Bool
+    def get_bool(prop : Props) : Bool
       (@attrs & (1u32 << prop.value.trailing_zeros_count)) != 0
     end
 
-    private def is_set?(prop : Props) : Bool
-      @props.includes?(prop)
+    def is_set?(prop : Props) : Bool
+      (@props & prop) != Props::None
     end
 
     private def unset(prop : Props) : Style
@@ -2283,7 +2344,15 @@ module Term2
           Color.indexed(Color.rgb_to_ansi256_index(r, g, b))
         end
       else # TrueColor
-        color
+        # In TrueColor mode, convert everything to RGB for consistent rendering
+        # This matches Go lipgloss behavior
+        case color.type
+        when Color::Type::RGB
+          color
+        else
+          r, g, b = color.to_rgb
+          Color.rgb(r, g, b)
+        end
       end
     end
 

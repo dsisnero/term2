@@ -37,6 +37,8 @@ private class SpinnerTestModel
 end
 
 describe Term2::Components::Spinner do
+  # Note: This test is flaky due to timing issues with CML event handling
+  # The spinner tick mechanism relies on precise timing that can fail under load
   it "cycles frames and stops when requested" do
     output = IO::Memory.new
     model = SpinnerTestModel.new(4)

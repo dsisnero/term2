@@ -1,83 +1,38 @@
 require "cml"
-require "cml/mailbox"
-require "set"
 require "./base_types"
 require "./exec"
 require "./zone"
 require "./terminal"
+require "./program_context"
 require "./program_options"
 require "./key_sequences"
 require "./mouse"
 require "./style"
+require "./join"
+require "./style_table"
 require "./renderer"
+require "./range"
 require "./components/*"
 
-{% if flag?(:unix) %}
-  lib LibC
-    fun kill(pid : Int32, sig : Int32) : Int32
-  end
-{% end %}
-
 # Term2 is a Crystal port of the Bubble Tea terminal UI library.
-#
-# It provides a reactive, Elm-inspired architecture for building
-# terminal user interfaces using a Model-Update-View pattern.
-#
-# ## Quick Start
-#
-# ```
-# require "term2"
-#
-# class MyModel < Term2::Model
-#   getter count : Int32 = 0
-#
-#   def initialize(@count = 0); end
-#
-#   def init : Term2::Cmd
-#     Term2::Cmd.none
-#   end
-#
-#   def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
-#     case msg
-#     when Term2::KeyMsg
-#       case msg.key.to_s
-#       when "q" then {self, Term2::Cmd.quit}
-#       when "+" then {MyModel.new(@count + 1), Term2::Cmd.none}
-#       else          {self, Term2::Cmd.none}
-#       end
-#     else
-#       {self, Term2::Cmd.none}
-#     end
-#   end
-#
-#   def view : String
-#     "Count: #{@count}\nPress + to increment, q to quit"
-#   end
-# end
-#
-# Term2.run(MyModel.new)
-# ```
-#
-# ## Architecture
-#
-# Term2 follows the Elm architecture:
-# - **Model**: Your application state (must inherit from `Term2::Model`)
-# - **Update**: A function that takes a message and returns a new model and command
-# - **View**: A function that renders the model to a string
-#
-# ## Key Features
-#
-# - Keyboard and mouse input handling
-# - Alternate screen support
-# - Focus reporting
-# - Window resize events
-# - Bracketed paste mode
-# - Command system for async operations
-# - Rate-limited rendering
 module Term2
   VERSION = "0.1.0"
 
-  # Messages have been moved to base_types.cr
+  # Raised when a program is killed (e.g., by a timeout in tests)
+  class ProgramKilled < Exception
+  end
+
+  # Raised when panic recovery is disabled and an exception bubbles up.
+  class ProgramPanic < Exception
+  end
+
+  # Gets the first UTF-8 rune from a string
+  def self.get_first_rune_as_string(str : String) : String
+    return "" if str.empty?
+
+    # Get the first character (Crystal handles UTF-8 correctly)
+    str[0].to_s
+  end
 
   # KeyReader handles reading and parsing key sequences from input
   class KeyReader
@@ -94,10 +49,9 @@ module Term2
     PASTE_END   = "\e[201~"
 
     def read_key(io : IO) : Key?
-      # Reset any previous mouse event; set again only when a full event is parsed.
-      @last_mouse_event = nil
       char = nil
       timeout = false
+      eof = false
 
       begin
         # Try to read a character
@@ -106,7 +60,7 @@ module Term2
           raise IO::EOFError.new unless char
         else
           # Buffer has data, try to read more with timeout
-          if io.responds_to?(:read_timeout=) && io.is_a?(IO::FileDescriptor)
+          if io.responds_to?(:read_timeout=)
             old_timeout = io.read_timeout
             begin
               io.read_timeout = 0.05.seconds
@@ -118,17 +72,14 @@ module Term2
               io.read_timeout = old_timeout
             end
           else
-            # For non-FileDescriptor IOs (like IO::Memory in tests), we can't easily timeout.
-            # But if we are in a test with IO::Memory, we might be able to peek?
-            # Or just assume if it blocks it blocks.
-            # However, for the focus test, we put all data in upfront.
-            # If we are here, it means we have some buffer (e.g. "\e") and we want to see if there is more.
-            # If the IO is empty, read_char will raise EOF or block.
-            # In tests with IO::Memory, it raises EOF if empty.
+            # For non-FileDescriptor IOs
             begin
               char = io.read_char
               raise IO::EOFError.new unless char
             rescue IO::EOFError
+              # Treat end-of-stream as EOF, not a timeout. We'll resolve the
+              # current buffer so callers don't spin forever.
+              eof = true
               timeout = true
             end
           end
@@ -142,7 +93,12 @@ module Term2
       end
 
       if timeout
-        if mouse_sequence_prefix?(@buffer)
+        # Mouse escape sequences can arrive in multiple chunks. If we time out
+        # mid-sequence, keep buffering instead of interpreting it as Esc.
+        #
+        # This also applies to CSI-prefixed key sequences (e.g. arrows) which
+        # can arrive chunked under read timeouts.
+        if !eof && @buffer != "\e" && (mouse_sequence_prefix?(@buffer) || KeySequences.prefix?(@buffer))
           return
         end
         return resolve_current_buffer
@@ -152,12 +108,10 @@ module Term2
       if @in_paste
         @paste_buffer += char.to_s
         if @paste_buffer.ends_with?(PASTE_END)
-          # Remove the paste end sequence from the content
           pasted_content = @paste_buffer[0...-PASTE_END.size]
           @in_paste = false
           @paste_buffer = ""
           @buffer = ""
-          # Return a key with the pasted content and paste flag set
           return Key.new(pasted_content.chars, alt: false, paste: true)
         end
         return
@@ -166,7 +120,6 @@ module Term2
       # Add to buffer
       @buffer += char.to_s
 
-      # Check for paste start sequence
       if @buffer.ends_with?(PASTE_START)
         @in_paste = true
         @paste_buffer = ""
@@ -174,7 +127,6 @@ module Term2
         return
       end
 
-      # Check if we might be in a paste start sequence (partial match)
       if PASTE_START.starts_with?(@buffer) && @buffer.size < PASTE_START.size
         return # Need more characters
       end
@@ -185,70 +137,61 @@ module Term2
         if mouse_event
           @buffer = ""
           @last_mouse_event = mouse_event
-          # Return a dummy key to signal we have something
           return Key.new(KeyType::Null)
         end
-        # If this looks like a mouse prefix but isn't complete yet, keep buffering.
-        if mouse_sequence_prefix?(@buffer)
-          return
-        end
-        # If no mouse event was found, continue to check for key sequences
+
+        # If this looks like the start of a mouse sequence (SGR/X10), keep
+        # buffering until we can parse the full sequence. These aren't part of
+        # KeySequences and would otherwise be misinterpreted as an Esc key.
+        return if mouse_sequence_prefix?(@buffer)
       end
 
-      # Clear last mouse event since we're not returning a mouse event
       @last_mouse_event = nil
 
       # Check for escape sequences
       if @buffer.starts_with?("\e")
-        # Check if we have a complete sequence
+        # If we only have a bare escape so far, wait briefly for the rest of the
+        # sequence (CSI, mouse, etc.). We'll resolve it to Esc on timeout if no
+        # additional bytes arrive.
+        return if @buffer == "\e"
+
         exact_match = KeySequences.find(@buffer)
         is_prefix = KeySequences.prefix?(@buffer)
 
-        # STDERR.puts "Buffer: #{@buffer.inspect} Match: #{exact_match.inspect} Prefix: #{is_prefix}"
-
         if exact_match && !is_prefix
-          # Exact match and not a prefix of anything else
           @buffer = ""
           return exact_match
         elsif is_prefix
-          # It's a prefix (and maybe a match too), need more data
           return
         end
 
-        # Neither a match nor a prefix, so it's an unknown/invalid sequence
         resolve_current_buffer
       else
-        # Single character
         key = parse_single_char(@buffer)
         @buffer = ""
         key
       end
     rescue InvalidByteSequenceError
-      # Return replacement character for invalid UTF-8
       Key.new('\uFFFD')
     end
 
     private def mouse_sequence_prefix?(buffer : String) : Bool
+      # SGR mouse: "\e[<...". X10 mouse: "\e[M" followed by 3 bytes.
       buffer.starts_with?("\e[<") || buffer.starts_with?("\e[M")
     end
 
     private def resolve_current_buffer : Key
-      # Check if the current buffer is a valid sequence
-      # This handles cases where a sequence is a prefix of another (e.g. \e[O vs \e[OA)
-      # but we timed out or hit EOF, so we should accept the shorter sequence.
       if key = KeySequences.find(@buffer)
         @buffer = ""
         return key
       end
 
-      # If we have a complete escape sequence but no match, treat as alt+key
       if @buffer.size > 1 && @buffer[1] != '['
         key_char = @buffer[1]
         @buffer = ""
         return Key.new(key_char, alt: true)
       end
 
-      # Unknown escape sequence, clear buffer
       @buffer = ""
       Key.new(KeyType::Esc)
     end
@@ -271,7 +214,7 @@ module Term2
       when 13
         Key.new(KeyType::Enter)
       when 32
-        Key.new(KeyType::Space)
+        Key.new(' ')
       else
         if char.control?
           Key.new(KeyType.new(char.ord))
@@ -282,22 +225,16 @@ module Term2
     end
   end
 
-  # MouseEvent is now defined in mouse.cr
-
   # Dispatcher bridges commands to the program's message mailbox.
-  # Dispatcher and Cmd have been moved to base_types.cr
-
   # Run the program with the given model.
   def self.run(model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new) forall M
     Program(M).new(model, input, output, options).run
   end
 
-  # Helper to create a quit command
   def self.quit : Cmd
     Cmds.quit
   end
 
-  # Helper to batch multiple commands
   def self.batch(*cmds : Cmd) : Cmd
     Cmds.batch(*cmds)
   end
@@ -308,9 +245,9 @@ module Term2
     getter! model
     getter output_io : IO
     getter input_io : IO?
-    getter startup_options : Set(Symbol)
-    getter input_type : Symbol
+    getter startup_options : Array(Symbol)
     getter context : ProgramContext?
+    getter input_type : Symbol
     @model : M
     @pending_shutdown : Bool
     @options : ProgramOptions
@@ -322,20 +259,149 @@ module Term2
     @bracketed_paste_enabled : Bool
     @mouse_cell_motion_enabled : Bool
     @mouse_all_motion_enabled : Bool
-    @filter : Proc(Msg?, Msg?)?
+    @filter : FilterProc?
     @renderer : Renderer
-    @killed : Atomic(Bool)
-    @external_context : ProgramContext?
-    @last_window_width : Int32?
-    @last_window_height : Int32?
+    @shutdown_ch = CML::Chan(Nil).new
+    @context : ProgramContext?
+    @startup_options : Array(Symbol)
+    @input_type : Symbol
+    property? input_tty : Bool = false
+    @log_file : File? = nil
+    @needs_render : Bool = false
+    @profile : Bool = false
+    @killed : Atomic(Bool) = Atomic(Bool).new(false)
 
-    # Allow options to override the renderer
-    def renderer=(renderer : Renderer)
-      @renderer = renderer
+    alias RenderOp = String | PrintMsg
+    alias FilterProc = Proc(Msg, Msg?) | Proc(Model, Msg, Msg?) | Proc(Msg, Msg) | Proc(Model, Msg, Msg)
+
+    def initialize(@model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
+      @input_io = input
+      @output_io = output
+      @mailbox = CML::Mailbox(Msg).new
+      @render_mailbox = CML::Mailbox(RenderOp).new
+      @done = CML::IVar(Nil).new
+      @shutdown_ch = CML::Chan(Nil).new
+
+      @dispatcher = Dispatcher.new(@mailbox)
+      @running = Atomic(Bool).new(false)
+      @pending_shutdown = false
+      @options = options
+      @alt_screen_enabled = false
+      @renderer_enabled = true
+      @panic_recovery_enabled = true
+      @signal_handling_enabled = true
+      @focus_reporting_enabled = false
+      @bracketed_paste_enabled = false
+      @mouse_cell_motion_enabled = false
+      @mouse_all_motion_enabled = false
+      @filter = nil
+      @renderer = StandardRenderer.new(@output_io)
+      @context = nil
+      @startup_options = [] of Symbol
+      @input_type = :stdin
+
+      @options.apply(self)
     end
 
-    def renderer : Renderer
-      @renderer
+    def run : M
+      if the_io = @input_io
+        if the_io.responds_to?(:raw!) && the_io.is_a?(IO::FileDescriptor)
+          if the_io.tty?
+            @input_tty = true
+            the_io.raw!
+          end
+        end
+      end
+
+      begin
+        run_internal
+      ensure
+        if input_tty? && @input_io
+          @input_io.try(&.as(IO::FileDescriptor).cooked!)
+        end
+        cleanup
+      end
+      @model
+    end
+
+    private def run_internal
+      if @panic_recovery_enabled
+        begin
+          bootstrap
+          listen_loop
+        rescue ex
+          cleanup
+          raise ex
+        end
+      else
+        bootstrap
+        listen_loop
+      end
+    ensure
+      cleanup
+    end
+
+    def dispatch(msg : Message) : Nil
+      @dispatcher.dispatch(msg.as(Msg))
+    end
+
+    # Directly process a message (synchronous). Useful for tests.
+    def process_message(msg : Message) : Nil
+      handle_message(msg)
+    end
+
+    def send(msg : Message) : Nil
+      return if @shutdown_ch.closed?
+      dispatch(msg)
+    end
+
+    def quit : Nil
+      return if @shutdown_ch.closed?
+      dispatch(QuitMsg.new)
+    end
+
+    def stop : Nil
+      return unless @running.compare_and_set(true, false)
+      @dispatcher.stop
+      @done.i_put(nil) rescue nil
+    end
+
+    def kill : Nil
+      @killed.set(true)
+      stop
+      raise ProgramKilled.new("program killed")
+    end
+
+    # Wait for program completion
+    def wait : Nil
+      CML.sync(@done.i_get_evt)
+      if @killed.get
+        raise ProgramKilled.new("program killed")
+      end
+    end
+
+    def shutdown_evt : CML::Event(Nil)
+      @shutdown_ch.recv_evt
+    end
+
+    # Options
+    def enable_alt_screen
+      @alt_screen_enabled = true
+      record_startup_option(:alt_screen)
+    end
+
+    def disable_renderer
+      @renderer_enabled = false
+    end
+
+    def disable_panic_recovery
+      @panic_recovery_enabled = false
+      record_startup_option(:without_catch_panics)
+    end
+
+    def disable_signal_handling
+      @signal_handling_enabled = false
+      record_startup_option(:without_signal_handler)
     end
 
     def renderer_enabled? : Bool
@@ -350,10 +416,6 @@ module Term2
       !!@filter
     end
 
-    def input_tty? : Bool
-      @input_io.is_a?(IO::FileDescriptor)
-    end
-
     def bracketed_paste_enabled? : Bool
       @bracketed_paste_enabled
     end
@@ -366,237 +428,119 @@ module Term2
       @mouse_all_motion_enabled
     end
 
-    def context : ProgramContext?
-      @external_context
-    end
-
-    # For testing/internal parity: process a message immediately (bypassing mailbox loop).
-    def process_message(msg : Message) : Nil
-      handle_message(msg)
-    end
-
-    alias RenderOp = String | PrintMsg
-
-    def initialize(@model : M, input : IO? = STDIN, output : IO = STDOUT, options : ProgramOptions = ProgramOptions.new)
-      @input_io = input
-      @output_io = output
-      @startup_options = Set(Symbol).new
-      @input_type = input_type_for(input)
-      @mailbox = CML::Mailbox(Msg).new
-      @render_mailbox = CML::Mailbox(RenderOp).new
-      @done = CML::IVar(Nil).new
-      @dispatcher = Dispatcher.new(@mailbox)
-      @running = Atomic(Bool).new(false)
-      @input_running = Atomic(Bool).new(false)
-      @pending_shutdown = false
-      @options = options
-      @alt_screen_enabled = false
-      @renderer_enabled = true
-      @panic_recovery_enabled = true
-      @signal_handling_enabled = true
-      @focus_reporting_enabled = false
-      @bracketed_paste_enabled = false
-      @mouse_cell_motion_enabled = false
-      @mouse_all_motion_enabled = false
-      @filter = nil
-      @renderer = StandardRenderer.new(@output_io)
-      @killed = Atomic(Bool).new(false)
-      @external_context = nil
-      @last_window_width = nil
-      @last_window_height = nil
-      @options.apply(self)
-    end
-
-    def run : M
-      # Run inside raw mode if we have an input IO that supports it
-      if io = @input_io
-        case io
-        when IO::FileDescriptor
-          # Log.debug { "Entering raw mode on #{io}" }
-          begin
-            io.raw do
-              run_internal
-            end
-          rescue IO::Error
-            # If raw mode is not supported (e.g., non-TTY/pipe), fall back
-            run_internal
-          end
-        else
-          run_internal
-        end
-      else
-        run_internal
-      end
-      raise ProgramKilled.new("program killed") if @killed.get
-      @model
-    end
-
-    def model : M
-      @model
-    end
-
-    def start : Nil
-      spawn { run }
-    end
-
-    def wait : Nil
-      CML.sync(@done.read_evt)
-      raise ProgramKilled.new("program killed") if @killed.get
-    end
-
-    def kill : Nil
-      @killed.set(true)
-      stop
-    end
-
-    def quit : Nil
-      dispatch(QuitMsg.new)
-    end
-
-    private def run_internal
-      if @panic_recovery_enabled
-        begin
-          bootstrap
-          listen_loop
-        rescue ex
-          # Ensure terminal is restored even on crash
-          cleanup
-          # Writing to a closed output stream can happen when callers pipe
-          # output and close early; treat those as graceful exits.
-          if ex.is_a?(IO::Error)
-            @killed.set(false)
-            return @model
-          end
-          @killed.set(true)
-          raise ProgramPanic.new(ex.message)
-        end
-      else
-        bootstrap
-        listen_loop
-      end
-    ensure
-      cleanup
-    end
-
-    def send(msg : Message) : Nil
-      @dispatcher.dispatch(msg.as(Msg))
-    end
-
-    # Backwards-compatible alias.
-    def dispatch(msg : Message) : Nil
-      send(msg)
-    end
-
-    def stop : Nil
-      return unless @running.compare_and_set(true, false)
-      @dispatcher.stop
-      @done.fill(nil)
-    end
-
-    # Option methods
-    def enable_alt_screen : Nil
-      @alt_screen_enabled = true
-      @startup_options << :alt_screen
-    end
-
-    def disable_renderer : Nil
-      @renderer_enabled = false
-    end
-
-    def disable_panic_recovery : Nil
-      @panic_recovery_enabled = false
-      @startup_options << :without_catch_panics
-    end
-
-    def disable_signal_handling : Nil
-      @signal_handling_enabled = false
-      @startup_options << :without_signal_handler
-    end
-
-    def output=(output : IO) : Nil
+    def output=(output : IO)
       @output_io = output
     end
 
-    def input=(input : IO) : Nil
+    def input=(input : IO)
       @input_io = input
-      @input_type = input_type_for(input)
+      @input_type = :custom
     end
 
-    def force_input_tty : Nil
+    def force_input_tty
       @input_type = :tty
       @input_io = File.open("/dev/tty")
+      @input_tty = true
     rescue
-      # Ignore if /dev/tty is not available
+      @input_io = nil
+      @input_tty = true
     end
 
-    def environment=(env : Hash(String, String)) : Nil
-      # TODO: Implement environment setting
+    def context=(ctx : ProgramContext)
+      @context = ctx
     end
 
-    def fps=(fps : Float64) : Nil
-      # TODO: Implement FPS setting
+    def input_type=(type : Symbol)
+      @input_type = type
     end
 
-    def filter=(filter : Proc(Msg?, Msg?)) : Nil
+    def environment=(env : Hash(String, String)); end
+
+    def fps=(fps : Float64); end
+
+    def filter=(filter : Proc(Message, Message?)) : Nil
       @filter = filter
     end
 
-    def enable_focus_reporting : Nil
+    def filter=(filter : Proc(Model, Message, Message?)) : Nil
+      @filter = filter
+    end
+
+    def filter=(filter : Proc(Message, Message)) : Nil
+      @filter = filter
+    end
+
+    def filter=(filter : Proc(Model, Message, Message)) : Nil
+      @filter = filter
+    end
+
+    def add_startup_option(option : Symbol) : Nil
+      record_startup_option(option)
+    end
+
+    def enable_focus_reporting
       @focus_reporting_enabled = true
     end
 
-    def context=(context : ProgramContext) : Nil
-      @external_context = context
-    end
-
-    def disable_bracketed_paste : Nil
+    def disable_bracketed_paste
       @bracketed_paste_enabled = false
-      @startup_options << :without_bracketed_paste
+      record_startup_option(:without_bracketed_paste)
     end
 
-    def enable_mouse_cell_motion : Nil
+    def enable_mouse_cell_motion
       @mouse_cell_motion_enabled = true
       @mouse_all_motion_enabled = false
-      @startup_options.delete(:mouse_all_motion)
-      @startup_options << :mouse_cell_motion
       Mouse.enable_tracking(@output_io)
+      remove_startup_option(:mouse_all_motion)
+      record_startup_option(:mouse_cell_motion)
     end
 
-    def enable_mouse_all_motion : Nil
+    def enable_mouse_all_motion
       @mouse_all_motion_enabled = true
       @mouse_cell_motion_enabled = false
-      @startup_options.delete(:mouse_cell_motion)
-      @startup_options << :mouse_all_motion
       Mouse.enable_move_reporting(@output_io)
+      remove_startup_option(:mouse_cell_motion)
+      record_startup_option(:mouse_all_motion)
     end
 
-    def enable_ansi_compressor : Nil
-      @startup_options << :ansi_compressor
-    end
-
-    private def input_type_for(io : IO?) : Symbol
-      return :none unless io
-      io.is_a?(IO::FileDescriptor) ? :tty : :custom
-    end
-
-    def disable_mouse_tracking : Nil
+    def disable_mouse_tracking
       @mouse_cell_motion_enabled = false
       @mouse_all_motion_enabled = false
       Mouse.disable_tracking(@output_io)
     end
 
+    private def record_startup_option(option : Symbol)
+      @startup_options.reject! { |opt| opt == option }
+      @startup_options << option
+    end
+
+    private def remove_startup_option(option : Symbol)
+      @startup_options.reject! { |opt| opt == option }
+    end
+
     private def bootstrap
       @running.set(true)
-      # Provide an initial window size message when output is a TTY (parity with Bubble Tea)
-      if Terminal.tty?(@output_io)
-        width, height = Terminal.size
-        dispatch(WindowSizeMsg.new(width, height))
+      @profile = ENV["TERM2_PROFILE"]? == "1"
+      if path = ENV["TERM2_LOG_FILE"]?
+        begin
+          Dir.mkdir_p(File.dirname(path))
+          @log_file = File.open(path, "a")
+          @log_file.not_nil!.sync = true
+        rescue ex
+          STDERR.puts "TERM2_LOG_FILE error: #{ex.message}"
+        end
       end
-      start_context_watcher
       if @renderer_enabled
         @renderer.start
       end
       setup_terminal
+      # Bubble Tea parity: send an initial window size message before the first render.
+      if Terminal.tty?(@output_io)
+        width, height = Terminal.size
+        new_model, cmd = @model.update(WindowSizeMsg.new(width, height))
+        @model = new_model.as(M)
+        run_cmd(cmd)
+      end
       setup_signal_handlers
       start_input_reader
       init_cmd = @model.init
@@ -605,127 +549,70 @@ module Term2
     end
 
     private def setup_terminal
-      safe_io do
-        if @alt_screen_enabled
-          Terminal.enter_alt_screen(@output_io)
-        end
-
-        if @focus_reporting_enabled
-          Terminal.enable_focus_reporting(@output_io)
-        end
-
-        unless @bracketed_paste_enabled
-          Terminal.disable_bracketed_paste(@output_io)
-        end
-
-        # Configure mouse modes
-        if @mouse_cell_motion_enabled
-          Mouse.enable_tracking(@output_io)
-        elsif @mouse_all_motion_enabled
-          Mouse.enable_move_reporting(@output_io)
-        end
-
-        Terminal.hide_cursor(@output_io)
-        Terminal.clear(@output_io)
+      if @alt_screen_enabled
+        Terminal.enter_alt_screen(@output_io)
       end
+      if @focus_reporting_enabled
+        Terminal.enable_focus_reporting(@output_io)
+      end
+      unless @bracketed_paste_enabled
+        Terminal.disable_bracketed_paste(@output_io)
+      end
+      if @mouse_cell_motion_enabled
+        Mouse.enable_tracking(@output_io)
+      elsif @mouse_all_motion_enabled
+        Mouse.enable_move_reporting(@output_io)
+      end
+      Terminal.hide_cursor(@output_io)
+      Terminal.clear(@output_io)
     end
 
     private def start_input_reader
       return unless io = @input_io
-      return if @input_running.get
-
-      # Handle in-memory input eagerly if present (used in tests to feed keys).
-      if io.is_a?(IO::Memory)
-        return if io.to_s.empty?
-        @input_running.set(true)
-        spawn(name: "term2-input") { read_input(io) }
-        return
-      end
-
-      # Only start reader for real TTY file descriptors.
-      return unless io.is_a?(IO::FileDescriptor) && io.tty?
-      @input_running.set(true)
       spawn(name: "term2-input") { read_input(io) }
     end
 
     private def read_input(io : IO)
       key_reader = KeyReader.new
-
-      while running? && @input_running.get
+      while running?
         begin
-          # Read a key (KeyReader handles mouse events internally via check_mouse_event)
           result = key_reader.read_key(io)
-          next unless result # Continue if nil (partial sequence)
+          next unless result
 
-          # Check if KeyReader detected a mouse event
           if mouse_event = key_reader.last_mouse_event
-            # First dispatch raw mouse event
+            @log_file.try { |f| f.puts("in mouse #{mouse_event} x=#{mouse_event.x} y=#{mouse_event.y} button=#{mouse_event.button} action=#{mouse_event.action}") }
             dispatch(mouse_event)
-
-            # Then check if it hit a zone and dispatch zone click
-            if zone_click = Zone.handle_mouse(mouse_event)
-              # Auto-focus clicked zone on press
-              if mouse_event.action == MouseEvent::Action::Press
-                Zone.focus(zone_click.id)
-              end
-              dispatch(zone_click)
-            end
             next
           end
 
           key = result
-
+          @log_file.try(&.puts("in key #{key.to_s} type=#{key.type}"))
           if key.type == KeyType::FocusIn
             dispatch(FocusMsg.new)
           elsif key.type == KeyType::FocusOut
             dispatch(BlurMsg.new)
           elsif key.type == KeyType::Tab
-            # Tab key cycles focus through zones
             if next_id = Zone.focus_next
               dispatch(ZoneFocusMsg.new(next_id))
             end
             dispatch(KeyMsg.new(key))
           elsif key.type == KeyType::ShiftTab
-            # Shift+Tab cycles focus backwards
             if prev_id = Zone.focus_prev
               dispatch(ZoneFocusMsg.new(prev_id))
             end
             dispatch(KeyMsg.new(key))
           else
             dispatch(KeyMsg.new(key))
-            # Also dispatch legacy KeyPress for backward compatibility
             dispatch(KeyPress.new(key.to_s))
           end
         rescue IO::EOFError
           break
         end
       end
-      @input_running.set(false)
-    end
-
-    private def start_context_watcher
-      return unless ctx = @external_context
-      spawn(name: "term2-context-watch") do
-        ctx.wait
-        @killed.set(true)
-        dispatch(InterruptMsg.new)
-      end
     end
 
     private def running? : Bool
       @running.get
-    end
-
-    private abstract class LoopEvent
-    end
-
-    private class InputEvent < LoopEvent
-      getter message : Msg
-
-      def initialize(@message : Msg); end
-    end
-
-    private class DoneEvent < LoopEvent
     end
 
     private def listen_loop
@@ -735,46 +622,90 @@ module Term2
         case event
         when InputEvent
           handle_message(event.message)
+          # Bubble Tea parity: render promptly after processing input so that
+          # single click/key events update the UI without waiting for another
+          # event to arrive.
+          drain_render_queue
         when DoneEvent
           drain_render_queue
           break
+        when ContextCancelEvent
+          stop
+          raise ProgramKilled.new("program killed")
         end
       end
     end
 
+    private abstract class LoopEvent; end
+
+    private class InputEvent < LoopEvent
+      getter message : Msg
+
+      def initialize(@message : Msg); end
+    end
+
+    private class DoneEvent < LoopEvent; end
+
+    private class ContextCancelEvent < LoopEvent; end
+
     private def next_event : CML::Event(LoopEvent)
       events = [] of CML::Event(LoopEvent)
       input_evt = CML.wrap(@mailbox.recv_evt) { |msg| InputEvent.new(msg).as(LoopEvent) }
-      events << CML.nack(input_evt) { }
-      events << CML.wrap(@done.read_evt) { DoneEvent.new.as(LoopEvent) }
+      events << input_evt
+      events << CML.wrap(@done.i_get_evt) { DoneEvent.new.as(LoopEvent) }
+      if ctx = @context
+        events << CML.wrap(ctx.cancel_evt) { ContextCancelEvent.new.as(LoopEvent) }
+      end
       CML.choose(events)
     end
 
     private def handle_message(msg : Message)
-      STDERR.puts "handle #{msg.class}" if ENV["TERM2_DEBUG"]?
+      if ENV["TERM2_DEBUG"]?
+        STDERR.puts "handle #{msg.class}"
+      end
+      @log_file.try(&.puts("handle #{msg.class}"))
 
       # Apply message filter if configured
-      filtered_msg = if filter = @filter
-                       filter.call(msg.as(Msg))
-                     else
-                       msg.as(Msg)
-                     end
-      return unless filtered_msg
+      # Pass @model (current state) and msg
+      filtered_msg_or_nil =
+        if filter = @filter
+          case filter
+          when Proc(Msg, Msg?)
+            filter.call(msg.as(Msg))
+          when Proc(Msg, Msg)
+            filter.call(msg.as(Msg)).as(Msg?)
+          when Proc(Model, Msg, Msg?)
+            filter.call(@model, msg.as(Msg))
+          when Proc(Model, Msg, Msg)
+            filter.call(@model, msg.as(Msg)).as(Msg?)
+          else
+            msg.as(Msg)
+          end
+        else
+          msg.as(Msg)
+        end
 
-      # Handle internal terminal messages
+      # If the filter returned nil, drop the event (Bubble Tea logic)
+      return unless filtered_msg_or_nil
+
+      filtered_msg = filtered_msg_or_nil
+
       case filtered_msg
+      when ExecMsg
+        execute_process(filtered_msg)
+        return
       when BatchMsg
-        filtered_msg.cmds.each { |cmd| run_cmd(cmd) }
+        spawn { exec_batch(filtered_msg) }
         return
       when SequenceMsg
-        spawn do
-          filtered_msg.cmds.each do |cmd|
-            # Run synchronously in this fiber
-            if msg = cmd.call
-              dispatch(msg.as(Message))
-            end
-          end
+        spawn { exec_sequence(filtered_msg) }
+        return
+      when QuitMsg
+        @pending_shutdown = true
+        unless @shutdown_ch.closed?
+          @shutdown_ch.close
         end
+        schedule_render
         return
       when EnterAltScreenMsg
         Terminal.enter_alt_screen(@output_io)
@@ -784,15 +715,6 @@ module Term2
         Terminal.exit_alt_screen(@output_io)
         @alt_screen_enabled = false
         return
-      when SuspendMsg
-        unless ENV["TERM2_DISABLE_SUSPEND"]?
-          suspend_program
-          # Process will receive SIGCONT and dispatch ResumeMsg via signal handler
-        end
-        return
-      when ResumeMsg
-        reapply_terminal_state
-        # fall through to model.update so application can react
       when ShowCursorMsg
         Terminal.show_cursor(@output_io)
         return
@@ -806,22 +728,13 @@ module Term2
         Terminal.set_window_title(@output_io, filtered_msg.title)
         return
       when RequestWindowSizeMsg
-        # Query window size and dispatch as WindowSizeMsg. If output isn't a TTY,
-        # reuse the last known size (mirrors Bubble Tea behavior in tests).
-        if @output_io.is_a?(IO::FileDescriptor) && @output_io.tty?
-          width, height = Terminal.size
-          @last_window_width = width
-          @last_window_height = height
-          dispatch(WindowSizeMsg.new(width, height))
-        elsif @last_window_width && @last_window_height
-          dispatch(WindowSizeMsg.new(@last_window_width.not_nil!, @last_window_height.not_nil!))
-        end
+        width, height = Terminal.size
+        dispatch(WindowSizeMsg.new(width, height))
         return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
         return
       when FocusMsg, BlurMsg, WindowSizeMsg
-        # Pass these to the application
       when EnableMouseCellMotionMsg
         enable_mouse_cell_motion
         return
@@ -847,262 +760,344 @@ module Term2
         Terminal.disable_focus_reporting(@output_io)
         @focus_reporting_enabled = false
         return
-      when InterruptMsg
-        @pending_shutdown = true
-        @killed.set(true)
-        stop
-        return
-      when ExecMsg
-        handle_exec(filtered_msg)
-        return
       end
 
       begin
+        t0 = Time.monotonic if @profile
+
+        # Bubble Tea parity: a single mouse report is one logical input event.
+        # We still surface both `MouseEvent` and derived `ZoneClickMsg` to the
+        # model, but we apply both updates in one pass so we only render once.
+        if filtered_msg.is_a?(MouseEvent)
+          mouse_event = filtered_msg
+          t_update0 = Time.monotonic if @profile
+          updated_model, cmd1 = @model.update(mouse_event)
+          current = updated_model.as(M)
+          t_update1 = Time.monotonic if @profile
+          cmds = [] of Cmd?
+          cmds << cmd1
+
+          if zone_click = Zone.handle_mouse(mouse_event)
+            if mouse_event.action == MouseEvent::Action::Press
+              Zone.focus(zone_click.id)
+            end
+            @log_file.try { |f| f.puts("in zone_click id=#{zone_click.id} x=#{zone_click.x} y=#{zone_click.y} button=#{zone_click.button} action=#{zone_click.action}") }
+
+            t_update2a = Time.monotonic if @profile
+            updated_model2, cmd2 = current.update(zone_click)
+            current = updated_model2.as(M)
+            t_update2b = Time.monotonic if @profile
+            cmds << cmd2
+          end
+
+          @model = current
+          schedule_render
+          cmd = Cmds.batch(cmds)
+          if @profile
+            t1 = Time.monotonic
+            update_ms = ((t_update1.not_nil! - t_update0.not_nil!).total_milliseconds)
+            zone_update_ms = 0.0
+            if t_update2a && t_update2b
+              zone_update_ms = ((t_update2b.not_nil! - t_update2a.not_nil!).total_milliseconds)
+            end
+            total_ms = ((t1 - t0.not_nil!).total_milliseconds)
+            @log_file.try { |f| f.puts("profile handle mouse update_ms=#{update_ms} zone_update_ms=#{zone_update_ms} total_ms=#{total_ms}") }
+          end
+          STDERR.puts "running cmd #{cmd}" if ENV["TERM2_DEBUG"]?
+          run_cmd(cmd)
+          return
+        end
+
+        t_update0 = Time.monotonic if @profile
         new_model, cmd = @model.update(filtered_msg)
+        t_update1 = Time.monotonic if @profile
         @model = new_model.as(M)
-        if filtered_msg.is_a?(WindowSizeMsg)
-          @last_window_width = filtered_msg.width
-          @last_window_height = filtered_msg.height
-        end
-        if filtered_msg.is_a?(QuitMsg)
-          @pending_shutdown = true
-        end
         schedule_render
+        if @profile
+          t1 = Time.monotonic
+          update_ms = ((t_update1.not_nil! - t_update0.not_nil!).total_milliseconds)
+          total_ms = ((t1 - t0.not_nil!).total_milliseconds)
+          @log_file.try { |f| f.puts("profile handle #{filtered_msg.class} update_ms=#{update_ms} total_ms=#{total_ms}") }
+        end
         STDERR.puts "running cmd #{cmd}" if ENV["TERM2_DEBUG"]?
         run_cmd(cmd)
       rescue ex
         if @panic_recovery_enabled
-          STDERR.puts "Error in update: #{ex.message}"
-          STDERR.puts ex.backtrace.join("\n") if ENV["TERM2_DEBUG"]?
-          @killed.set(true)
-          raise ex
-        else
-          raise ex
+          stop
+          raise ProgramPanic.new(ex.message, cause: ex)
         end
+        raise ex
       end
     end
 
     private def schedule_render
-      frame = @model.view
-      @render_mailbox.send(frame)
+      @needs_render = true
     end
 
     private def drain_render_queue
-      while op = @render_mailbox.poll
+      last_frame = nil.as(String?)
+      print_msgs = [] of PrintMsg
+
+      while op = @render_mailbox.recv_poll
         STDERR.puts "rendering frame" if ENV["TERM2_DEBUG"]?
         case op
         when String
-          render_frame(op)
+          last_frame = op
         when PrintMsg
-          render_print(op)
+          print_msgs << op
         end
       end
 
-      if @pending_shutdown &&
-         @render_mailbox.recv_evt.poll.nil? &&
-         @mailbox.recv_evt.poll.nil?
-        stop
+      print_msgs.each { |msg| render_print(msg) }
+
+      if frame = last_frame
+        @needs_render = false
+        render_frame(frame)
+      elsif @needs_render
+        @needs_render = false
+        if @profile
+          t0 = Time.monotonic
+          view = @model.view
+          t1 = Time.monotonic
+          @log_file.try { |f| f.puts("profile view_ms=#{(t1 - t0).total_milliseconds}") }
+          render_frame(view)
+        else
+          render_frame(@model.view)
+        end
       end
     end
 
     private def render_frame(frame : String)
-      # Clear and scan zones before rendering
-      Zone.clear
+      t0 = Time.monotonic if @profile
+      Zone.clear_zones
+      t_scan0 = Time.monotonic if @profile
       stripped = Zone.scan(frame)
-
-      safe_io do
-        if @renderer_enabled
-          @renderer.render(stripped)
-        else
-          @output_io.print(stripped)
-          @output_io.flush
-        end
+      t_scan1 = Time.monotonic if @profile
+      if @renderer_enabled
+        t_render0 = Time.monotonic if @profile
+        @renderer.render(stripped)
+        t_render1 = Time.monotonic if @profile
+      else
+        @output_io.print(stripped)
+        @output_io.flush
       end
+      if @profile
+        t1 = Time.monotonic
+        scan_ms = ((t_scan1.not_nil! - t_scan0.not_nil!).total_milliseconds)
+        render_ms = 0.0
+        if t_render0 && t_render1
+          render_ms = ((t_render1.not_nil! - t_render0.not_nil!).total_milliseconds)
+        end
+        total_ms = ((t1 - t0.not_nil!).total_milliseconds)
+        @log_file.try { |f| f.puts("profile render scan_ms=#{scan_ms} render_ms=#{render_ms} total_ms=#{total_ms}") }
+      end
+      stop if @pending_shutdown
     end
 
     private def render_print(msg : PrintMsg)
-      safe_io do
-        if @renderer_enabled
-          @renderer.print(msg.text)
-        else
-          @output_io.print(msg.text)
-          @output_io.flush
-        end
+      if @renderer_enabled
+        @renderer.print(msg.text)
+      else
+        @output_io.print(msg.text)
+        @output_io.flush
       end
     end
 
     private def run_cmd(cmd : Cmd?)
       return unless cmd
-      return if @pending_shutdown
+
       spawn do
-        if msg = cmd.call
-          dispatch(msg.as(Message))
+        begin
+          if msg = cmd.call
+            handle_cmd_result(msg)
+          end
+        rescue ex
+          handle_cmd_error(ex)
         end
       end
     end
 
-    private def handle_exec(msg : ExecMsg)
-      # Release terminal state
-      Terminal.show_cursor(@output_io)
-      Terminal.exit_alt_screen(@output_io) if @alt_screen_enabled
-      Terminal.disable_focus_reporting(@output_io) if @focus_reporting_enabled
-      Terminal.enable_bracketed_paste(@output_io)
-      @output_io.print("\033[0m")
-      @output_io.flush
+    private def handle_cmd_result(msg : Msg)
+      case msg
+      when BatchMsg
+        exec_batch(msg)
+      when SequenceMsg
+        exec_sequence(msg)
+      else
+        dispatch(msg)
+      end
+    end
 
-      error : Exception? = nil
-      begin
-        proc_input = @input_io ? @input_io.not_nil! : Process::Redirect::Close
-        status = Process.run(msg.cmd, args: msg.args, input: proc_input, output: @output_io, error: STDERR)
-        error = RuntimeError.new("exit #{status.system_exit_status}") unless status.success?
-      rescue ex
-        error = ex
-      ensure
-        # Restore program terminal state
-        Terminal.hide_cursor(@output_io)
-        if @alt_screen_enabled
-          Terminal.enter_alt_screen(@output_io)
-          Terminal.clear(@output_io)
+    private def exec_batch(batch : BatchMsg)
+      cmds = batch.cmds
+      return if cmds.empty?
+      return if @shutdown_ch.closed?
+
+      done_ch = CML::Chan(Nil).new
+
+      cmds.each do |cmd|
+        spawn do
+          begin
+            next if @shutdown_ch.closed?
+            if msg = cmd.call
+              next if @shutdown_ch.closed?
+              handle_cmd_result(msg)
+            end
+          rescue ex
+            handle_cmd_error(ex)
+          ensure
+            done_ch.send(nil) rescue nil
+          end
         end
-        if @focus_reporting_enabled
-          Terminal.enable_focus_reporting(@output_io)
-        end
-        Mouse.disable_tracking(@output_io)
       end
 
+      cmds.size.times do
+        CML.select([
+          done_ch.recv_evt,
+          @shutdown_ch.recv_evt,
+        ]
+        )
+        return if @shutdown_ch.closed?
+      end
+    end
+
+    private def execute_process(msg : ExecMsg)
+      if input_tty? && @input_io
+        @input_io.try(&.as(IO::FileDescriptor).cooked!)
+      end
+
+      if the_input = @input_io
+        Terminal.show_cursor(@output_io)
+        if @focus_reporting_enabled
+          Terminal.disable_focus_reporting(@output_io)
+        end
+
+        restore_signal_handlers
+
+        process_err : Exception? = nil
+        begin
+          status = Process.run(
+            msg.cmd,
+            msg.args,
+            env: msg.env,
+            input: the_input,
+            output: @output_io,
+            error: STDERR
+          )
+          unless status.success?
+            exit_code = status.exit_code
+            process_err = ExecError.new(msg.cmd, "#{msg.cmd} exited with status #{exit_code}", exit_code)
+          end
+        rescue ex
+          process_err = ex
+        end
+      end
+
+      if @input_tty && @input_io
+        @input_io.try(&.as(IO::FileDescriptor).raw!)
+      end
+
+      setup_signal_handlers
+
+      if @mouse_cell_motion_enabled
+        Mouse.enable_tracking(@output_io)
+      elsif @mouse_all_motion_enabled
+        Mouse.enable_move_reporting(@output_io)
+      end
+
+      if @focus_reporting_enabled
+        Terminal.enable_focus_reporting(@output_io)
+      end
+
+      Terminal.hide_cursor(@output_io)
+      Terminal.clear(@output_io)
+
       if callback = msg.callback
-        dispatch(callback.call(error))
+        spawn do
+          if cb_msg = callback.call(process_err)
+            dispatch(cb_msg)
+          end
+        end
+      end
+
+      schedule_render
+    end
+
+    private def exec_sequence(seq : SequenceMsg)
+      return if @shutdown_ch.closed?
+
+      spawn do
+        seq.cmds.each do |cmd|
+          # Loop control: break stops the sequence logic inside the fiber
+          break if @shutdown_ch.closed?
+
+          begin
+            if msg = cmd.call
+              break if @shutdown_ch.closed?
+              handle_cmd_result(msg)
+            end
+          rescue ex
+            handle_cmd_error(ex)
+          end
+        end
+      end
+    end
+
+    private def handle_cmd_error(ex)
+      if @panic_recovery_enabled
+        STDERR.puts "Error executing command: #{ex.message}"
+        STDERR.puts ex.backtrace.join("\n") if ENV["TERM2_DEBUG"]?
+      else
+        raise ex
       end
     end
 
     private def cleanup
       if @renderer_enabled
-        safe_io { @renderer.stop }
+        @renderer.stop
       end
-      safe_io { restore_terminal }
+      restore_terminal
       restore_signal_handlers
       @dispatcher.stop
-      @done.fill(nil) rescue nil
-    end
-
-    private def safe_io(& : ->) : Nil
-      yield
-    rescue IO::Error
-      # Ignore IO errors during shutdown so cleanup can't crash.
-    end
-
-    private def suspend_program
-      @input_running.set(false)
-      # Cancel input reader so it can be reinitialized after suspend.
-      @signal_handling_enabled = false
-      if io = @input_io.as?(IO::FileDescriptor)
-        begin
-          io.cooked!
-        rescue
-        end
-      end
-      Terminal.show_cursor(@output_io)
-      Terminal.exit_alt_screen(@output_io) if @alt_screen_enabled
-      Terminal.disable_focus_reporting(@output_io) if @focus_reporting_enabled
-      Terminal.disable_bracketed_paste(@output_io) if @bracketed_paste_enabled
-      disable_mouse_tracking
-      @output_io.flush
-      # Send SIGTSTP to process group so the shell can resume with SIGCONT
-      begin
-        {% if flag?(:unix) %}
-          ::LibC.kill(0, Signal::TSTP.value)
-        {% end %}
-      rescue
-        # Ignore if platform doesn't support it
-      end
-    end
-
-    private def reapply_terminal_state
-      @signal_handling_enabled = true
-      safe_io do
-        if io = @input_io.as?(IO::FileDescriptor)
-          begin
-            io.raw!
-          rescue
-          end
-        end
-        Terminal.enter_alt_screen(@output_io) if @alt_screen_enabled
-        Terminal.hide_cursor(@output_io)
-        Terminal.enable_focus_reporting(@output_io) if @focus_reporting_enabled
-        Terminal.enable_bracketed_paste(@output_io) if @bracketed_paste_enabled
-        if @mouse_cell_motion_enabled
-          enable_mouse_cell_motion
-        elsif @mouse_all_motion_enabled
-          enable_mouse_all_motion
-        end
-      end
-      setup_signal_handlers
-      start_input_reader
+      @done.i_put(nil) rescue nil
     end
 
     private def restore_terminal
-      safe_io do
-        Terminal.show_cursor(@output_io)
-
-        if @alt_screen_enabled
-          Terminal.exit_alt_screen(@output_io)
-        end
-
-        if @focus_reporting_enabled
-          Terminal.disable_focus_reporting(@output_io)
-        end
-
-        unless @bracketed_paste_enabled
-          Terminal.enable_bracketed_paste(@output_io)
-        end
-
-        # Clean up mouse modes
-        if @mouse_cell_motion_enabled || @mouse_all_motion_enabled
-          Mouse.disable_tracking(@output_io)
-        end
+      Terminal.show_cursor(@output_io)
+      if @alt_screen_enabled
+        Terminal.exit_alt_screen(@output_io)
+      end
+      if @focus_reporting_enabled
+        Terminal.disable_focus_reporting(@output_io)
+      end
+      unless @bracketed_paste_enabled
+        Terminal.enable_bracketed_paste(@output_io)
+      end
+      if @mouse_cell_motion_enabled || @mouse_all_motion_enabled
+        Mouse.disable_tracking(@output_io)
       end
     end
 
     private def setup_signal_handlers
       return unless @signal_handling_enabled
-
-      # Handle SIGINT (Ctrl+C)
-      Process.on_terminate do
-        dispatch(QuitMsg.new)
-      end
-
-      # Handle SIGTERM
-      Process.on_terminate do
-        dispatch(QuitMsg.new)
-      end
-
-      # Handle window resize (SIGWINCH)
+      Process.on_terminate { dispatch(QuitMsg.new) }
+      Process.on_terminate { dispatch(QuitMsg.new) }
+      Process.on_terminate { dispatch(QuitMsg.new) }
       Signal::WINCH.trap do
         width, height = Terminal.size
         dispatch(WindowSizeMsg.new(width, height))
-      end
-
-      # Handle resume after SIGCONT
-      Signal::CONT.trap do
-        dispatch(ResumeMsg.new)
       end
     end
 
     private def restore_signal_handlers
       return unless @signal_handling_enabled
-
-      # Restore default signal handlers
       Signal::INT.reset
       Signal::TERM.reset
       Signal::WINCH.reset
-      Signal::CONT.reset
     end
   end
 
-  record KeyBinding,
-    action : Symbol,
-    keys : Array(String),
-    help : String = "" do
+  record KeyBinding, action : Symbol, keys : Array(String), help : String = "" do
     def matches?(key : String) : Bool
       keys.includes?(key)
     end
@@ -1118,7 +1113,6 @@ module Term2
     alias Model = Term2::Model
     alias TC = Term2::Components
     alias Message = Term2::Message
-    alias Msg = Term2::Message
     alias Terminal = Term2::Terminal
     alias Program = Term2::Program
     alias KeyPress = Term2::KeyPress
