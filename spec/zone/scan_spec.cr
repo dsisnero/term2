@@ -52,19 +52,24 @@ end
 
 describe "Term2::Zone.scan" do
   before_each do
-    Term2::Zone.reset
+    Term2::Zone.clear
   end
 
   it "mirrors bubblezone scan cases" do
+    # Regenerate tests after clear to get fresh markers
     tests = build_tests(style)
-    tests.each do |test|
+    tests.each_with_index do |test, idx|
+      puts "\nTest #{idx}: #{test.name}" if ENV["DEBUG"]?
       got = Term2::Zone.scan(test.input)
       got.should eq(test.want)
 
       next if test.ids.empty?
       sleep 50.milliseconds
       test.ids.each do |id|
-        Term2::Zone.get(id).is_zero?.should be_false
+        zone = Term2::Zone.get(id)
+        puts "  Checking zone for #{id}: #{zone.inspect}" if ENV["DEBUG"]?
+        zone.should_not be_nil
+        zone.not_nil!.zero?.should be_false
       end
     end
   end
@@ -72,12 +77,17 @@ describe "Term2::Zone.scan" do
   it "handles disabled scanning" do
     tests = build_tests(style)
     Term2::Zone.enabled = false
-    tests.each do |test|
+    tests.each_with_index do |test, idx|
+      puts "\nDisabled test #{idx}: #{test.name}" if ENV["DEBUG"]?
+      puts "  Input: #{test.input.inspect}" if ENV["DEBUG"]?
+      puts "  Want: #{test.want.inspect}" if ENV["DEBUG"]?
       got = Term2::Zone.scan(test.input)
+      puts "  Got: #{got.inspect}" if ENV["DEBUG"]?
+      # When disabled, bubblezone still strips markers but avoids registration.
       got.should eq(test.want)
     end
     sleep 50.milliseconds
-    Term2::Zone.get("testing2").is_zero?.should be_true
+    Term2::Zone.get("testing2").zero?.should be_true
     Term2::Zone.enabled = true
   end
 end

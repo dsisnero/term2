@@ -8,9 +8,13 @@ module Term2
     class Table
       include Model
 
+      # HeaderRow constant used in StyleFunc to identify the header row
+      HEADER_ROW = -1
+
       # StyleFunc determines the style of a cell based on row and column position.
       alias StyleFunc = Proc(Int32, Int32, Style)
 
+      # Option type for functional configuration (Go-style)
       alias Option = Proc(Table, Nil)
 
       struct Column
@@ -21,31 +25,60 @@ module Term2
         end
       end
 
-      struct Styles
-        getter header : Style
-        getter cell : Style
-        getter selected : Style
+      # Styles container for matching Go API
+      class Styles
+        property header : Style
+        property cell : Style
+        property selected : Style
 
-        def initialize(@header : Style = Style.new, @cell : Style = Style.new, @selected : Style = Style.new)
+        def initialize(@header = Style.new.bold(true).padding(0, 1),
+                       @cell = Style.new.padding(0, 1),
+                       @selected = Style.new.bold(true).foreground(Color.indexed(212)))
         end
+      end
+
+      def self.default_styles : Styles
+        Styles.new
       end
 
       alias Row = Array(String)
 
-      property columns : Array(Column)
-      property rows : Array(Row)
+      property columns : Array(Column) = [] of Column
+      property rows : Array(Row) = [] of Row
       property cursor : Int32 = 0
       property width : Int32 = 0
+      # Total height including header + viewport. If 0, uses Bubble Tea defaults.
       property height : Int32 = 0
-      property? focus : Bool = false
-      property id : String = "" # Zone ID for focus management
+      property id : String = ""
 
       # Styles
-      property header_style : Style = Style.new.bold(true).underline(true)
-      property selected_style : Style = Style.new.reverse(true)
-      property cell_style : Style = Style.new
+      property styles : Styles = Styles.new
 
-      # StyleFunc for per-cell styling (overrides header_style/cell_style when set)
+      # Legacy style properties mapped to styles object
+      def header_style : Style
+        @styles.header
+      end
+
+      def header_style=(s : Style)
+        @styles.header = s
+      end
+
+      def cell_style : Style
+        @styles.cell
+      end
+
+      def cell_style=(s : Style)
+        @styles.cell = s
+      end
+
+      def selected_style : Style
+        @styles.selected
+      end
+
+      def selected_style=(s : Style)
+        @styles.selected = s
+      end
+
       property style_func : StyleFunc? = nil
 
       # Border configuration
@@ -62,9 +95,6 @@ module Term2
       # Components
       property viewport : Viewport
       property key_map : KeyMap
-      property help : Help = Help.new
-      property start : Int32 = 0
-      property end : Int32 = 0
 
       struct KeyMap
         getter line_up : Key::Binding
@@ -75,102 +105,94 @@ module Term2
         getter goto_bottom : Key::Binding
 
         def initialize
-          @line_up = Key::Binding.new(["up", "k"], "↑/k", "up")
-          @line_down = Key::Binding.new(["down", "j"], "↓/j", "down")
-          @page_up = Key::Binding.new(["b", "pgup"], "b/pgup", "page up")
-          @page_down = Key::Binding.new(["f", "pgdn", " "], "f/pgdn", "page down")
-          @goto_top = Key::Binding.new(["home", "g"], "g/home", "go to start")
-          @goto_bottom = Key::Binding.new(["end", "G"], "G/end", "go to end")
+          @line_up = Key::Binding.new(["up", "k"], "up", "up")
+          @line_down = Key::Binding.new(["down", "j"], "down", "down")
+          @page_up = Key::Binding.new(["pgup", "b"], "pgup", "page up")
+          @page_down = Key::Binding.new(["pgdown", "f", "space"], "pgdn", "page down")
+          @goto_top = Key::Binding.new(["home", "g"], "home", "go to top")
+          @goto_bottom = Key::Binding.new(["end", "G"], "end", "go to bottom")
         end
       end
 
-      def self.default_key_map : KeyMap
-        KeyMap.new
-      end
-
-      def self.default_styles : Styles
-        Styles.new(
-          header: Style.new.padding(0, 1).bold(true),
-          cell: Style.new.padding(0, 1),
-          selected: Style.new.bold(true).foreground(Color::MAGENTA) # stripped in tests
-        )
-      end
-
-      # Option-style constructor (parity with Bubbles)
-      def self.build(*opts : Option) : Table
-        table = Table.new
-        opts.each(&.call(table))
-        table.update_viewport
-        table
-      end
-
-      # Keep existing constructors for compatibility
-      def initialize(columns : Array(Column) = [] of Column, rows : Array(Row) = [] of Row, width : Int32 = 0, height : Int32 = 0, id : String = "")
-        @viewport = Viewport.new(0, 20)
-        @key_map = Table.default_key_map
-        styles = Table.default_styles
-        @header_style = styles.header
-        @cell_style = styles.cell
-        @selected_style = styles.selected
-        initialize_defaults
-        @columns = columns
+      def initialize(columns : Array(Column | Tuple(String, Int32)) = [] of Column, rows : Array(Row) = [] of Row, width : Int32 = 0, height : Int32 = 0, id : String = "")
+        @columns = columns.map do |col|
+          case col
+          when Column
+            col
+          else
+            Column.new(col[0], col[1])
+          end
+        end
         @rows = rows
         @width = width
         @height = height
         @id = id
-        @viewport.width = width
-        recalc_viewport_height
+        # Bubble Tea default viewport size: width 0, height 20.
+        @viewport = Viewport.new(@width, 20)
+        @key_map = KeyMap.new
+        if @height > 0
+          self.height = @height
+        end
         update_viewport
       end
 
-      # Overload for easier initialization with tuples and arrays
-      def initialize(columns : Array({String, Int32}), rows : Array(Array(String)), width : Int32 = 0, height : Int32 = 0, id : String = "")
-        initialize(columns.map { |col| Column.new(col[0], col[1]) }, rows, width, height, id)
+      def height=(h : Int32)
+        @height = h
+        header = render_header
+        header_height = header.empty? ? 1 : Term2::Text.height(header)
+        @viewport.height = [h - header_height, 1].max
+        update_viewport
       end
 
-      # DSL-style initializer
-      #
-      # ```
-      # table = Table.new(width: 50, height: 10) do |t|
-      #   t.column "ID", 5
-      #   t.column "Name", 20
-      #   t.row "1", "Alice"
-      #   t.row "2", "Bob"
-      # end
-      # ```
-      def self.new(width : Int32 = 80, height : Int32 = 20, & : Table -> Nil)
+      # --- Builder API (Go-style) ---
+
+      def self.build(*options : Option) : Table
+        table = new
+        options.each(&.call(table))
+        table.update_viewport
+        table
+      end
+
+      def self.with_columns(cols : Array(Column)) : Option
+        ->(t : Table) { t.columns = cols; nil }
+      end
+
+      def self.with_rows(rows : Array(Row)) : Option
+        ->(t : Table) { t.rows = rows; nil }
+      end
+
+      def self.with_height(h : Int32) : Option
+        ->(t : Table) {
+          t.height = h
+          header = t.render_header
+          header_height = header.empty? ? 1 : Term2::Text.height(header)
+          t.viewport.height = [h - header_height, 1].max
+          nil
+        }
+      end
+
+      def self.with_width(w : Int32) : Option
+        ->(t : Table) {
+          t.width = w
+          t.viewport.width = w
+          nil
+        }
+      end
+
+      def self.with_styles(s : Styles) : Option
+        ->(t : Table) { t.styles = s; nil }
+      end
+
+      # --- DSL API ---
+
+      def self.new(width : Int32 = 0, height : Int32 = 0, & : Table -> Nil)
         instance = new([] of Column, [] of Row, width, height)
         yield instance
         instance.update_viewport
         instance
       end
 
-      private def initialize_defaults
-        @columns = [] of Column
-        @rows = [] of Row
-        @cursor = 0
-        @width = 0
-        @height = 0
-        @focus = false
-        @id = ""
-        styles = Table.default_styles
-        @header_style = styles.header
-        @cell_style = styles.cell
-        @selected_style = styles.selected
-        @style_func = nil
-        @border = Border.new
-        @border_style = Style.new
-        @border_top = false
-        @border_bottom = false
-        @border_left = false
-        @border_right = false
-        @border_header = false
-        @border_column = false
-        @border_row = false
-        @key_map = Table.default_key_map
-        @help = Help.new
-        @viewport ||= Viewport.new(0, 20)
-      end
+      # --- Methods ---
 
       def column(title : String, width : Int32)
         @columns << Column.new(title, width)
@@ -184,10 +206,22 @@ module Term2
         @rows << values
       end
 
-      # Set the style function for per-cell styling
-      def style_func(func : StyleFunc) : self
-        @style_func = func
-        self
+      def goto_top
+        @cursor = 0
+        update_viewport
+      end
+
+      def goto_bottom
+        @cursor = [@rows.size - 1, 0].max
+        update_viewport
+      end
+
+      def move_up(n : Int32)
+        move_cursor(-n)
+      end
+
+      def move_down(n : Int32)
+        move_cursor(n)
       end
 
       def focused? : Bool
@@ -204,14 +238,12 @@ module Term2
 
       def rows=(rows : Array(Row))
         @rows = rows
-        @cursor = 0 if @cursor >= @rows.size
-        recalc_viewport_height
+        @cursor = 0
         update_viewport
       end
 
       def columns=(columns : Array(Column))
         @columns = columns
-        recalc_viewport_height
         update_viewport
       end
 
@@ -220,76 +252,55 @@ module Term2
       end
 
       def update(msg : Msg) : {Table, Cmd}
-        return {self, Cmds.none} unless @focus
         case msg
+        when ZoneClickMsg
+          if msg.id == @id
+            focus
+            clicked_row = @viewport.y_offset + msg.y - 1
+            if clicked_row >= 0 && clicked_row < @rows.size
+              @cursor = clicked_row
+              update_viewport
+            end
+          end
         when KeyMsg
-          case
-          when @key_map.line_up.matches?(msg)
-            move_up(1)
-          when @key_map.line_down.matches?(msg)
-            move_down(1)
-          when @key_map.page_up.matches?(msg)
-            move_up(@viewport.height)
-          when @key_map.page_down.matches?(msg)
-            move_down(@viewport.height)
-          when @key_map.goto_top.matches?(msg)
-            goto_top
-          when @key_map.goto_bottom.matches?(msg)
-            goto_bottom
+          if focused?
+            handle_key(msg)
           end
         end
-        {self, Cmds.none}
+        {self, nil}
       end
 
-      def move_up(n : Int32)
-        max_index = @rows.size - 1
-        max_index = 0 if max_index < 0
-        @cursor = (@cursor - n).clamp(0, max_index)
-        keep_cursor_visible
+      def handle_key(msg : KeyMsg)
+        case
+        when @key_map.line_up.matches?(msg)
+          move_cursor(-1)
+        when @key_map.line_down.matches?(msg)
+          move_cursor(1)
+        when @key_map.page_up.matches?(msg)
+          move_cursor(-@viewport.height)
+        when @key_map.page_down.matches?(msg)
+          move_cursor(@viewport.height)
+        when @key_map.goto_top.matches?(msg)
+          goto_top
+        when @key_map.goto_bottom.matches?(msg)
+          goto_bottom
+        end
+      end
+
+      def move_cursor(delta : Int32)
+        @cursor = (@cursor + delta).clamp(0, [@rows.size - 1, 0].max)
         update_viewport
       end
 
-      def move_down(n : Int32)
-        max_index = @rows.size - 1
-        max_index = 0 if max_index < 0
-        @cursor = (@cursor + n).clamp(0, max_index)
-        keep_cursor_visible
-        update_viewport
-      end
+      def update_viewport
+        @viewport.width = @width if @width > 0
 
-      def goto_top
-        @cursor = 0
-        @viewport.y_offset = 0
-        update_viewport
-      end
+        rendered_rows = @rows.map_with_index do |row, i|
+          render_row(row, i, i == @cursor)
+        end
 
-      def goto_bottom
-        max_index = @rows.size - 1
-        max_index = 0 if max_index < 0
-        @cursor = max_index
-        keep_cursor_visible
-        update_viewport
-      end
+        @viewport.content = rendered_rows.join("\n")
 
-      def set_cursor(n : Int32)
-        max_index = @rows.size - 1
-        max_index = 0 if max_index < 0
-        @cursor = n.clamp(0, max_index)
-        keep_cursor_visible
-        update_viewport
-      end
-
-      def focus
-        @focus = true
-        update_viewport
-      end
-
-      def blur
-        @focus = false
-        update_viewport
-      end
-
-      def keep_cursor_visible
         if @cursor < @viewport.y_offset
           @viewport.y_offset = @cursor
         elsif @cursor >= @viewport.y_offset + @viewport.height
@@ -297,263 +308,94 @@ module Term2
         end
       end
 
-      def set_width(w : Int32)
-        @viewport.width = w
-        update_viewport
-      end
-
-      def set_height(h : Int32)
-        @height = h
-        recalc_viewport_height
-        update_viewport
-      end
-
-      def height_value : Int32
-        @viewport.height
-      end
-
-      def width_value : Int32
-        @viewport.width
-      end
-
-      def cursor_value : Int32
-        @cursor
-      end
-
-      def update_viewport
-        header_lines = render_header_lines
-        lines = [] of String
-        @rows.each_with_index do |row, i|
-          lines.concat(render_row_lines(row, i, i == @cursor && @focus))
-        end
-
-        header_calc_height = @columns.empty? ? 0 : 1
-        effective_height = if @height > 0
-                             (@height - header_calc_height).clamp(0, Int32::MAX)
-                           elsif @viewport.height != 0 && @viewport.height != 20
-                             @viewport.height
-                           else
-                             20
-                           end
-        pad_width_source = lines.first? ? Term2::Text.width(lines.first) : 0
-        header_width = header_lines.first? ? Term2::Text.width(header_lines.first) : 0
-        pad_base_width = pad_width_source > 0 ? pad_width_source : header_width
-        pad_line = if @viewport.width > 0
-                     " " * @viewport.width
-                   else
-                     " " * pad_base_width
-                   end
-
-        start = @viewport.y_offset.clamp(0, Math.max(lines.size - effective_height, 0))
-        lines = lines[start, effective_height] || [] of String
-        while lines.size < effective_height
-          lines << pad_line
-        end
-
-        @viewport.content = lines.join("\n")
-      end
-
-      private def recalc_viewport_height
-        header_h = render_header_lines.size
-        if @height > 0
-          @viewport.height = (@height - header_h)
-          @viewport.height = 0 if @viewport.height < 0
-        end
-      end
-
-      # Get style for a cell, using style_func if set, otherwise defaults
       private def get_cell_style(row_idx : Int32, col_idx : Int32, selected : Bool) : Style
-        return @style_func.not_nil!.call(row_idx, col_idx) if @style_func
-        return @header_style if row_idx == -1
-        return @selected_style if selected
-        @cell_style
+        if func = @style_func
+          func.call(row_idx, col_idx)
+        elsif row_idx == HEADER_ROW
+          @styles.header
+        else
+          @styles.cell
+        end
       end
 
+      # Public for testing
       def render_row(row : Row, row_idx : Int32, selected : Bool) : String
-        render_row_lines(row, row_idx, selected).first
+        cells = [] of String
+
+        row.each_with_index do |cell, col_idx|
+          col = @columns[col_idx]?
+          next unless col
+          next if col.width <= 0
+
+          inner = Style.new.width(col.width).max_width(col.width).inline(true)
+          content =
+            if Term2::Text.width(cell) > col.width && col.width > 1
+              Term2::Text.truncate(cell, col.width - 1) + "…"
+            else
+              cell
+            end
+          rendered_cell = inner.render(content)
+
+          style = get_cell_style(row_idx, col_idx, selected)
+          cells << style.render(rendered_cell)
+        end
+
+        row_content = Style.join_horizontal(Position::Top, cells)
+
+        if selected
+          row_content = @styles.selected.render(row_content)
+        end
+
+        if @border_left
+          row_content = @border_style.render(@border.left) + row_content
+        end
+        if @border_right
+          row_content = row_content + @border_style.render(@border.right)
+        end
+
+        row_content
       end
 
       def render_header : String
-        render_header_lines.first
-      end
+        cells = [] of String
 
-      # Option helpers (parity with Bubbles)
-      def self.with_columns(cols : Array(Column)) : Option
-        ->(t : Table) { t.columns = cols }
-      end
+        @columns.each_with_index do |col, col_idx|
+          next if col.width <= 0
+          inner = Style.new.width(col.width).max_width(col.width).inline(true)
+          content =
+            if Term2::Text.width(col.title) > col.width && col.width > 1
+              Term2::Text.truncate(col.title, col.width - 1) + "…"
+            else
+              col.title
+            end
+          rendered_cell = inner.render(content)
 
-      def self.with_rows(rows : Array(Row)) : Option
-        ->(t : Table) { t.rows = rows }
-      end
+          style = get_cell_style(HEADER_ROW, col_idx, false)
+          cells << style.render(rendered_cell)
+        end
 
-      def self.with_height(h : Int32) : Option
-        ->(t : Table) { t.set_height(h) }
-      end
+        row_content = Style.join_horizontal(Position::Top, cells)
 
-      def self.with_width(w : Int32) : Option
-        ->(t : Table) { t.set_width(w) }
-      end
+        if @border_left
+          row_content = @border_style.render(@border.left) + row_content
+        end
+        if @border_right
+          row_content = row_content + @border_style.render(@border.right)
+        end
 
-      def self.with_focused(f : Bool) : Option
-        ->(t : Table) { t.focus = f }
-      end
-
-      def self.with_styles(styles : Styles) : Option
-        ->(t : Table) {
-          t.header_style = styles.header
-          t.cell_style = styles.cell
-          t.selected_style = styles.selected
-        }
-      end
-
-      def self.with_key_map(map : KeyMap) : Option
-        ->(t : Table) { t.key_map = map }
+        row_content
       end
 
       def view : String
-        header_lines = render_header_lines
-        body = @viewport.content
         content = String.build do |io|
-          unless header_lines.empty?
-            io << header_lines.join("\n")
-            io << "\n" unless body.empty?
-          end
-          io << body
+          # Header
+          io << render_header << "\n"
+
+          # Body
+          io << @viewport.view
         end
+
         @id.empty? ? content : Zone.mark(@id, content)
-      end
-
-      private def render_cell(text : String, width : Int32, style : Style) : String
-        truncated = truncate_with_ellipsis(text, width)
-        pad_len = width - Term2::Text.width(truncated)
-        padded = truncated + (" " * pad_len)
-
-        padding = style.padding
-        left_pad = " " * padding.left
-        right_pad = " " * padding.right
-
-        "#{left_pad}#{padded}#{right_pad}"
-      end
-
-      private def truncate_with_ellipsis(text : String, width : Int32) : String
-        return "" if width <= 0
-        return text if Term2::Text.width(text) <= width
-
-        target = width - 1
-        target = 0 if target < 0
-        current_width = 0
-        chars = [] of Char
-
-        text.each_char do |ch|
-          cw = Term2::Text.char_width(ch)
-          break if current_width + cw > target
-          chars << ch
-          current_width += cw
-        end
-
-        if chars.empty?
-          "…"
-        else
-          chars.join + "…"
-        end
-      end
-
-      private def pad_to_viewport(line : String) : String
-        return line if @viewport.width <= 0
-        line.ljust(@viewport.width)
-      end
-
-      private def border_visible?(style : Style) : Bool
-        border = style.border_style
-        !border.top.empty? || !border.bottom.empty? || !border.left.empty? || !border.right.empty?
-      end
-
-      private def render_header_lines : Array(String)
-        return [""] if @columns.empty?
-        first_style = get_cell_style(-1, 0, false)
-        if border_visible?(first_style)
-          render_bordered_header
-        else
-          main_line = @columns.map_with_index { |col, col_idx| render_cell(col.title, col.width, get_cell_style(-1, col_idx, false)) }.join
-          style = first_style
-          lines = [] of String
-          blank = " " * Term2::Text.width(main_line)
-          style.padding.top.times { lines << blank }
-          lines << main_line
-          style.padding.bottom.times { lines << blank }
-          lines
-        end
-      end
-
-      private def render_row_lines(row : Row, row_idx : Int32, selected : Bool) : Array(String)
-        return [pad_to_viewport("")] if @columns.empty?
-        first_style = get_cell_style(row_idx, 0, selected)
-        if border_visible?(first_style)
-          render_bordered_row(row)
-        else
-          main_line = pad_to_viewport(row.map_with_index { |cell, col_idx|
-            col = @columns[col_idx]?
-            width = col ? col.width : 10
-            render_cell(cell, width, get_cell_style(row_idx, col_idx, selected))
-          }.join)
-          style = first_style
-          lines = [] of String
-          blank = pad_to_viewport(" " * Term2::Text.width(main_line))
-          style.padding.top.times { lines << blank }
-          lines << main_line
-          style.padding.bottom.times { lines << blank }
-          lines
-        end
-      end
-
-      private def render_bordered_header : Array(String)
-        top = String.build do |io|
-          @columns.each do |col|
-            io << "┌" << "─" * col.width << "┐"
-          end
-        end
-
-        mid = String.build do |io|
-          @columns.each_with_index do |col, _|
-            content = truncate_with_ellipsis(col.title, col.width)
-            pad_len = col.width - Term2::Text.width(content)
-            io << "│" << content << (" " * pad_len) << "│"
-          end
-        end
-
-        bottom = String.build do |io|
-          @columns.each do |col|
-            io << "└" << "─" * col.width << "┘"
-          end
-        end
-
-        [pad_to_viewport(top), pad_to_viewport(mid), pad_to_viewport(bottom)]
-      end
-
-      private def render_bordered_row(row : Row) : Array(String)
-        top = String.build do |io|
-          @columns.each do |col|
-            io << "┌" << "─" * col.width << "┐"
-          end
-        end
-
-        mid = String.build do |io|
-          row.each_with_index do |cell, col_idx|
-            col = @columns[col_idx]?
-            width = col ? col.width : 10
-            content = truncate_with_ellipsis(cell, width)
-            pad_len = width - Term2::Text.width(content)
-            io << "│" << content << (" " * pad_len) << "│"
-          end
-        end
-
-        bottom = String.build do |io|
-          @columns.each do |col|
-            io << "└" << "─" * col.width << "┘"
-          end
-        end
-
-        [top, mid, bottom].map { |l| pad_to_viewport(l) }
       end
     end
   end

@@ -9,7 +9,7 @@ describe Term2::ZoneInfo do
     Term2::Zone.scan("test\nfoo\naaa " + Term2::Zone.mark("foo", "bar\ntest123456789") + " aaa\nbaz")
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
-    zone.is_zero?.should be_false
+    zone.zero?.should be_false
     zone.start_x.should eq(4)
     zone.start_y.should eq(2)
     zone.end_x.should eq(12)
@@ -20,7 +20,7 @@ describe Term2::ZoneInfo do
     Term2::Zone.scan("test\nfoo\naaa " + Term2::Zone.mark("foo", "bar\ntest123456789") + " aaa\nbaz")
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
-    zone.is_zero?.should be_false
+    zone.zero?.should be_false
 
     zone.in_bounds?(4, 2).should be_true
     zone.in_bounds?(12, 3).should be_true
@@ -36,11 +36,11 @@ describe Term2::ZoneInfo do
   end
 
   it "returns false for zero or unknown zones" do
-    zero = Term2::ZoneInfo.new
+    zero = Term2::ZoneInfo.new("", 0, 0, -1, -1)
     zero.in_bounds?(0, 0).should be_false
 
     unknown = Term2::Zone.get("missing")
-    unknown.is_zero?.should be_true
+    unknown.zero?.should be_true
     unknown.in_bounds?(0, 0).should be_false
   end
 
@@ -48,7 +48,7 @@ describe Term2::ZoneInfo do
     Term2::Zone.scan("test\nfoo\naaa " + Term2::Zone.mark("foo", "bar\ntest123456789") + " aaa\nbaz")
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
-    zone.is_zero?.should be_false
+    zone.zero?.should be_false
 
     x, y = zone.pos(4, 2)
     x.should eq(0); y.should eq(0)
@@ -64,7 +64,7 @@ describe Term2::ZoneInfo do
   end
 
   it "returns -1,-1 for out-of-bounds or zero" do
-    zone = Term2::ZoneInfo.new
+    zone = Term2::ZoneInfo.new("", 0, 0, -1, -1)
     x, y = zone.pos(0, 0)
     x.should eq(-1); y.should eq(-1)
 

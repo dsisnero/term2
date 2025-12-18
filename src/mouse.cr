@@ -28,6 +28,10 @@ module Term2
       WheelDown  # Scroll wheel down
       WheelLeft  # Horizontal scroll left
       WheelRight # Horizontal scroll right
+      Backward   # Browser back button (button 8)
+      Forward    # Browser forward button (button 9)
+      Button10   # Extra mouse button 10
+      Button11   # Extra mouse button 11
       Release    # Button release (no specific button)
       None       # No button (for motion events)
     end
@@ -40,9 +44,9 @@ module Term2
       Move    # Movement without button (motion tracking)
     end
 
-    # X coordinate (1-based, from left)
+    # X coordinate (0-based, from left)
     getter x : Int32
-    # Y coordinate (1-based, from top)
+    # Y coordinate (0-based, from top)
     getter y : Int32
     # Which button is involved
     getter button : Button
@@ -54,20 +58,18 @@ module Term2
     getter? ctrl : Bool
     # Whether Shift was held
     getter? shift : Bool
-    # Deprecated: legacy type for compatibility
-    getter type : String
 
-    def initialize(@x : Int32, @y : Int32, @button : Button, @action : Action, @alt : Bool = false, @ctrl : Bool = false, @shift : Bool = false, @type : String = "")
+    def initialize(@x : Int32, @y : Int32, @button : Button, @action : Action, @alt : Bool = false, @ctrl : Bool = false, @shift : Bool = false)
     end
 
-    def ==(other : MouseEvent) : Bool
-      @x == other.x &&
-        @y == other.y &&
-        @button == other.button &&
-        @action == other.action &&
-        @alt == other.alt? &&
-        @ctrl == other.ctrl? &&
-        @shift == other.shift?
+    def ==(other : self)
+      x == other.x &&
+        y == other.y &&
+        button == other.button &&
+        action == other.action &&
+        alt? == other.alt? &&
+        ctrl? == other.ctrl? &&
+        shift? == other.shift?
     end
 
     def to_s : String
@@ -76,54 +78,40 @@ module Term2
       mods << "alt" if @alt
       mods << "shift" if @shift
 
-      btn_str = case @button
-                when Button::None
-                  if @action == Action::Move || @action == Action::Release
-                    action_to_s(@action)
-                  else
-                    "unknown"
-                  end
-                when Button::WheelUp    then "wheel up"
-                when Button::WheelDown  then "wheel down"
-                when Button::WheelLeft  then "wheel left"
-                when Button::WheelRight then "wheel right"
-                when Button::Left       then "left"
-                when Button::Right      then "right"
-                when Button::Middle     then "middle"
-                else
-                  "unknown"
-                end
+      button_name = case @button
+                    when Button::Left       then "left"
+                    when Button::Right      then "right"
+                    when Button::Middle     then "middle"
+                    when Button::WheelUp    then "wheel up"
+                    when Button::WheelDown  then "wheel down"
+                    when Button::WheelLeft  then "wheel left"
+                    when Button::WheelRight then "wheel right"
+                    when Button::Backward   then "backward"
+                    when Button::Forward    then "forward"
+                    when Button::Button10   then "button10"
+                    when Button::Button11   then "button11"
+                    else                         ""
+                    end
 
-      action_part = ""
-      if @button != Button::None && !wheel_button?(@button)
-        act = action_to_s(@action)
-        action_part = act unless act.empty?
-      end
+      base = case @action
+             when Action::Move
+               @button == Button::None ? "motion" : "#{button_name} move"
+             when Action::Drag
+               @button == Button::None ? "unknown" : "#{button_name} drag"
+             when Action::Release
+               @button == Button::None ? "release" : "#{button_name} release"
+             else
+               # Press
+               case @button
+               when Button::WheelUp, Button::WheelDown, Button::WheelLeft, Button::WheelRight
+                 button_name
+               else
+                 @button == Button::None ? "unknown" : "#{button_name} press"
+               end
+             end
 
-      base_parts = [] of String
-      base_parts << btn_str unless btn_str.empty?
-      base_parts << action_part unless action_part.empty?
-      base = base_parts.join(" ").strip
-
-      if mods.empty?
-        base
-      else
-        "#{mods.join("+")}+#{base}"
-      end
-    end
-
-    private def wheel_button?(btn : Button) : Bool
-      {Button::WheelUp, Button::WheelDown, Button::WheelLeft, Button::WheelRight}.includes?(btn)
-    end
-
-    private def action_to_s(action : Action) : String
-      case action
-      when Action::Press   then "press"
-      when Action::Release then "release"
-      when Action::Move    then "motion"
-      when Action::Drag    then "press"
-      else                      ""
-      end
+      return base if mods.empty?
+      "#{mods.join("+")}+#{base}"
     end
   end
 
@@ -149,24 +137,12 @@ module Term2
 
       # Check for mouse escape sequences
       if @buffer.starts_with?("\e[")
-        # Look for complete mouse sequences
-        if @buffer =~ /\e\[<(\d+);(\d+);(\d+)([Mm])\)?\z/
-          # Parse SGR mouse sequence
-          code = $1.to_i
-          x = $2.to_i
-          y = $3.to_i
-          final_char = $4
-
+        if event = Mouse.parse_sgr(@buffer)
           @buffer = ""
-          return Mouse.decode_sgr(code, x, y, final_char)
-        elsif @buffer =~ /\e\[M([\x20-\x3f])([\x20-\x7e])([\x20-\x7e])\z/
-          # Parse legacy mouse sequence
-          button_code = $1.bytes[0]
-          x_code = $2.bytes[0]
-          y_code = $3.bytes[0]
-
+          return event
+        elsif event = Mouse.parse_x10(@buffer)
           @buffer = ""
-          return Mouse.decode_x10(button_code - 32, x_code, y_code)
+          return event
         elsif @buffer.size > 20
           # Buffer too long, clear it
           @buffer = ""
@@ -185,105 +161,86 @@ module Term2
 
     # Check if the given buffer contains a complete mouse event
     def check_mouse_event(buffer : String) : MouseEvent?
-      # Check for mouse escape sequences
-      if buffer.starts_with?("\e[")
-        # Look for complete mouse sequences
-        # SGR format: \e[<code;x;yM or \e[<code;x;ym
-        if buffer =~ /\e\[<(\d+);(\d+);(\d+)([Mm])\z/
-          # Parse SGR mouse sequence
-          code = $1.to_i
-          x = $2.to_i
-          y = $3.to_i
-          final_char = $4
-
-          return Mouse.decode_sgr(code, x, y, final_char)
-        elsif buffer =~ /\e\[M([\x20-\xff])([\x20-\xff])([\x20-\xff])\z/
-          # Parse legacy mouse sequence
-          button_code = $1.bytes[0]
-          x_code = $2.bytes[0]
-          y_code = $3.bytes[0]
-
-          return Mouse.decode_x10(button_code - 32, x_code, y_code)
-        end
-      end
-
-      nil
+      Mouse.parse_sgr(buffer) || Mouse.parse_x10(buffer)
     end
   end
 
   # Mouse support utilities
   module Mouse
-    # Parse a legacy X10 mouse event from a raw byte slice.
-    # Returns nil if the buffer is not a valid X10 sequence.
-    def self.parse_x10(buf : Bytes) : MouseEvent?
-      return unless buf.size >= 6
-      return unless buf[0] == 0x1b_u8 && buf[1] == '['.ord.to_u8 && buf[2] == 'M'.ord.to_u8
+    BUTTON_MASK       = 0b0000_0011
+    SHIFT_MASK        = 0b0000_0100
+    ALT_MASK          = 0b0000_1000
+    CTRL_MASK         = 0b0001_0000
+    MOTION_MASK       = 0b0010_0000
+    WHEEL_MASK        = 0b0100_0000
+    EXTRA_BUTTON_MASK = 0b1000_0000
 
-      button_code = buf[3].to_i - 32
-      x_code = buf[4].to_i
-      y_code = buf[5].to_i
+    # Parse a legacy X10 mouse event buffer.
+    def self.parse_x10(buffer : String | Bytes | Slice(UInt8)) : MouseEvent?
+      slice = buffer.is_a?(String) ? buffer.to_slice : buffer
+      return unless slice.size >= 6
+      return unless slice[0] == 0x1b && slice[1] == '['.ord.to_u8 && slice[2] == 'M'.ord.to_u8
 
-      decode_x10(button_code, x_code, y_code)
+      code = slice[3].to_i - 32
+      # X10 reports positions as (1,1) upper-left. Normalize to (0,0).
+      x = slice[4].to_i - 33
+      y = slice[5].to_i - 33
+
+      release = (code & BUTTON_MASK) == 3 && (code & MOTION_MASK) == 0 && (code & WHEEL_MASK) == 0 && (code & EXTRA_BUTTON_MASK) == 0
+      decode_mouse_event(code, x, y, release: release)
     end
 
-    # Parse an SGR mouse event from a raw byte slice.
-    # Returns nil if the buffer is not a valid SGR sequence.
-    def self.parse_sgr(buf : Bytes) : MouseEvent?
-      str = String.new(buf)
-      if match = /\e\[<(\d+);(\d+);(\d+)([Mm])/.match(str)
-        code = match[1].to_i
-        x = match[2].to_i
-        y = match[3].to_i
-        final_char = match[4]
+    # Parse an SGR mouse event buffer.
+    def self.parse_sgr(buffer : String | Bytes | Slice(UInt8)) : MouseEvent?
+      str = buffer.is_a?(String) ? buffer : String.new(buffer)
+      return unless str =~ /\e\[<(\d+);(\d+);(\d+)([Mm])\z/
 
-        decode_sgr(code, x, y, final_char)
+      code = $1.to_i
+      # SGR reports positions as (1,1) upper-left. Normalize to (0,0).
+      x = $2.to_i - 1
+      y = $3.to_i - 1
+      release = $4 == "m"
+
+      decode_mouse_event(code, x, y, release: release)
+    end
+
+    private def self.decode_mouse_event(code : Int32, x : Int32, y : Int32, release : Bool) : MouseEvent
+      button_bits = code & BUTTON_MASK
+      wheel = (code & WHEEL_MASK) != 0
+      motion = (code & MOTION_MASK) != 0
+      extra = (code & EXTRA_BUTTON_MASK) != 0
+
+      button = decode_button(button_bits, wheel, extra, motion)
+      if release && button == MouseEvent::Button::Release
+        button = MouseEvent::Button::None
       end
-    end
 
-    # Decode an SGR mouse event given the parsed codes from the terminal sequence.
-    def self.decode_sgr(code : Int32, x : Int32, y : Int32, final_char : String) : MouseEvent?
-      motion_bit = (code & 32) != 0
-      wheel_bit = (code & 64) != 0
-      button_bits = code & 3
+      action =
+        if release
+          MouseEvent::Action::Release
+        elsif motion
+          MouseEvent::Action::Move
+        else
+          MouseEvent::Action::Press
+        end
 
-      button = decode_button(wheel_bit, motion_bit, button_bits)
-      action = decode_action(wheel_bit, motion_bit, button_bits, final_char)
-
-      shift = (code & 4) != 0
-      alt = (code & 8) != 0
-      ctrl = (code & 16) != 0
-
-      MouseEvent.new(x - 1, y - 1, button, action, alt, ctrl, shift)
-    end
-
-    # Decode an X10 mouse event given the raw codes (with the 32 offset removed from button_code).
-    def self.decode_x10(button_code : Int32, x_code : Int32, y_code : Int32) : MouseEvent?
-      shift = (button_code & 4) != 0
-      alt = (button_code & 8) != 0
-      ctrl = (button_code & 16) != 0
-
-      motion_bit = (button_code & 32) != 0
-      wheel_bit = (button_code & 64) != 0
-      button_bits = button_code & 3
-
-      button = decode_button(wheel_bit, motion_bit, button_bits)
-      action = if motion_bit && !wheel_bit
-                 MouseEvent::Action::Move
-               elsif button_bits == 3 && !wheel_bit
-                 MouseEvent::Action::Release
-               else
-                 MouseEvent::Action::Press
-               end
-
-      # Legacy mouse coordinates are offset by 32, and origin is 1-based.
-      x = x_code - 33
-      y = y_code - 33
+      shift = (code & SHIFT_MASK) != 0
+      alt = (code & ALT_MASK) != 0
+      ctrl = (code & CTRL_MASK) != 0
 
       MouseEvent.new(x, y, button, action, alt, ctrl, shift)
     end
 
-    private def self.decode_button(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32) : MouseEvent::Button
-      if wheel_bit
+    private def self.decode_button(button_bits : Int32, wheel : Bool, extra : Bool, motion : Bool) : MouseEvent::Button
+      if extra
+        case button_bits
+        when 0 then MouseEvent::Button::Backward
+        when 1 then MouseEvent::Button::Forward
+        when 2 then MouseEvent::Button::Button10
+        when 3 then MouseEvent::Button::Button11
+        else        MouseEvent::Button::None
+        end
+      elsif wheel
         case button_bits
         when 0 then MouseEvent::Button::WheelUp
         when 1 then MouseEvent::Button::WheelDown
@@ -291,48 +248,33 @@ module Term2
         when 3 then MouseEvent::Button::WheelRight
         else        MouseEvent::Button::None
         end
-      elsif motion_bit && button_bits == 3
-        MouseEvent::Button::None
       else
         case button_bits
         when 0 then MouseEvent::Button::Left
         when 1 then MouseEvent::Button::Middle
         when 2 then MouseEvent::Button::Right
-        else        MouseEvent::Button::None
+        when 3
+          motion ? MouseEvent::Button::None : MouseEvent::Button::Release
+        else
+          MouseEvent::Button::None
         end
-      end
-    end
-
-    private def self.decode_action(wheel_bit : Bool, motion_bit : Bool, button_bits : Int32, final_char : String) : MouseEvent::Action
-      if wheel_bit
-        MouseEvent::Action::Press
-      elsif motion_bit
-        MouseEvent::Action::Move
-      elsif final_char == "m"
-        MouseEvent::Action::Release
-      else
-        MouseEvent::Action::Press
       end
     end
 
     # Enable mouse tracking (clicks and drags)
     def self.enable_tracking(io : IO = STDOUT)
-      # Enable SGR mouse mode (preferred - extended coordinates)
-      io.print "\e[?1006h"
-      # Enable basic mouse tracking (clicks)
-      io.print "\e[?1000h"
-      # Enable button-event tracking (drags)
+      # Bubble Tea parity: enable cell-motion tracking and SGR mode.
       io.print "\e[?1002h"
+      io.print "\e[?1006h"
       io.flush
     end
 
     # Disable mouse tracking
     def self.disable_tracking(io : IO = STDOUT)
-      # Disable all mouse modes
-      io.print "\e[?1006l"
-      io.print "\e[?1000l"
+      # Bubble Tea parity: disable mouse tracking modes on exit.
       io.print "\e[?1002l"
       io.print "\e[?1003l"
+      io.print "\e[?1006l"
       io.flush
     end
 
@@ -364,21 +306,15 @@ module Term2
 
     # Enable mouse move reporting (all motion including hover)
     def self.enable_move_reporting(io : IO = STDOUT)
-      # Enable SGR extended mode and any-event tracking. Also enable click/drag
-      # reporting to match Bubble Tea defaults so terminals consistently emit
-      # motion and button events.
-      io.print "\e[?1006h" # SGR mode for extended coordinates
-      io.print "\e[?1000h" # Enable basic button tracking
-      io.print "\e[?1002h" # Enable button-drag tracking
-      io.print "\e[?1003h" # Any-event tracking (all motion)
+      # Bubble Tea parity: enable any-event tracking and SGR mode.
+      io.print "\e[?1003h"
+      io.print "\e[?1006h"
       io.flush
     end
 
     # Disable mouse move reporting
     def self.disable_move_reporting(io : IO = STDOUT)
       io.print "\e[?1003l"
-      io.print "\e[?1002l"
-      io.print "\e[?1000l"
       io.flush
     end
   end

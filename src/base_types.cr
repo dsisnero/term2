@@ -13,7 +13,6 @@
 #   }                            end
 #
 require "cml"
-require "cml/mailbox"
 
 module Term2
   # Msg is any message that can be sent to the update function.
@@ -27,9 +26,10 @@ module Term2
   # Cmd is an IO operation that returns a message when it's complete.
   # If it's nil it's considered a no-op.
   #
-  # In Go: `type Cmd func() Msg`
-  # In Crystal: `alias Cmd = (-> Msg)?`
-  alias Cmd = (Proc(Msg) | Proc(Msg?))?
+  # Bubble Tea allows commands to return a nil Msg. In Crystal we support both:
+  # - commands that always return a message (`-> Msg`)
+  # - commands that may return nil (`-> Msg?`)
+  alias Cmd = ((-> Msg) | (-> Msg?))?
 
   # Model contains the program's state as well as its core functions.
   #
@@ -116,8 +116,7 @@ module Term2
   class BatchMsg < Message
     getter cmds : Array(-> Msg?)
 
-    def initialize(cmds)
-      @cmds = cmds.map { |c| -> : Msg? { c.call.as?(Msg) } }
+    def initialize(@cmds)
     end
   end
 
@@ -125,8 +124,7 @@ module Term2
   class SequenceMsg < Message
     getter cmds : Array(-> Msg?)
 
-    def initialize(cmds)
-      @cmds = cmds.map { |c| -> : Msg? { c.call.as?(Msg) } }
+    def initialize(@cmds)
     end
   end
 
@@ -205,13 +203,16 @@ module Term2
       end
     end
 
-    def ==(other : Key) : Bool
-      to_s == other.to_s
-    end
-
     # Check if this key matches a given string representation
     def matches?(pattern : String) : Bool
       to_s == pattern
+    end
+
+    def ==(other : Key)
+      @type == other.@type &&
+        @runes == other.@runes &&
+        @alt == other.@alt &&
+        @paste == other.@paste
     end
 
     # Check if this is a specific key type
@@ -257,7 +258,7 @@ module Term2
     Escape    =  27 # alias for Esc
 
     # Control key aliases
-    CtrlAt           =   0 # ctrl+@
+    CtrlAt           =   0 # ctrl+@ (same as Null)
     CtrlA            =   1
     CtrlB            =   2
     CtrlC            =   3
@@ -348,8 +349,25 @@ module Term2
     FocusIn
     FocusOut
 
+    def control?
+      val = value
+      (val >= 0 && val <= 31) || val == 127
+    end
+
+    def to_s(io : IO) : Nil
+      if name = Term2::KEY_NAMES[self]?
+        io << name
+      else
+        # Unknown key type
+      end
+    end
+
     def to_s : String
-      KEY_NAMES[self]? || ""
+      if name = Term2::KEY_NAMES[self]?
+        name
+      else
+        ""
+      end
     end
   end
 
@@ -472,19 +490,6 @@ module Term2
   class ExitAltScreenMsg < Message
   end
 
-  # Message to suspend the program (parity with Bubble Tea).
-  # Use `Cmds.suspend` to send this message.
-  class SuspendMsg < Message
-  end
-
-  # Message sent when program resumes after a suspend.
-  class ResumeMsg < Message
-  end
-
-  # Message to interrupt (parity with Bubble Tea).
-  class InterruptMsg < Message
-  end
-
   # Message to show the cursor.
   # Use `Cmds.show_cursor` to send this message.
   class ShowCursorMsg < Message
@@ -498,7 +503,7 @@ module Term2
   # Message sent when the terminal window gains focus.
   # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
   class FocusMsg < Message
-    def ==(other : FocusMsg) : Bool
+    def ==(other : self)
       true
     end
   end
@@ -506,8 +511,34 @@ module Term2
   # Message sent when the terminal window loses focus.
   # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
   class BlurMsg < Message
-    def ==(other : BlurMsg) : Bool
+    def ==(other : self)
       true
+    end
+  end
+
+  # Message sent when a suspended program should resume.
+  class ResumeMsg < Message
+  end
+
+  # Message sent to request program suspension.
+  class SuspendMsg < Message
+  end
+
+  # ADD THIS CLASS:
+  # Message sent when an unknown ANSI/CSI sequence is received.
+  # Useful for debugging or handling proprietary terminal extensions.
+  class UnknownCSISequenceMsg < Message
+    getter sequence : Bytes
+
+    def initialize(@sequence : Bytes)
+    end
+
+    def ==(other : self)
+      sequence == other.sequence
+    end
+
+    def to_s
+      "Unknown CSI Sequence: #{@sequence}"
     end
   end
 
@@ -538,14 +569,6 @@ module Term2
 
     def initialize(@text : String)
     end
-  end
-
-  # Raised when program is killed.
-  class ProgramKilled < Exception
-  end
-
-  # Raised when the program panics (uncaught exception) and recovery is enabled.
-  class ProgramPanic < Exception
   end
 
   # ClearScreenMsg signals a request to clear the screen
@@ -608,12 +631,12 @@ module Term2
     def initialize(@key : Key)
     end
 
-    def to_s : String
-      @key.to_s
+    def ==(other : KeyMsg)
+      @key == other.key
     end
 
-    def ==(other : KeyMsg) : Bool
-      @key == other.key
+    def to_s : String
+      @key.to_s
     end
   end
 
@@ -690,121 +713,93 @@ module Term2
 
     # Immediately emit a single message.
     def self.message(msg : Msg) : ::Term2::Cmd
-      -> : Msg? { msg.as(Msg) }
+      -> { msg.as(Msg?) }
     end
 
     # Run several commands concurrently.
-    def self.batch : ::Term2::Cmd
-      none
-    end
-
     def self.batch(*cmds : ::Term2::Cmd) : ::Term2::Cmd
       normalized = cmds.to_a.compact
       return none if normalized.empty?
       return normalized.first if normalized.size == 1
 
-      -> : Msg? { BatchMsg.new(normalized).as(Msg) }
-    end
-
-    # Accept enumerable collections of Cmd (e.g., arrays)
-    def self.batch(cmds : Enumerable(::Term2::Cmd)) : ::Term2::Cmd
-      normalized = cmds.to_a.compact
-      return none if normalized.empty?
-      return normalized.first if normalized.size == 1
-
-      -> : Msg? { BatchMsg.new(normalized).as(Msg) }
+      safe_cmds = normalized.map do |cmd|
+        -> { cmd.call.as(Msg?) }
+      end
+      -> { BatchMsg.new(safe_cmds).as(Msg?) }
     end
 
     # Run commands sequentially.
-    def self.sequence : ::Term2::Cmd
-      none
-    end
-
     def self.sequence(*cmds : ::Term2::Cmd) : ::Term2::Cmd
       normalized = cmds.to_a.compact
       return none if normalized.empty?
       return normalized.first if normalized.size == 1
 
-      -> : Msg? { SequenceMsg.new(normalized).as(Msg) }
+      safe_cmds = normalized.map do |cmd|
+        -> { cmd.call.as(Msg?) }
+      end
+      -> { SequenceMsg.new(safe_cmds).as(Msg?) }
     end
 
-    def self.sequence(cmds : Enumerable(::Term2::Cmd)) : ::Term2::Cmd
-      normalized = cmds.to_a.compact
+    # Run several commands concurrently - array version.
+    def self.batch(cmds : Array(::Term2::Cmd?)) : ::Term2::Cmd
+      normalized = cmds.compact
       return none if normalized.empty?
       return normalized.first if normalized.size == 1
 
-      -> : Msg? { SequenceMsg.new(normalized).as(Msg) }
+      safe_cmds = normalized.map do |cmd|
+        -> { cmd.call.as(Msg?) }
+      end
+      -> { BatchMsg.new(safe_cmds).as(Msg?) }
     end
 
-    # Sequentially executes commands in order, returning the first non-nil message.
-    # Mirrors Bubble Tea's Sequentially helper.
-    def self.sequentially(*cmds : ::Term2::Cmd) : ::Term2::Cmd
-      normalized = cmds.to_a.compact
-      return none if normalized.empty?
-
-      -> {
-        normalized.each do |cmd|
-          next unless cmd
-          if msg = cmd.call
-            return msg
-          end
-        end
-        nil
-      }
-    end
-
-    def self.sequentially(cmds : Array(::Term2::Cmd)) : ::Term2::Cmd
+    # Run commands sequentially - array version.
+    def self.sequence(cmds : Array(::Term2::Cmd?)) : ::Term2::Cmd
       normalized = cmds.compact
       return none if normalized.empty?
-      -> {
-        normalized.each do |cmd|
-          next unless cmd
-          if msg = cmd.call
-            return msg
-          end
-        end
-        nil
-      }
+      return normalized.first if normalized.size == 1
+
+      safe_cmds = normalized.map do |cmd|
+        -> { cmd.call.as(Msg?) }
+      end
+      -> { SequenceMsg.new(safe_cmds).as(Msg?) }
     end
 
     # Map the result of a command.
-    def self.map(cmd : ::Term2::Cmd, &block : Msg -> Msg) : ::Term2::Cmd
+    def self.map(cmd : ::Term2::Cmd, &block : Msg -> Msg?) : ::Term2::Cmd
       return none unless cmd
-      -> : Msg? {
+      -> {
         msg = cmd.call
-        return unless msg
-        block.call(msg)
+        msg ? block.call(msg) : nil
       }
     end
 
     # Every is a command that ticks after a duration.
     # Like Bubble Tea, this sends a single message - to tick repeatedly,
     # return another Every command from your update function.
-    def self.every(duration : Time::Span, &block : Time -> Msg) : ::Term2::Cmd
-      return none if duration <= Time::Span.zero
-      -> : Msg? {
-        CML.sync(CML.timeout(duration))
-        block.call(Time.utc)
+    def self.every(duration : Time::Span, &block : Time -> Msg?) : ::Term2::Cmd
+      -> {
+        sleep duration
+        block.call(Time.utc).as(Msg?)
       }
     end
 
     # Tick sends a message after a duration (alias for every).
-    def self.tick(duration : Time::Span, &block : Time -> Msg) : ::Term2::Cmd
+    def self.tick(duration : Time::Span, &block : Time -> Msg?) : ::Term2::Cmd
       every(duration, &block)
     end
 
     # Schedule a message after a duration.
     def self.after(duration : Time::Span, msg : Msg) : ::Term2::Cmd
-      -> : Msg? {
+      -> {
         CML.sync(CML.timeout(duration)) unless duration <= Time::Span.zero
-        msg.as(Msg)
+        msg.as(Msg?)
       }
     end
 
-    def self.after(duration : Time::Span, &block : -> Msg) : ::Term2::Cmd
-      -> : Msg? {
+    def self.after(duration : Time::Span, &block : -> Msg?) : ::Term2::Cmd
+      -> {
         CML.sync(CML.timeout(duration)) unless duration <= Time::Span.zero
-        block.call.as(Msg)
+        block.call.as(Msg?)
       }
     end
 
@@ -813,14 +808,14 @@ module Term2
       after(span, msg)
     end
 
-    def self.deadline(target : Time, &block : -> Msg) : ::Term2::Cmd
+    def self.deadline(target : Time, &block : -> Msg?) : ::Term2::Cmd
       span = duration_until(target)
       after(span, &block)
     end
 
-    def self.timeout(duration : Time::Span, timeout_message : Msg, &block : -> Msg) : ::Term2::Cmd
-      -> : Msg? {
-        result_ch = Channel(Msg).new
+    def self.timeout(duration : Time::Span, timeout_message : Msg, &block : -> Msg?) : ::Term2::Cmd
+      -> {
+        result_ch = Channel(Msg?).new
 
         # Spawn the work
         spawn do
@@ -830,25 +825,33 @@ module Term2
         # Race between work and timeout
         select
         when msg = result_ch.receive
-          msg
+          msg.as(Msg?)
         when timeout(duration)
-          timeout_message
+          timeout_message.as(Msg?)
         end
       }
     end
 
     def self.from_event(evt : CML::Event(Msg)) : ::Term2::Cmd
-      -> : Msg? {
-        CML.sync(evt)
+      -> {
+        CML.sync(evt).as(Msg?)
       }
     end
 
-    def self.perform(&block : -> Msg) : ::Term2::Cmd
-      -> : Msg? { block.call }
+    def self.perform(&block : -> Msg?) : ::Term2::Cmd
+      -> { block.call.as(Msg?) }
     end
 
     def self.quit : ::Term2::Cmd
       message(QuitMsg.new)
+    end
+
+    def self.interrupt : ::Term2::Cmd
+      message(QuitMsg.new)
+    end
+
+    def self.suspend : ::Term2::Cmd
+      message(SuspendMsg.new)
     end
 
     # Internal/terminal related helper constructors mirror the
@@ -859,18 +862,6 @@ module Term2
 
     def self.exit_alt_screen : ::Term2::Cmd
       message(ExitAltScreenMsg.new)
-    end
-
-    def self.suspend : ::Term2::Cmd
-      message(SuspendMsg.new)
-    end
-
-    def self.resume : ::Term2::Cmd
-      message(ResumeMsg.new)
-    end
-
-    def self.interrupt : ::Term2::Cmd
-      message(InterruptMsg.new)
     end
 
     def self.show_cursor : ::Term2::Cmd

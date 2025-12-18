@@ -3,198 +3,287 @@ require "../term2"
 module Term2
   module Components
     class Progress
-      include Model
+      include Term2::Model
 
-      property percent : Float64 = 0.0
-      property width : Int32 = 40
-      property full_char : Char = '█'
-      property empty_char : Char = '░'
-      property? show_percentage : Bool = true
-      property percent_format : String = " %.0f%%"
-      property animation : Animation?
+      # Configuration options
+      alias Option = Proc(Progress, Nil)
 
-      struct Animation
-        getter target : Float64
-        getter start : Float64
-        getter duration : Time::Span
-        getter start_time : Time
-
-        def initialize(@start : Float64, @target : Float64, @duration : Time::Span, @start_time : Time)
-        end
-      end
+      # --- Properties ---
+      property width : Int32
+      property full_char : Char
+      property empty_char : Char
+      property? show_percentage : Bool
+      property percent_format : String
 
       # Styles
-      property full_style : Style = Style.new.foreground(Color::GREEN)
-      property empty_style : Style = Style.new.foreground(Color::BLACK)
-      property? use_gradient : Bool = false
-      property? scale_gradient : Bool = false
-      property gradient_color_a : String = "#5A56E0"
-      property gradient_color_b : String = "#EE6FF8"
-      @id : Int32
+      property full_color : String
+      property empty_color : String
+      property percentage_style : Style
 
-      def initialize(@width : Int32 = 30)
-        @id = Random.rand(Int32)
+      # Animation state
+      # `percent` is the target percent (Go: targetPercent).
+      property percent : Float64
+      property target_percent : Float64
+      property velocity : Float64
+
+      # Percent currently being rendered (Go: percentShown).
+      property percent_shown : Float64
+
+      # Gradient settings
+      property? use_ramp : Bool
+      property ramp_color_a : Color
+      property ramp_color_b : Color
+      property? scale_ramp : Bool
+
+      # Compatibility alias used by some example ports.
+      def use_gradient? : Bool
+        use_ramp?
+      end
+
+      def use_gradient=(v : Bool) : Bool
+        self.use_ramp = v
+        v
+      end
+
+      # Animation constants
+      FPS = 60.0
+
+      # Internal ID to manage animation frames
+      @id : Int32 = rand(10000)
+      @tag : Int32 = 0
+
+      def initialize(opts : Array(Option) = [] of Option, width : Int32 = 30, show_percentage : Bool = true)
+        @width = width
+        @full_char = '█'
+        @empty_char = '░'
+        @show_percentage = show_percentage
+        @percent_format = "%3.0f%%"
+        @full_color = "#7571F9"
+        @empty_color = "#606060"
+        @percentage_style = Style.new
+        @percent = 0.0
+        @percent_shown = 0.0
+        @target_percent = 0.0
+        @velocity = 0.0
+        @use_ramp = false
+        @ramp_color_a = Color.from_hex("#5A56E0")
+        @ramp_color_b = Color.from_hex("#EE6FF8")
+        @scale_ramp = false
+
+        opts.each(&.call(self))
+      end
+
+      # --- Options ---
+
+      def self.with_default_gradient : Option
+        with_gradient("#5A56E0", "#EE6FF8")
+      end
+
+      def self.with_gradient(color_a : String, color_b : String) : Option
+        ->(p : Progress) {
+          p.use_ramp = true
+          p.scale_ramp = false
+          p.ramp_color_a = Color.from_hex(color_a)
+          p.ramp_color_b = Color.from_hex(color_b)
+          nil
+        }
+      end
+
+      def self.with_scaled_gradient(color_a : String, color_b : String) : Option
+        ->(p : Progress) {
+          p.use_ramp = true
+          p.scale_ramp = true
+          p.ramp_color_a = Color.from_hex(color_a)
+          p.ramp_color_b = Color.from_hex(color_b)
+          nil
+        }
+      end
+
+      def self.with_solid_fill(color : String) : Option
+        ->(p : Progress) {
+          p.full_color = color
+          p.use_ramp = false
+          nil
+        }
+      end
+
+      def self.with_width(w : Int32) : Option
+        ->(p : Progress) { p.width = w; nil }
+      end
+
+      def self.without_percentage : Option
+        ->(p : Progress) { p.show_percentage = false; nil }
+      end
+
+      # --- Messages ---
+
+      class FrameMsg < Message
+        getter id : Int32
+        getter tag : Int32
+
+        def initialize(@id : Int32, @tag : Int32); end
       end
 
       class SetPercentMsg < Message
         getter value : Float64
 
-        def initialize(@value : Float64)
-        end
+        def initialize(@value : Float64); end
       end
 
       class IncrementMsg < Message
         getter delta : Float64
 
-        def initialize(@delta : Float64)
-        end
+        def initialize(@delta : Float64); end
       end
 
-      class FrameMsg < Message
-        getter id : Int32
-        getter percent : Float64
+      # --- Commands (Go-style convenience) ---
 
-        def initialize(@id : Int32, @percent : Float64)
-        end
+      def percent_cmd(value : Float64) : Cmd
+        Term2::Cmds.message(SetPercentMsg.new(value))
+      end
+
+      def increment_cmd(delta : Float64) : Cmd
+        Term2::Cmds.message(IncrementMsg.new(delta))
+      end
+
+      # --- Update ---
+
+      def init : Cmd
+        nil
       end
 
       def update(msg : Msg) : {Progress, Cmd}
         case msg
-        when SetPercentMsg
-          @percent = msg.value.clamp(0.0, 1.0)
-        when IncrementMsg
-          @percent = (@percent + msg.delta).clamp(0.0, 1.0)
         when FrameMsg
-          if msg.id == @id
-            @percent = msg.percent
-            # If we're animating and hit target, clear animation
-            if anim = @animation
-              @animation = nil if anim.target == @percent
+          if msg.id == @id && msg.tag == @tag
+            if is_animating?
+              update_animation
+              return {self, next_frame}
             end
-            return {self, tick_frame}
           end
+        when SetPercentMsg
+          return {self, set_percent(msg.value)}
+        when IncrementMsg
+          return {self, incr_percent(msg.delta)}
         end
-        {self, Cmds.none}
+        {self, nil}
       end
 
+      def set_percent(p : Float64) : Cmd
+        @target_percent = p.clamp(0.0, 1.0)
+        @percent = @target_percent
+        @tag += 1
+        next_frame
+      end
+
+      def percent=(value : Float64)
+        v = value.clamp(0.0, 1.0)
+        @percent = v
+        @target_percent = v
+        @percent_shown = v
+        @velocity = 0.0
+      end
+
+      def incr_percent(v : Float64) : Cmd
+        set_percent(@percent + v)
+      end
+
+      def decr_percent(v : Float64) : Cmd
+        set_percent(@percent - v)
+      end
+
+      # --- View ---
+
       def view : String
-        pct_str = ""
-        if @show_percentage
-          pct_str = sprintf(@percent_format, @percent * 100)
-        end
-
-        bar_width = @width - pct_str.size
-        return "" if bar_width < 0
-
-        filled_width = (@percent * bar_width).round.to_i
-        empty_width = bar_width - filled_width
-
-        full_segment = if @use_gradient
-                         gradient_fill(filled_width, bar_width)
-                       else
-                         @full_style.render(@full_char.to_s * filled_width)
-                       end
-
-        empty_segment = @empty_style.render(@empty_char.to_s * empty_width)
-
-        String.build do |str|
-          str << full_segment
-          str << empty_segment
-          str << pct_str if @show_percentage
-        end
+        view_as(@percent_shown)
       end
 
       def view_as(percent : Float64) : String
-        prev = @percent
-        @percent = percent
-        v = view
-        @percent = prev
-        v
-      end
+        pct_str = percentage_view(percent)
+        text_width = Text.width(pct_str)
 
-      # Helper to set percent directly
-      def percent_cmd(p : Float64) : Cmd
-        Cmds.message(SetPercentMsg.new(p))
-      end
+        # Crystal doesn't have Math.max, use tuple max or clamp
+        bar_width = {0, @width - text_width}.max
 
-      def incr_percent(delta : Float64) : Cmd
-        target = (@percent + delta).clamp(0.0, 1.0)
-        animate_to(target)
-      end
+        filled_width = (bar_width * percent).round.to_i.clamp(0, bar_width)
+        empty_width = bar_width - filled_width
 
-      def animate_to(target : Float64, duration : Time::Span = 300.milliseconds) : Cmd
-        @animation = Animation.new(@percent, target, duration, Time.local)
-        tick_frame
-      end
+        String.build do |str|
+          # Filled section
+          if @use_ramp
+            filled_width.times do |i|
+              p = if filled_width == 1
+                    0.5
+                  elsif @scale_ramp
+                    i.to_f / (filled_width - 1)
+                  else
+                    i.to_f / (bar_width - 1)
+                  end
 
-      def self.with_gradient(color_a : String, color_b : String) : Progress
-        p = Progress.new
-        p.use_gradient = true
-        p.gradient_color_a = color_a
-        p.gradient_color_b = color_b
-        p
-      end
+              color = blend_colors(@ramp_color_a, @ramp_color_b, p)
+              str << Style.new.foreground(color).render(@full_char.to_s)
+            end
+          else
+            fill_style = Style.new.foreground(Color.from_hex(@full_color))
+            str << fill_style.render(@full_char.to_s * filled_width)
+          end
 
-      def self.with_scaled_gradient(color_a : String, color_b : String) : Progress
-        p = with_gradient(color_a, color_b)
-        p.scale_gradient = true
-        p
-      end
+          # Empty section
+          empty_style = Style.new.foreground(Color.from_hex(@empty_color))
+          str << empty_style.render(@empty_char.to_s * empty_width)
 
-      private def tick_frame : Cmd
-        return Cmds.none unless anim = @animation
-        start = anim.start_time
-        duration = anim.duration
-        start_value = anim.start
-        target_value = anim.target
-
-        Cmds.tick(16.milliseconds) do |_time|
-          elapsed = Time.local - start
-          t = (elapsed / duration).to_f
-          t = t.clamp(0.0, 1.0)
-          current = start_value + (target_value - start_value) * t
-          FrameMsg.new(@id, current.clamp(0.0, 1.0))
+          # Percentage
+          str << pct_str
         end
       end
 
-      private def gradient_fill(fill_width : Int32, total_width : Int32) : String
-        return "" if fill_width <= 0
-        span = @scale_gradient ? fill_width : total_width
-        span = 1 if span <= 0
-        String.build do |io|
-          fill_width.times do |i|
-            t = if span == 1
-                  0.5
-                else
-                  i.to_f / (span - 1)
-                end
-            color = blend_hex(@gradient_color_a, @gradient_color_b, t)
-            io << ansi_foreground(color) << @full_char << "\e[0m"
+      private def percentage_view(percent : Float64) : String
+        return "" unless @show_percentage
+        val = percent.clamp(0.0, 1.0) * 100
+        formatted = sprintf(@percent_format, val)
+        @percentage_style.render(formatted)
+      end
+
+      private def next_frame : Cmd
+        Term2::Cmds.tick((1000 / FPS).milliseconds) { FrameMsg.new(@id, @tag) }
+      end
+
+      private def is_animating? : Bool
+        dist = (@percent_shown - @target_percent).abs
+        !(dist < 0.001 && @velocity.abs < 0.01)
+      end
+
+      private def update_animation
+        # Simple critically-damped-ish spring.
+        delta = (@target_percent - @percent_shown)
+        @velocity = (@velocity + delta * 0.12) * 0.85
+        @percent_shown = (@percent_shown + @velocity).clamp(0.0, 1.0)
+      end
+
+      # Public command to schedule the next animation frame (Go: nextFrame()).
+      def frame : Cmd
+        next_frame
+      end
+
+      private def blend_colors(c1 : Color, c2 : Color, t : Float64) : Color
+        if c1.type == Color::Type::RGB && c2.type == Color::Type::RGB
+          # Access value from the color struct
+          v1 = c1.value
+          v2 = c2.value
+
+          if v1.is_a?(Tuple(Int32, Int32, Int32)) && v2.is_a?(Tuple(Int32, Int32, Int32))
+            r1, g1, b1 = v1
+            r2, g2, b2 = v2
+
+            r = (r1 + (r2 - r1) * t).to_i
+            g = (g1 + (g2 - g1) * t).to_i
+            b = (b1 + (b2 - b1) * t).to_i
+
+            return Color.rgb(r, g, b)
           end
         end
-      end
-
-      private def blend_hex(a_hex : String, b_hex : String, t : Float64) : Array(Int32)
-        ar, ag, ab = hex_to_rgb(a_hex)
-        br, bg, bb = hex_to_rgb(b_hex)
-        [
-          (ar + (br - ar) * t).round,
-          (ag + (bg - ag) * t).round,
-          (ab + (bb - ab) * t).round,
-        ].map(&.clamp(0, 255)).map(&.to_i)
-      end
-
-      private def hex_to_rgb(hex : String) : {Float64, Float64, Float64}
-        h = hex.gsub("#", "")
-        return {0.0, 0.0, 0.0} unless h.size == 6
-        r = h[0..1].to_i(16).to_f
-        g = h[2..3].to_i(16).to_f
-        b = h[4..5].to_i(16).to_f
-        {r, g, b}
-      end
-
-      private def ansi_foreground(rgb : Array(Int32)) : String
-        "\e[38;2;#{rgb[0]},#{rgb[1]},#{rgb[2]}m"
+        # Fallback
+        t > 0.5 ? c2 : c1
       end
     end
   end

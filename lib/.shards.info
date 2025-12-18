@@ -1,0 +1,18 @@
+---
+version: 1.0
+shards:
+  cml:
+    git: https://github.com/dsisnero/cml.git
+    version: 0.5.0+git.commit.a4cf86d30577ad64a0ad82eb176a3f5d975619fc
+  textseg:
+    git: https://github.com/naqvis/uni_text_seg.git
+    version: 0.1.3
+  uniwidth:
+    git: https://github.com/naqvis/uni_char_width.git
+    version: 0.1.3
+  ameba:
+    git: https://github.com/crystal-ameba/ameba.git
+    version: 1.6.4
+  cellwrap:
+    git: https://github.com/dsisnero/cellwrap.git
+    version: 0.1.0+git.commit.d898f154af8cdf6ac85cfc72a24f4a354be3d88b

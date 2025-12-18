@@ -58,7 +58,7 @@ describe "Term2::Zone in-bounds messaging" do
     Term2::Zone.scan(model.view)
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
-    zone.is_zero?.should be_false
+    zone.zero?.should be_false
 
     model.update(Term2::MouseEvent.new(4, 2, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press))
     sleep 50.milliseconds
@@ -71,7 +71,7 @@ describe "Term2::Zone in-bounds messaging" do
     Term2::Zone.scan(model.view)
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
-    zone.is_zero?.should be_false
+    zone.zero?.should be_false
 
     updated, _cmd = model.update(Term2::MouseEvent.new(4, 2, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press))
     sleep 50.milliseconds

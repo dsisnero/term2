@@ -4,93 +4,9 @@ require "./base_types"
 module Term2
   # KeySequences contains mappings from terminal escape sequences to Key objects
   module KeySequences
+    # Constants used for testing and sequence detection
     FOCUS_IN_SEQ  = "\e[I"
     FOCUS_OUT_SEQ = "\e[O"
-
-    # Bubble Tea compatibility helpers for detecting sequences directly.
-    def self.detect_sequence(bytes : Bytes) : {Bool, Int32, Msg}
-      seq = String.new(bytes)
-      if key = SEQUENCES[seq]?
-        return {true, bytes.size, KeyMsg.new(key)}
-      end
-
-      # Alt-modified sequence: strip leading ESC and mark alt=true if the rest matches
-      if seq.starts_with?("\e") && seq.size > 1
-        base = seq[1..]
-        if key = SEQUENCES[base]?
-          alt_key = Key.new(key.type, key.runes, alt: true)
-          return {true, bytes.size, KeyMsg.new(alt_key)}
-        end
-      end
-
-      # Control characters / printable (except ESC)
-      if bytes.size == 1
-        b = bytes[0]
-        if b == 0x1b
-          return {true, 1, KeyMsg.new(Key.new(KeyType::Esc))}
-        end
-        if b == 0x7f
-          return {true, 1, KeyMsg.new(Key.new(KeyType::Backspace))}
-        end
-        if b <= 0x7f
-          if b >= 32
-            rune = b.chr
-            return {true, 1, KeyMsg.new(Key.new(runes: [rune]))}
-          else
-            key = KeyType.new(b)
-            return {true, 1, KeyMsg.new(Key.new(key))}
-          end
-        end
-      end
-
-      # Alt + single control character
-      if bytes.size == 2 && bytes[0] == 0x1b && bytes[1] <= 0x7f
-        b = bytes[1]
-        if b >= 32
-          rune = b.chr
-          return {true, 2, KeyMsg.new(Key.new(runes: [rune], alt: true))}
-        else
-          key = KeyType.new(b)
-          return {true, 2, KeyMsg.new(Key.new(key, alt: true))}
-        end
-      end
-
-      # Unknown CSI sequences still count
-      if seq.starts_with?("\e[")
-        return {true, bytes.size, KeyMsg.new(Key.new(KeyType::Null))}
-      end
-
-      {false, 0, KeyMsg.new(Key.new(KeyType::Null))}
-    end
-
-    def self.detect_one_msg(bytes : Bytes) : {Bool, Int32, Msg}
-      seq = String.new(bytes)
-      if seq == FOCUS_IN_SEQ
-        return {true, seq.bytesize, FocusMsg.new}
-      elsif seq == FOCUS_OUT_SEQ
-        return {true, seq.bytesize, BlurMsg.new}
-      end
-
-      if mouse_event = MouseReader.new.check_mouse_event(seq)
-        return {true, bytes.size, mouse_event}
-      end
-
-      has_seq, width, msg = detect_sequence(bytes)
-      return {has_seq, width, msg} if has_seq
-
-      # Runes fallback
-      if bytes.size >= 1
-        alt = bytes[0] == 0x1b && bytes.size > 1
-        str = if alt
-                String.new(bytes[1..])
-              else
-                String.new(bytes)
-              end
-        return {true, bytes.size, KeyMsg.new(Key.new(runes: str.chars, alt: alt))} unless str.empty?
-      end
-
-      {false, 0, KeyMsg.new(Key.new(KeyType::Null))}
-    end
 
     # Sequence mappings for terminal escape sequences
     SEQUENCES = {
@@ -280,10 +196,6 @@ module Term2
       "\e[33~" => Key.new(KeyType::F19),
       "\e[34~" => Key.new(KeyType::F20),
 
-      # Focus reporting
-      "\e[I" => Key.new(KeyType::FocusIn),
-      "\e[O" => Key.new(KeyType::FocusOut),
-
       # Alt+key combinations
       "\e "  => Key.new(' ', alt: true),
       "\e!"  => Key.new('!', alt: true),
@@ -383,7 +295,6 @@ module Term2
     }
 
     # Lazy-initialized prefix set for fast prefix lookups
-    # This avoids iterating through all sequences on every prefix check
     @@prefixes : Set(String)? = nil
 
     private def self.build_prefixes : Set(String)
@@ -407,11 +318,12 @@ module Term2
 
     # Find a key for a given sequence
     def self.find(sequence : String) : Key?
+      return Key.new(KeyType::FocusIn) if sequence == FOCUS_IN_SEQ
+      return Key.new(KeyType::FocusOut) if sequence == FOCUS_OUT_SEQ
       SEQUENCES[sequence]?
     end
 
     # Check if a sequence is a prefix of any known sequence
-    # Optimized to use precomputed prefix set (O(1) lookup)
     def self.prefix?(sequence : String) : Bool
       prefixes.includes?(sequence)
     end
@@ -419,6 +331,162 @@ module Term2
     # Get all sequences that start with the given prefix
     def self.sequences_with_prefix(prefix : String) : Array(String)
       SEQUENCES.keys.select(&.starts_with?(prefix))
+    end
+
+    # Detects if the given bytes contain a complete key sequence at the start.
+    # Returns {has_sequence, width_in_bytes, message}
+    def self.detect_sequence(data : Bytes) : {Bool, Int32, Term2::Msg?}
+      return {false, 0, nil} if data.empty?
+
+      # Meta (Alt) prefix: leading ESC before another sequence
+      if data.size >= 2 && data[0] == 0x1b && data[1] == 0x1b
+        sub = data[1, data.size - 1]
+        has, width, nested_msg = detect_sequence(sub)
+        if has
+          alt_msg = case nested_msg
+                    when KeyMsg
+                      k = nested_msg.key
+                      KeyMsg.new(Key.new(k.type, k.runes, alt: true))
+                    else
+                      nested_msg
+                    end
+          return {true, width + 1, alt_msg}
+        end
+      end
+
+      # 1. Check Control Characters (0x00-0x1F) excluding ESC (0x1b), and DEL (0x7F)
+      byte = data[0]
+      if byte <= 0x1F && byte != 0x1b
+        k = Key.new(KeyType.new(byte.to_i))
+        return {true, 1, KeyMsg.new(k)}
+      elsif byte == 0x7F
+        k = Key.new(KeyType::Backspace)
+        return {true, 1, KeyMsg.new(k)}
+      elsif byte == 0x1b
+        # Focus reporting sequences
+        if data.size == FOCUS_IN_SEQ.bytesize && data[0, FOCUS_IN_SEQ.bytesize] == FOCUS_IN_SEQ.to_slice
+          return {true, FOCUS_IN_SEQ.bytesize, FocusMsg.new}
+        elsif data.size == FOCUS_OUT_SEQ.bytesize && data[0, FOCUS_OUT_SEQ.bytesize] == FOCUS_OUT_SEQ.to_slice
+          return {true, FOCUS_OUT_SEQ.bytesize, BlurMsg.new}
+        end
+
+        if data.size == 1
+          k = Key.new(KeyType::Esc)
+          return {true, 1, KeyMsg.new(k)}
+        end
+
+        # 3. Check known sequences
+        # Limit check to max sequence length to avoid excessive string allocation
+        check_len = [data.size, 16].min
+        check_str = String.new(data[0, check_len])
+
+        best_len = 0
+        best_key = nil
+
+        SEQUENCES.each do |seq, key|
+          if check_str.starts_with?(seq)
+            if seq.size > best_len
+              best_len = seq.size
+              best_key = key
+            end
+          end
+        end
+
+        if best_key && best_len > 0
+          return {true, best_len, KeyMsg.new(best_key)}
+        end
+
+        # 4. Check for Alt+Key (Esc + Char)
+        # BubbleTea: if data[1] is not '[' or 'O', treat as Alt+Key.
+        if data.size >= 2
+          b2 = data[1]
+          if b2 != '['.ord && b2 != 'O'.ord
+            # Decode rune
+            slice = data[1, data.size - 1]
+            begin
+              s = String.new(slice)
+              if s.size > 0
+                char = s[0]
+                char_len = char.bytesize
+                # Construct Alt Key
+                k = if char.control?
+                      if char.ord == 127
+                        Key.new(KeyType::Backspace, alt: true)
+                      else
+                        Key.new(KeyType.new(char.ord), alt: true)
+                      end
+                    else
+                      Key.new(char, alt: true)
+                    end
+                return {true, 1 + char_len, KeyMsg.new(k)}
+              end
+            rescue
+              # conversion failed
+            end
+          end
+        end
+
+        # 5. Check for Unknown CSI (\e[ ... )
+        if data.size >= 2 && data[1] == '['.ord
+          # Scan for terminator 0x40-0x7E
+          i = 2
+          while i < data.size
+            b = data[i]
+            if b >= 0x40 && b <= 0x7E
+              # Found it
+              seq = data[0, i + 1]
+              return {true, i + 1, UnknownCSISequenceMsg.new(seq)}
+            end
+            i += 1
+          end
+        end
+      else
+        # 6. Plain runes
+        begin
+          s = String.new(data)
+          if s.size > 0
+            char = s[0]
+            return {true, char.bytesize, KeyMsg.new(Key.new(char))}
+          end
+        rescue
+        end
+      end
+
+      {false, 0, nil}
+    end
+
+    # Detects a single message from the byte buffer (sequence or rune).
+    def self.detect_one_msg(data : Bytes) : {Bool, Int32, Term2::Msg?}
+      has, width, msg = detect_sequence(data)
+      if has
+        converted = case msg
+                    when KeyMsg
+                      if msg.key.type == KeyType::FocusIn
+                        FocusMsg.new
+                      elsif msg.key.type == KeyType::FocusOut
+                        BlurMsg.new
+                      else
+                        msg
+                      end
+                    else
+                      msg
+                    end
+        return {has, width, converted}
+      end
+
+      return {false, 0, nil} if data.empty?
+
+      # Try to decode a rune
+      begin
+        s = String.new(data)
+        if s.size > 0
+          char = s[0]
+          return {true, char.bytesize, KeyMsg.new(Key.new(char))}
+        end
+      rescue
+      end
+
+      {false, 0, nil}
     end
   end
 end

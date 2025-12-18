@@ -34,6 +34,6 @@ describe "Term2::Zone.mark" do
     marked = Term2::Zone.mark("demo", "content")
     Term2::Zone.scan(marked).should eq("content")
     sleep 50.milliseconds
-    Term2::Zone.get("demo").is_zero?.should be_false
+    Term2::Zone.get("demo").zero?.should be_false
   end
 end

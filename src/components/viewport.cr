@@ -1,5 +1,6 @@
 require "../term2"
 require "./key"
+require "uniwidth"
 
 module Term2
   module Components
@@ -13,11 +14,33 @@ module Term2
       property y_position : Int32 = 0
       property content : String = ""
       property lines : Array(String) = [] of String
-      property longest_line_width : Int32 = 0
-      property? initialized : Bool = false
-      property? mouse_wheel_enabled : Bool = true
+
+      # Additional properties from Go implementation
+      property mouse_wheel_enabled : Bool = true
       property mouse_wheel_delta : Int32 = 3
-      property horizontal_step : Int32 = 0
+      property initialized : Bool = false
+      property longest_line_width : Int32 = 0
+
+      # Horizontal step with clamping
+      def horizontal_step : Int32
+        @horizontal_step
+      end
+
+      def horizontal_step=(value : Int32)
+        @horizontal_step = value.clamp(0, Int32::MAX)
+      end
+
+      # Initialize horizontal_step
+      @horizontal_step : Int32 = 0
+
+      # Query methods
+      def mouse_wheel_enabled? : Bool
+        @mouse_wheel_enabled
+      end
+
+      def initialized? : Bool
+        @initialized
+      end
 
       # Key bindings
       property key_map : KeyMap
@@ -42,24 +65,23 @@ module Term2
 
       def initialize(@width : Int32, @height : Int32)
         @key_map = KeyMap.new
-        @mouse_wheel_enabled = true
-        @mouse_wheel_delta = 3
-        @initialized = true
         set_initial_values
       end
 
       def set_initial_values
-        @key_map = KeyMap.new
         @mouse_wheel_enabled = true
         @mouse_wheel_delta = 3
+        # Set default horizontal step only if not already set
+        @horizontal_step = 2 if @horizontal_step == 0
         @initialized = true
-        # horizontal_step intentionally left unchanged (parity with bubbles)
       end
 
       def content=(content : String)
-        @content = content
-        @lines = content.split("\n")
-        @longest_line_width = @lines.max_of? { |l| Term2::Text.width(l) } || 0
+        @content = content.gsub("\r\n", "\n") # normalize line endings
+        @lines = @content.split("\n")
+        @longest_line_width = find_longest_line_width(@lines)
+
+        # Reset offset if content changes beyond bounds
         if @y_offset > @lines.size - 1
           goto_bottom
         end
@@ -84,20 +106,6 @@ module Term2
           end
         end
         {self, Cmds.none}
-      end
-
-      def set_horizontal_step(n : Int32)
-        @horizontal_step = {n, 0}.max
-      end
-
-      def set_y_offset(n : Int32)
-        @y_offset = n.clamp(0, max_y_offset)
-      end
-
-      def set_x_offset(n : Int32)
-        max_offset = (@longest_line_width - @width)
-        max_offset = 0 if max_offset < 0
-        @x_offset = n.clamp(0, max_offset)
       end
 
       def line_up
@@ -132,107 +140,132 @@ module Term2
         @y_offset = max_y_offset
       end
 
-      def scroll_percent : Float64
-        total_scrollable = max_y_offset
-        return 0.0 if total_scrollable == 0
-        (@y_offset.to_f / total_scrollable).clamp(0.0, 1.0)
-      end
-
       def max_y_offset
         [@lines.size - @height, 0].max
       end
 
-      # Helper to render as a string
-      def view : String
-        visible_lines = [] of String
-
-        unless @lines.empty?
-          end_index = [@y_offset + @height, @lines.size].min
-          visible_lines = @lines[@y_offset...end_index]
-        end
-
-        result = String.build do |io|
-          visible_lines.each_with_index do |line, i|
-            # Handle x_offset and width clipping
-            clipped_line = line
-            if @x_offset > 0
-              if line.size > @x_offset
-                clipped_line = line[@x_offset..-1]
-              else
-                clipped_line = ""
-              end
-            end
-
-            # Clip width
-            # Note: This is simple char slicing, doesn't handle wide chars yet
-            if clipped_line.size > @width
-              clipped_line = clipped_line[0...@width]
-            end
-
-            io << clipped_line
-            io << "\n" if i < visible_lines.size - 1
-          end
-        end
-
-        result
+      def scroll_percent : Float64
+        max = max_y_offset
+        return 1.0 if max <= 0
+        (@y_offset.to_f / max.to_f).clamp(0.0, 1.0)
       end
 
-      # Return visible lines (used in specs)
+      def find_longest_line_width(lines : Array(String)) : Int32
+        w = 0
+        lines.each do |line|
+          line_width = Term2::Text.width(line)
+          w = line_width if line_width > w
+        end
+        w
+      end
+
+      def set_x_offset(n : Int32)
+        max_x_offset = [@longest_line_width - @width, 0].max
+        @x_offset = n.clamp(0, max_x_offset)
+      end
+
+      def scroll_left(n : Int32 = @horizontal_step)
+        set_x_offset(@x_offset - n)
+      end
+
+      def scroll_right(n : Int32 = @horizontal_step)
+        set_x_offset(@x_offset + n)
+      end
+
       def visible_lines : Array(String)
         h = @height
         w = @width
 
-        lines = [] of String
-        unless @lines.empty?
-          top = {@y_offset, 0}.max
-          bottom = {@y_offset + h, @lines.size}.min
-          lines = @lines[top...bottom]
+        if @lines.empty?
+          return [] of String
         end
 
-        if (@x_offset == 0 && @longest_line_width <= w) || w == 0
+        top = [@y_offset, 0].max
+        bottom = [@y_offset + h, top].max.clamp(top, @lines.size)
+        lines = @lines[top...bottom]
+
+        return lines if w == 0
+
+        # Fast path: no horizontal scrolling and no need to cut.
+        if @x_offset == 0 && @longest_line_width <= w
           return lines
         end
 
-        lines.map { |line| cut_line(line, @x_offset, w) }
+        lines.map { |line| cut_string_by_width(line, @x_offset, w) }
       end
 
-      def scroll_left(n : Int32)
-        set_x_offset(@x_offset - n)
-      end
+      # Cut a string based on display width (handles double-width characters)
+      private def cut_string_by_width(str : String, x_offset : Int32, width : Int32) : String
+        return "" if str.empty? || width <= 0
 
-      def scroll_right(n : Int32)
-        set_x_offset(@x_offset + n)
-      end
+        visible_width = 0
+        captured_width = 0
+        result = String::Builder.new
+        in_escape = false
+        esc_buf = String::Builder.new
 
-      def set_content(s : String)
-        # Normalize \r\n to \n
-        self.content = s.gsub("\r\n", "\n")
-      end
-
-      private def cut_line(line : String, offset : Int32, width : Int32) : String
-        return "" if width <= 0
-        chars = [] of Char
-        accum = 0
-        target_start = offset
-        target_end = offset + width
-
-        # Skip until offset
-        line.each_char do |c|
-          char_width = Term2::Text.char_width(c)
-          break if accum >= target_end
-          if accum + char_width <= target_start
-            accum += char_width
+        str.each_char do |c|
+          if in_escape
+            esc_buf << c
+            # CSI sequences end with a letter (SGR ends with 'm', but we keep it generic).
+            if c.ascii_letter?
+              result << esc_buf.to_s
+              esc_buf = String::Builder.new
+              in_escape = false
+            end
             next
           end
-          # in range
-          if accum < target_end
-            chars << c
+
+          if c == '\e'
+            in_escape = true
+            esc_buf << c
+            next
           end
-          accum += char_width
+
+          cw = Term2::Text.char_width(c)
+
+          if visible_width + cw <= x_offset
+            visible_width += cw
+            next
+          end
+
+          break if captured_width + cw > width
+
+          result << c
+          visible_width += cw
+          captured_width += cw
         end
-        String.build do |io|
-          chars.each { |c| io << c }
+
+        result.to_s
+      end
+
+      # Helper to render as a string
+      def view : String
+        lines = visible_lines
+
+        # Pad to full height (Bubble Tea viewport parity).
+        if lines.size < @height
+          (@height - lines.size).times { lines << "" }
         end
+
+        # Pad each line to the viewport width. Bubble Tea pads even when
+        # width is 0 by using the content's longest line width.
+        target_width = @width > 0 ? @width : @longest_line_width
+        if target_width > 0
+          lines = lines.map do |line|
+            pad = target_width - Term2::Text.width(line)
+            pad > 0 ? (line + (" " * pad)) : line
+          end
+        end
+
+        result = String.build do |io|
+          lines.each_with_index do |line, i|
+            io << line
+            io << "\n" if i < lines.size - 1
+          end
+        end
+
+        result
       end
     end
   end

@@ -10,35 +10,29 @@ module Term2
         abstract def short_help : Array(Key::Binding)
         abstract def full_help : Array(Array(Key::Binding))
 
-        # Build bindings from a collection of named tuples containing
-        # keys/help/description, mirroring bubbles key bindings helpers.
         def self.bindings(entries : Array(NamedTuple(keys: Array(String), help: String, description: String))) : Array(Key::Binding)
-          entries.map { |entry| Key::Binding.new(entry[:keys], entry[:help], entry[:description]) }
+          entries.map do |entry|
+            Key::Binding.new(entry[:keys], entry[:help], entry[:description])
+          end
         end
 
-        # Build bindings from positional tuples {keys, help, description}.
         def self.bindings(entries : Array(Tuple(Array(String), String, String))) : Array(Key::Binding)
-          entries.map do |keys, help, desc|
-            Key::Binding.new(keys, help, desc)
+          entries.map do |entry|
+            Key::Binding.new(entry[0], entry[1], entry[2])
           end
         end
       end
 
-      property short_separator : String = " • "
-      property full_separator : String = "    "
-      property ellipsis : String = "…"
-      property show_all : Bool = false
+      property? show_all : Bool = false
       property width : Int32 = 80
 
       # Styles
       property key_style : Style = Style.new.faint(true)
       property desc_style : Style = Style.new.faint(true)
       property separator_style : Style = Style.new.faint(true)
-      property ellipsis_style : Style = Style.new.faint(true)
-
-      def show_all? : Bool
-        @show_all
-      end
+      property ellipsis_style : Style = Style.new
+      property full_separator : String = "  "
+      property ellipsis : String = "…"
 
       def initialize
       end
@@ -52,7 +46,7 @@ module Term2
       end
 
       def view(key_map : KeyMap) : String
-        if show_all?
+        if @show_all
           view_full(key_map)
         else
           view_short(key_map)
@@ -63,94 +57,86 @@ module Term2
         bindings = key_map.short_help
         return "" if bindings.empty?
 
-        parts = bindings.compact_map do |binding|
-          next if !binding.enabled?
-          "#{key_style.render(binding.help_key)} #{desc_style.render(binding.help_desc)}"
+        sep = separator_style.inline(true).render(" • ")
+        total_width = 0
+
+        parts = [] of String
+        bindings.each_with_index do |binding, idx|
+          next unless binding.enabled?
+
+          item = "#{key_style.inline(true).render(binding.help_key)} #{desc_style.inline(true).render(binding.help_desc)}"
+          item = sep + item if total_width > 0 && idx < bindings.size
+
+          w = Term2::Text.width(item)
+          tail, ok = should_add_item(total_width, w)
+          unless ok
+            parts << tail unless tail.empty?
+            break
+          end
+
+          total_width += w
+          parts << item
         end
 
-        line = parts.join(separator_style.render(@short_separator))
-        # Handle width truncation with ellipsis if needed
-        if @width > 0 && Term2::Text.width(line) > @width
-          ell = " " + ellipsis_style.render(@ellipsis)
-          usable_width = @width - Term2::Text.width(ell)
-          line = line[0, usable_width] + ell if usable_width > 0
-        end
-        line
+        parts.join("")
       end
 
       def view_full(key_map : KeyMap) : String
         groups = key_map.full_help
         return "" if groups.empty?
 
-        sep_rendered = separator_style.render(@full_separator)
-        sep_width = Term2::Text.width(sep_rendered)
+        blocks = [] of String
+        total_width = 0
+        separator = separator_style.inline(true).render(@full_separator)
 
-        columns = [] of {lines: Array(String), width: Int32}
-        groups.each do |group|
-          bindings = group.compact_map { |binding| binding if binding.enabled? }
-          next if bindings.empty?
+        groups.each_with_index do |group, idx|
+          next if group.nil? || group.empty? || !should_render_column?(group)
 
-          keys = bindings.map(&.help_key)
-          descs = bindings.map(&.help_desc)
-          max_key_width = keys.max_of { |k| Term2::Text.width(k) }
-          max_desc_width = descs.max_of { |d| Term2::Text.width(d) }
+          sep = total_width > 0 && idx < groups.size ? separator : ""
 
-          col_lines = keys.zip(descs).map do |k, d|
-            padded_key = k.ljust(max_key_width)
-            "#{key_style.render(padded_key)} #{desc_style.render(d)}"
+          keys = [] of String
+          descs = [] of String
+
+          group.each do |binding|
+            next unless binding.enabled?
+            keys << binding.help_key
+            descs << binding.help_desc
           end
 
-          col_width = max_key_width + 1 + max_desc_width
-          columns << {lines: col_lines, width: col_width}
-        end
-        return "" if columns.empty?
+          col = Style.join_horizontal(
+            Position::Top,
+            [
+              sep,
+              key_style.render(keys.join("\n")),
+              " ",
+              desc_style.render(descs.join("\n")),
+            ]
+          )
 
-        selected = [] of {lines: Array(String), width: Int32}
-        total_width = 0
-        ellipsis_needed = false
-
-        columns.each do |col|
-          projected = total_width
-          projected += sep_width if !selected.empty?
-          projected += col[:width]
-
-          if @width > 0 && projected > @width
-            ellipsis_needed = true
+          w = Term2::Text.width(col)
+          tail, ok = should_add_item(total_width, w)
+          unless ok
+            blocks << tail unless tail.empty?
             break
           end
 
-          total_width = projected
-          selected << col
+          total_width += w
+          blocks << col
         end
 
-        return "" if selected.empty?
+        Style.join_horizontal(Position::Top, blocks)
+      end
 
-        max_lines = selected.max_of?(&.[:lines].size) || 0
-        output_lines = Array(String).new(max_lines, "")
-
-        max_lines.times do |line_idx|
-          line_parts = [] of String
-          selected.each_with_index do |col, idx|
-            separator = if idx.zero?
-                          ""
-                        else
-                          line_idx.zero? ? sep_rendered : " " * sep_width
-                        end
-            line_parts << separator
-            content = col[:lines][line_idx]? || ""
-            pad_len = col[:width] - Term2::Text.width(content)
-            line_parts << content
-            line_parts << " " * pad_len if pad_len > 0 && idx < selected.size - 1
-          end
-          line = line_parts.join
-          if ellipsis_needed && line_idx == 0
-            ell = " " + ellipsis_style.render(@ellipsis)
-            line += ell if @width <= 0 || Term2::Text.width(line + ell) <= @width
-          end
-          output_lines[line_idx] = line
+      private def should_add_item(total_width : Int32, width : Int32) : {String, Bool}
+        if @width > 0 && total_width + width > @width
+          tail = " " + ellipsis_style.inline(true).render(@ellipsis)
+          return {tail, false} if total_width + Term2::Text.width(tail) < @width
         end
+        {"", true}
+      end
 
-        output_lines.join("\n")
+      private def should_render_column?(bindings : Array(Key::Binding)) : Bool
+        bindings.any?(&.enabled?)
       end
     end
   end

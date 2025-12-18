@@ -13,7 +13,8 @@ describe "Lipgloss parity: style rendering" do
     ]
 
     cases.each_with_index do |tc, idx|
-      s = tc[:style].call.set_string("ab c")
+      s = tc[:style].call
+      s.string = "ab c"
       s.render.should eq(tc[:expected]), "case #{idx} failed"
     end
   end
@@ -30,7 +31,8 @@ describe "Lipgloss parity: style rendering" do
     ]
 
     cases.each_with_index do |tc, idx|
-      s = tc[:style].call.set_string("ab c")
+      s = tc[:style].call
+      s.string = "ab c"
       s.render.should eq(tc[:expected]), "case #{idx} failed"
     end
   end

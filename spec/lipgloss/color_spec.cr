@@ -15,7 +15,7 @@ describe "Lipgloss parity: color profiles" do
 
     cases.each do |profile, expected|
       renderer.color_profile = profile
-      style = Term2::Style.new.renderer(renderer).foreground(color).set_string(input)
+      style = Term2::Style.new.renderer(renderer).foreground(color).string = input
       style.render.should eq(expected)
     end
   end

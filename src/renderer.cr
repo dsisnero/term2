@@ -1,4 +1,7 @@
 # Renderer interface and implementations for Term2
+require "./color_profile"
+require "./style"
+
 module Term2
   # Renderer is the abstract base class for terminal rendering
   abstract class Renderer
@@ -35,6 +38,7 @@ module Term2
     @output : IO
     @running : Bool = false
     @last_render : String = ""
+    @last_lines : Array(String) = [] of String
     @fps : Float64 = 60.0
     @last_frame_time : Time = Time::UNIX_EPOCH
     @frame_duration : Time::Span = Time::Span.new(nanoseconds: 16_666_667) # ~60 fps
@@ -47,6 +51,7 @@ module Term2
       return if @running
       @running = true
       @last_render = ""
+      @last_lines.clear
       @last_frame_time = Time::UNIX_EPOCH # Reset to allow immediate first render
       Terminal.hide_cursor(@output)
     end
@@ -72,14 +77,41 @@ module Term2
       # Only render if the view has changed
       return if view == @last_render
 
-      # Clear and render the new view
-      clear_screen
-      # Ensure newlines are properly formatted for raw mode
-      formatted_view = view.gsub("\n", "\r\n")
-      @output.print(formatted_view)
+      # Bubble Tea parity: avoid full-screen clears when possible. Updating only
+      # changed lines dramatically reduces output, which is crucial for large
+      # views like the bubblezone full-lipgloss example.
+      new_lines = view.split('\n', remove_empty: false)
+      max_lines = {new_lines.size, @last_lines.size}.max
+
+      (0...max_lines).each do |i|
+        prev = @last_lines[i]?
+        curr = new_lines[i]?
+        next if prev == curr
+
+        Terminal.move_to(i + 1, 1, @output)
+        # Reset attributes before writing a line. Unlike full-screen rendering,
+        # line-diff updates are non-linear, so terminal SGR state must not leak
+        # from whatever was last written.
+        @output.print("\e[0m")
+        if curr
+          @output.print(curr)
+        end
+        Terminal.clear_line(@output)
+      end
+
+      # If the new view has fewer lines, clear the remaining old lines.
+      if new_lines.size < @last_lines.size
+        (new_lines.size...@last_lines.size).each do |i|
+          Terminal.move_to(i + 1, 1, @output)
+          @output.print("\e[0m")
+          Terminal.clear_entire_line(@output)
+        end
+      end
+
       @output.flush
 
       @last_render = view
+      @last_lines = new_lines
     end
 
     def flush : Nil
@@ -93,6 +125,7 @@ module Term2
     def repaint : Nil
       return unless @running
       @last_render = "" # Force re-render on next call
+      @last_lines.clear
     end
 
     def print(text : String) : Nil
@@ -226,5 +259,19 @@ module Term2
     def disable_mouse_all_motion : Nil
       # No-op
     end
+  end
+
+  # Lightweight renderer to satisfy lipgloss renderer API expectations.
+  class LipglossRenderer < NilRenderer
+    property has_dark_background : Bool = true
+    property color_profile : ColorProfile = ColorProfile::TrueColor
+
+    def has_dark_background? : Bool
+      @has_dark_background
+    end
+  end
+
+  def self.new_renderer(_io : IO, *_opts) : LipglossRenderer
+    LipglossRenderer.new
   end
 end

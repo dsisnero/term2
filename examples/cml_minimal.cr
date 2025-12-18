@@ -30,7 +30,7 @@ spawn { sleep 0.1; ch2.send(100) }
 choose_evt = CML.choose([
   CML.wrap(ch1.recv_evt) { |msg| "Channel 1: #{msg}" },
   CML.wrap(ch2.recv_evt) { |num| "Channel 2: #{num}" },
-  CML.wrap(CML.timeout(0.2.seconds)) { "Timeout" }
+  CML.wrap(CML.timeout(0.2.seconds)) { "Timeout" },
 ])
 
 result = CML.sync(choose_evt)

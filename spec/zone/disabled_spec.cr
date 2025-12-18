@@ -20,6 +20,6 @@ describe "Term2::Zone when disabled" do
     content = "a" + Term2::Zone.mark("foo", "b") + "c"
     Term2::Zone.scan(content).should eq("abc")
     sleep 50.milliseconds
-    Term2::Zone.get("foo").is_zero?.should be_true
+    Term2::Zone.get("foo").zero?.should be_true
   end
 end
