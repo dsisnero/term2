@@ -2,7 +2,6 @@ require "../spec_helper"
 
 class TeaFilterModel
   include Term2::Model
-  getter shutdowns = Atomic(Int32).new(0)
 
   def init : Term2::Cmd
     nil
@@ -18,49 +17,52 @@ class TeaFilterModel
   end
 
   def view : String
-    "ok"
+    ""
   end
 end
 
-describe "BubbleTea parity: filter prevents quit" do
+describe "Bubbletea parity: filter" do
   it "filters QuitMsg configurable times" do
     [0, 1, 2].each do |prevent_count|
       io = IO::Memory.new
+      output_io = IO::Memory.new
       model = TeaFilterModel.new
       shutdowns = Atomic(Int32).new(0)
-      filter = ->(msg : Term2::Msg?) do
-        if msg.is_a?(Term2::QuitMsg) && shutdowns.get < prevent_count
-          shutdowns.add(1)
-          nil
-        else
-          msg
-        end
-      end
-      opts = Term2::ProgramOptions.new(Term2::WithFilter.new(filter.as(Proc(Term2::Msg?, Term2::Msg?))))
-      program = Term2::Program(TeaFilterModel).new(model, input: IO::Memory.new, output: io, options: opts)
 
-      done = Channel(Nil).new
+      # Updated Filter Signature: (Model, Message) -> Message?
+      filter = ->(_m : Term2::Model, msg : Term2::Message) {
+        if msg.is_a?(Term2::QuitMsg)
+          if shutdowns.get < prevent_count
+            shutdowns.add(1)
+            # Return nil to suppress the message
+            return
+          end
+        end
+        # Return the message as a nullable type
+        msg.as(Term2::Message?)
+      }
+
+      # No casting needed if the lambda signature matches
+      opts = Term2::ProgramOptions.new
+      opts.add(Term2::WithInput.new(io))
+      opts.add(Term2::WithOutput.new(output_io))
+      opts.add(Term2::WithFilter.new(filter))
+
+      program = Term2::Program(TeaFilterModel).new(model, options: opts)
+
       spawn do
-        program.run
-        done.send(nil)
-      end
-
-      # Send quit messages; once we've filtered enough, send a final quit to exit.
-      20.times do
-        program.quit
-        sleep 1.millisecond
-        if shutdowns.get >= prevent_count
+        # Keep sending quit until it sticks
+        while shutdowns.get <= prevent_count
+          sleep 1.millisecond
           program.quit
-          break
+
+          # Break if the program has actually stopped
+          break if program.shutdown_evt.poll.is_a?(CML::Enabled(Nil))
         end
       end
 
-      select
-      when done.receive
-      when timeout(2.seconds)
-        raise "program did not finish"
-      end
-      program.wait
+      program.run
+
       shutdowns.get.should eq(prevent_count)
     end
   end

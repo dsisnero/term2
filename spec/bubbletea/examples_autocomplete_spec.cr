@@ -1,6 +1,7 @@
 ENV["TERM2_REQUIRE_ONLY"] = "1"
 require "../spec_helper"
 require "../../examples/bubbletea/autocomplete/main"
+require "../support/teatest"
 
 # Simple harness to exercise the autocomplete example with the teatest helper.
 describe "Bubbletea example: autocomplete" do
