@@ -19,58 +19,58 @@
 
    15.
 
-1. **Phase 3: Crystal Language Compatibility Assessment**
-2. - Map Go language features used in Bubble Tea to Crystal equivalents
-3. - Analyze concurrency patterns and how they translate to Crystal/CML
-4. - Study terminal/console interaction in Crystal ecosystem
-5. - Research existing Crystal terminal libraries for reference
-6. - Identify potential challenges in porting Go idioms to Crystal
+14. **Phase 3: Crystal Language Compatibility Assessment**
+15. - Map Go language features used in Bubble Tea to Crystal equivalents
+16. - Analyze concurrency patterns and how they translate to Crystal/CML
+17. - Study terminal/console interaction in Crystal ecosystem
+18. - Research existing Crystal terminal libraries for reference
+19. - Identify potential challenges in porting Go idioms to Crystal
 
    22.
 
-7. **Phase 4: CML Integration Strategy**
-8. - Analyze how CML channels and processes can replace Go routines
-9. - Design message passing architecture using CML primitives
-10. - Plan fiber-based concurrency model for terminal applications
-11. - Research CML patterns for event handling and state management
-12. - Design integration points between CML and terminal I/O
+20. **Phase 4: CML Integration Strategy**
+21. - Analyze how CML channels and processes can replace Go routines
+22. - Design message passing architecture using CML primitives
+23. - Plan fiber-based concurrency model for terminal applications
+24. - Research CML patterns for event handling and state management
+25. - Design integration points between CML and terminal I/O
 
    29.
 
-1. **Phase 5: API Design and Porting Strategy**
-2. - Design Crystal API that mirrors Bubble Tea functionality
-3. - Plan incremental porting approach (core → components → styling)
-4. - Design type-safe interfaces for models, messages, and commands
-5. - Plan error handling and exception management strategy
-6. - Design testing strategy for terminal applications
+26. **Phase 5: API Design and Porting Strategy**
+27. - Design Crystal API that mirrors Bubble Tea functionality
+28. - Plan incremental porting approach (core → components → styling)
+29. - Design type-safe interfaces for models, messages, and commands
+30. - Plan error handling and exception management strategy
+31. - Design testing strategy for terminal applications
 
    36.
 
-7. **Phase 6: Implementation Roadmap**
-8. - Create proof-of-concept minimal terminal application
-9. - Implement core tea.Program equivalent
-10. - Port basic components (text input, spinner, etc.)
-11. - Implement styling system equivalent to Lip Gloss
-12. - Create comprehensive test suite
-13. - Document usage patterns and migration guide
+32. **Phase 6: Implementation Roadmap**
+33. - Create proof-of-concept minimal terminal application
+34. - Implement core tea.Program equivalent
+35. - Port basic components (text input, spinner, etc.)
+36. - Implement styling system equivalent to Lip Gloss
+37. - Create comprehensive test suite
+38. - Document usage patterns and migration guide
 
    44.
 
-14. **Phase 7: Performance and Optimization**
-15. - Benchmark performance against original Go implementation
-16. - Optimize rendering and update cycles
-17. - Profile memory usage and garbage collection
-18. - Test cross-platform compatibility
-19. - Optimize for different terminal environments
+39. **Phase 7: Performance and Optimization**
+40. - Benchmark performance against original Go implementation
+41. - Optimize rendering and update cycles
+42. - Profile memory usage and garbage collection
+43. - Test cross-platform compatibility
+44. - Optimize for different terminal environments
 
    51.
 
-20. **Phase 8: Documentation and Examples**
-21. - Create comprehensive API documentation
-22. - Build example applications demonstrating various use cases
-23. - Create migration guide from Bubble Tea to Crystal version
-24. - Document best practices and patterns
-25. - Create interactive tutorials and demos
+45. **Phase 8: Documentation and Examples**
+46. - Create comprehensive API documentation
+47. - Build example applications demonstrating various use cases
+48. - Create migration guide from Bubble Tea to Crystal version
+49. - Document best practices and patterns
+50. - Create interactive tutorials and demos
 
 ## Tags
 

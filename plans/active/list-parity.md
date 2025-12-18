@@ -1,15 +1,18 @@
 # List Parity Plan
 
 ## Goal
+
 Achieve full parity with Bubble Tea's list component, including filtering UX, styling, and helper APIs.
 
 ## Current Status
+
 - Filtering implemented with simple substring matching and filter input UI.
 - Status/footer hints and pagination mirrored.
 - Delegate update hook, add/remove helpers, visible item tracking added.
 - Styles struct pending; spinner/status styling parity in progress.
 
 ## Tasks
+
 - [x] Implement fuzzy filter support (DefaultFilter/Rank) for match highlighting and ordering (uses subsequence matcher; true fuzzy/ranked parity still pending).
 - [x] Add style struct knobs (title bar, spinner placement, filter prompt/cursor, status/footer, pagination dot/arabic auto-switch).
 - [x] Support spinner integration in title/status bars (start/stop, toggle).
@@ -24,5 +27,6 @@ Achieve full parity with Bubble Tea's list component, including filtering UX, st
 - [ ] Update examples to exercise new list ergonomics and fuzzy ranks.
 
 ## Notes
+
 - Filtering is currently substring-based for speed/simplicity; fuzzy matching parity is pending.
 - Revisit after initial ergonomics merge to ensure FULL parity items are closed.

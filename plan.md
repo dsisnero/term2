@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Overall Progress:** ~96%
+**Overall Progress:** ~92%
 **Active Workstream:** None
-**Recent Completion:** List filtering parity & style ergonomics
+**Recent Completion:** cml upgrade compatibility + parity specs
 
 ## Active Workstreams
 
@@ -12,16 +12,30 @@
 
 ## Completed Workstreams
 
-### [F] BubbleTea Examples Port
+### [F] cml Upgrade Compatibility + Parity Specs
 
 **Status:** ✅ Completed (Dec 2025)
-**Goal:** Port Bubble Tea's example suite to Term2 under `examples/bubbletea/`.
+**Goal:** Restore full Bubble Tea/Bubbles/Lipgloss parity after updating the `cml` shard.
 **Achievements:**
 
-- Ported 48 Bubble Tea examples with feature parity for keys, mouse, and rendering
-- Added specs in `spec/examples/` to cover each example, including tabs navigation
-- Verified examples build via `make build-examples`
-- Plan File: `plans/active/bubbletea-examples.yml`
+- Fixed Bubble Tea program loop behaviors (mailbox events, panic recovery, filter proc dispatch)
+- Restored key/focus/mouse parsing parity and prevented focus/blur hangs
+- Improved Bubbles components parity (List filter help, Help width/ellipsis, TextInput placeholders/suggestions, TextArea wrapping/navigation)
+- Corrected Lipgloss parity behaviors (color profiles, sizing/width math, table resizing, underline/strikethrough whitespace behavior, range/rune styling)
+- Marked fuzzy matching specs as pending until fuzzy shard lands
+- Updated example ports/specs to compile against the new APIs (compat helpers for colors/styles, viewport, progress, table/list delegates)
+- Confirmed spec layout matches upstream packages (`spec/bubbletea`, `spec/bubblezone`, `spec/lipgloss`)
+- Verified all examples compile via `make build-examples` and updated remaining stale example code paths
+- Restored Bubblezone mouse/zone click behavior and added `spec/examples/bubblezone/*` coverage for bubblezone examples
+- Re-aligned Bubblezone `list-default` example to upstream (altscreen + cell-motion mouse, wheel scroll moves cursor, click selects via zone bounds)
+- Added Bubble Tea parity helpers to `Term2::Components::List` (`cursor_up`, `cursor_down`, `select`) for mouse-driven examples
+- Added `targets` to `shard.yml` so `shards build`/`make build` succeeds for CI build checks
+- Fixed Bubblezone+Lipgloss example rendering by making ANSI/OSC/zone marker stripping/truncation width-aware (`src/style.cr`) and porting `full-lipgloss` example layout/behavior to match upstream Go
+- Matched Bubblezone `NewPrefix()` semantics (`zone_<n>__`) and ensured `full-lipgloss` assigns one unique prefix per component type to prevent zone ID collisions (restores reliable mouse hit-testing)
+- Fixed blank first-frame renders by sending initial `WindowSizeMsg` on program startup when output is a TTY
+- Improved interactive performance by rendering via a line-diff renderer (avoids full-screen clears/writes on every input event, closer to Bubble Tea renderer behavior)
+- Began extracting ANSI-aware word wrapping into a reusable library (`lib/cellwrap`) based on charmbracelet/x/cellbuf.Wrap, and switched `Style` to use it
+- Ported `charm_x/cellbuf/wrap_test.go` into `lib/cellwrap/spec/wrap_parity_spec.cr` and matched `Cellwrap.wrap` behavior (ANSI SGR + OSC-8 links + grapheme/combining mark width); main suite runs it via `spec/cellwrap_parity_spec.cr`
 
 ### [E] BubbleZone Integration
 
@@ -63,16 +77,6 @@
 - Ported Input Components (TextInput, TextArea)
 - Ported Complex Data Display (Paginator, List, Table, Help, FilePicker)
 **Plan File:** `plans/completed/bubbles-components.yml`
-
-### [G] List Filtering Parity & Ergonomics
-
-**Status:** ✅ Completed (Dec 2025)
-**Goal:** Match Bubble Tea list filtering UX and improve ergonomics.
-**Achievements:**
-
-- Added filter input support with visible item tracking and helper setters
-- Synced status/footer hints and filtered count messaging
-- Added delegate update hook, visible-item removal/insertion helpers, and custom delegate example
 
 ### [C] Crystal Idioms & API Ergonomics
 
