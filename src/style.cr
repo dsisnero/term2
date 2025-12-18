@@ -1,6 +1,10 @@
 # Term2 Style - A complete port of Lipgloss styling
 # This is the core styling primitive for Term2
 
+require "./color_profile"
+require "uniwidth"
+require "cellwrap"
+
 module Term2
   # Global setting for adaptive colors
   class_property? has_dark_background : Bool = true
@@ -10,57 +14,6 @@ module Term2
 
   # NoTabConversion can be passed to TabWidth to disable tab replacement
   NO_TAB_CONVERSION = -1
-
-  # Supported color profiles (parity with Lip Gloss/termenv)
-  enum ColorProfile
-    ASCII
-    ANSI
-    ANSI256
-    TrueColor
-  end
-
-  # StyleRenderer manages color profile and background detection (mirrors Lip Gloss)
-  class StyleRenderer
-    @@default_renderer = StyleRenderer.new
-
-    @color_profile : ColorProfile = ColorProfile::TrueColor
-    @has_dark_background : Bool = true
-    @output : IO? = nil
-
-    def self.default : StyleRenderer
-      @@default_renderer
-    end
-
-    def color_profile : ColorProfile
-      @color_profile
-    end
-
-    def color_profile=(profile : ColorProfile)
-      @color_profile = profile
-    end
-
-    def has_dark_background? : Bool
-      @has_dark_background
-    end
-
-    def output : IO?
-      @output
-    end
-
-    def output=(io : IO?)
-      @output = io
-    end
-
-    def has_dark_background=(val : Bool)
-      @has_dark_background = val
-    end
-
-    # Factory for styles bound to this renderer
-    def new_style : Style
-      style = Style.new
-      style.renderer(self)
-    end
-  end
 
   # Position for alignment
   enum Position
@@ -152,19 +105,39 @@ module Term2
       new("▄", "▀", "▐", "▌", "▗", "▖", "▝", "▘", "▐", "▌", "┼", "▄", "▀")
     end
 
+    @[Deprecated("Use `top_size` instead")]
     def get_top_size : Int32
       @top.empty? ? 0 : 1
     end
 
+    def top_size : Int32
+      @top.empty? ? 0 : 1
+    end
+
+    @[Deprecated("Use `bottom_size` instead")]
     def get_bottom_size : Int32
       @bottom.empty? ? 0 : 1
     end
 
+    def bottom_size : Int32
+      @bottom.empty? ? 0 : 1
+    end
+
+    @[Deprecated("Use `left_size` instead")]
     def get_left_size : Int32
       @left.empty? ? 0 : 1
     end
 
+    def left_size : Int32
+      @left.empty? ? 0 : 1
+    end
+
+    @[Deprecated("Use `right_size` instead")]
     def get_right_size : Int32
+      @right.empty? ? 0 : 1
+    end
+
+    def right_size : Int32
       @right.empty? ? 0 : 1
     end
   end
@@ -223,7 +196,7 @@ module Term2
       rgb(r, g, b)
     end
 
-    # Alias for from_hex for ergonomic usage.
+    # Compatibility alias used by some example ports.
     def self.hex(hex : String) : Color
       from_hex(hex)
     end
@@ -236,163 +209,6 @@ module Term2
     # Create an RGB color
     def self.rgb(r : Int32, g : Int32, b : Int32) : Color
       new(Type::RGB, {r.clamp(0, 255), g.clamp(0, 255), b.clamp(0, 255)})
-    end
-
-    def self.from_name(name : Symbol | String) : Color?
-      case name.to_s.downcase
-      when "default"
-        nil
-      when "black"       then BLACK
-      when "red"         then RED
-      when "green"       then GREEN
-      when "yellow"      then YELLOW
-      when "blue"        then BLUE
-      when "magenta"     then MAGENTA
-      when "cyan"        then CYAN
-      when "light_gray"  then WHITE
-      when "dark_gray"   then BRIGHT_BLACK
-      when "light_red"   then BRIGHT_RED
-      when "light_green" then BRIGHT_GREEN
-      when "light_yellow" then BRIGHT_YELLOW
-      when "light_blue"  then BRIGHT_BLUE
-      when "light_magenta" then BRIGHT_MAGENTA
-      when "light_cyan"  then BRIGHT_CYAN
-      when "white"       then BRIGHT_WHITE
-      else
-        nil
-      end
-    end
-
-    # Convert to RGB tuple (using xterm palette for indexed/named)
-    def to_rgb : Tuple(Int32, Int32, Int32)
-      case @type
-      when Type::RGB
-        @value.as(Tuple(Int32, Int32, Int32))
-      when Type::Indexed
-        idx = @value.as(Int32)
-        Color.rgb_from_ansi256(idx)
-      when Type::Named
-        idx = @value.as(Int32)
-        Color.rgb_from_ansi16(idx)
-      else
-        {0, 0, 0}
-      end
-    end
-
-    # Convert this color to a given profile (degrading if needed)
-    def to_profile(profile : ColorProfile) : Color?
-      case profile
-      when ColorProfile::ASCII
-        nil
-      when ColorProfile::ANSI
-        r, g, b = to_rgb
-        Color.new(Type::Named, Color.rgb_to_ansi16(r, g, b))
-      when ColorProfile::ANSI256
-        case @type
-        when Type::Indexed, Type::Named
-          self
-        else
-          r, g, b = to_rgb
-          Color.indexed(Color.rgb_to_ansi256(r, g, b))
-        end
-      else
-        self
-      end
-    end
-
-    def self.rgb_from_ansi16(idx : Int32) : Tuple(Int32, Int32, Int32)
-      palette = [
-        {0, 0, 0},
-        {205, 0, 0},
-        {0, 205, 0},
-        {205, 205, 0},
-        {0, 0, 238},
-        {205, 0, 205},
-        {0, 205, 205},
-        {229, 229, 229},
-        {127, 127, 127},
-        {255, 0, 0},
-        {0, 255, 0},
-        {255, 255, 0},
-        {92, 92, 255},
-        {255, 0, 255},
-        {0, 255, 255},
-        {255, 255, 255},
-      ]
-      palette[idx.clamp(0, 15)]
-    end
-
-    def self.rgb_from_ansi256(idx : Int32) : Tuple(Int32, Int32, Int32)
-      return rgb_from_ansi16(idx) if idx < 16
-      if idx >= 232
-        gray = 8 + 10 * (idx - 232)
-        {gray, gray, gray}
-      else
-        c = idx - 16
-        r = c // 36
-        g = (c % 36) // 6
-        b = c % 6
-        {
-          ansi_component(r),
-          ansi_component(g),
-          ansi_component(b),
-        }
-      end
-    end
-
-    def self.ansi_component(v : Int32) : Int32
-      return 0 if v <= 0
-      55 + v * 40
-    end
-
-    def self.rgb_to_ansi256(r : Int32, g : Int32, b : Int32) : Int32
-      # Compute color cube index
-      rr = component_to_ansi_level(r)
-      gg = component_to_ansi_level(g)
-      bb = component_to_ansi_level(b)
-      cube_idx = 16 + 36 * rr + 6 * gg + bb
-      cube_r, cube_g, cube_b = rgb_from_ansi256(cube_idx)
-
-      # Compute grayscale index
-      gray = ((r + g + b) / 3).to_f
-      gray_level = (((gray - 8.0) / 10.0).round.to_i32).clamp(0, 23)
-      gray_idx = 232 + gray_level
-      gray_val = 8 + gray_level * 10
-
-      cube_dist = color_distance(r, g, b, cube_r, cube_g, cube_b)
-      gray_dist = color_distance(r, g, b, gray_val, gray_val, gray_val)
-
-      cube_dist <= gray_dist ? cube_idx : gray_idx
-    end
-
-    def self.rgb_to_ansi16(r : Int32, g : Int32, b : Int32) : Int32
-      # Use ansi256 conversion then map to nearest of 16 colors
-      idx256 = rgb_to_ansi256(r, g, b)
-      target_r, target_g, target_b = rgb_from_ansi256(idx256)
-      best_idx = 0
-      best_dist = Int32::MAX
-      16.times do |i|
-        pr, pg, pb = rgb_from_ansi16(i)
-        dist = color_distance(target_r, target_g, target_b, pr, pg, pb)
-        if dist < best_dist
-          best_dist = dist
-          best_idx = i
-        end
-      end
-      best_idx
-    end
-
-    def self.component_to_ansi_level(c : Int32) : Int32
-      return 0 if c < 48
-      return 5 if c > 228
-      ((c - 35) // 40).clamp(0, 5)
-    end
-
-    def self.color_distance(r1 : Int32, g1 : Int32, b1 : Int32, r2 : Int32, g2 : Int32, b2 : Int32) : Int32
-      dr = r1 - r2
-      dg = g1 - g2
-      db = b1 - b2
-      dr*dr + dg*dg + db*db
     end
 
     # Get foreground escape codes
@@ -435,88 +251,321 @@ module Term2
       end
     end
 
-    # Get RGBA components (0-65535) similar to Go's color.Color RGBA
-    def rgba(renderer : StyleRenderer = StyleRenderer.default) : Tuple(UInt32, UInt32, UInt32, UInt32)
-      r8, g8, b8 = to_rgb
-      {(r8 * 257).to_u32, (g8 * 257).to_u32, (b8 * 257).to_u32, 0xFFFFu32}
-    end
-
     # For equality comparison
     def ==(other : Color) : Bool
       @type == other.type && @value == other.value
+    end
+
+    ANSI16_PALETTE = [
+      {0, 0, 0},       # 0 black
+      {205, 0, 0},     # 1 red
+      {0, 205, 0},     # 2 green
+      {205, 205, 0},   # 3 yellow
+      {0, 0, 238},     # 4 blue
+      {205, 0, 205},   # 5 magenta
+      {0, 205, 205},   # 6 cyan
+      {229, 229, 229}, # 7 white
+      {127, 127, 127}, # 8 bright black
+      {255, 0, 0},     # 9 bright red
+      {0, 255, 0},     # 10 bright green
+      {255, 255, 0},   # 11 bright yellow
+      {92, 92, 255},   # 12 bright blue
+      {255, 0, 255},   # 13 bright magenta
+      {0, 255, 255},   # 14 bright cyan
+      {255, 255, 255}, # 15 bright white
+    ]
+
+    def to_rgb : Tuple(Int32, Int32, Int32)
+      case @type
+      when Type::RGB
+        @value.as(Tuple(Int32, Int32, Int32))
+      when Type::Named
+        ANSI16_PALETTE[@value.as(Int32).clamp(0, 15)]
+      when Type::Indexed
+        Color.ansi256_index_to_rgb(@value.as(Int32))
+      else
+        {0, 0, 0}
+      end
+    end
+
+    def self.rgb_to_ansi16_index(r : Int32, g : Int32, b : Int32) : Int32
+      best_idx = 0
+      best_dist = Int64::MAX
+
+      ANSI16_PALETTE.each_with_index do |(pr, pg, pb), idx|
+        dr = (r - pr).to_i64
+        dg = (g - pg).to_i64
+        db = (b - pb).to_i64
+        dist = dr * dr + dg * dg + db * db
+        if dist < best_dist
+          best_dist = dist
+          best_idx = idx
+        end
+      end
+
+      best_idx
+    end
+
+    def self.ansi256_index_to_rgb(index : Int32) : Tuple(Int32, Int32, Int32)
+      idx = index.clamp(0, 255)
+
+      if idx < 16
+        return ANSI16_PALETTE[idx]
+      end
+
+      # 6x6x6 color cube: 16-231
+      if idx <= 231
+        i = idx - 16
+        r = i // 36
+        g = (i % 36) // 6
+        b = i % 6
+        steps = [0, 95, 135, 175, 215, 255]
+        return {steps[r], steps[g], steps[b]}
+      end
+
+      # Grayscale ramp: 232-255
+      gray = 8 + (idx - 232) * 10
+      {gray, gray, gray}
+    end
+
+    def self.rgb_to_ansi256_index(r : Int32, g : Int32, b : Int32) : Int32
+      r = r.clamp(0, 255)
+      g = g.clamp(0, 255)
+      b = b.clamp(0, 255)
+
+      if r == g && g == b
+        if r < 8
+          return 16
+        end
+        if r > 238
+          return 231
+        end
+        return 232 + ((r - 8) / 10.0).round.to_i.clamp(0, 23)
+      end
+
+      steps = [0, 95, 135, 175, 215, 255]
+      rc = steps.min_by { |s| (s - r).abs }
+      gc = steps.min_by { |s| (s - g).abs }
+      bc = steps.min_by { |s| (s - b).abs }
+      ri = steps.index!(rc)
+      gi = steps.index!(gc)
+      bi = steps.index!(bc)
+
+      16 + (36 * ri) + (6 * gi) + bi
     end
   end
 
   # Text utilities for measuring and manipulating styled text
   module Text
-    # Strip ANSI escape codes from text
+    # Strip ANSI escape codes from text.
+    #
+    # Handles common CSI/OSC sequences and Bubblezone markers (CSI ... z).
     def self.strip_ansi(text : String) : String
-      text.gsub(/\e\[[0-9;]*m/, "")
+      bytes = text.to_slice
+      String.build do |io|
+        i = 0
+        while i < bytes.size
+          if bytes[i] == 0x1b_u8
+            i = consume_escape_sequence(bytes, i)
+            next
+          end
+          io.write_byte(bytes[i])
+          i += 1
+        end
+      end
     end
 
     # Calculate the display width of text (ignoring ANSI codes)
     def self.width(text : String) : Int32
-      strip_ansi(text).each_char.sum { |c| char_width(c) }
+      bytes = text.to_slice
+      return 0 if bytes.empty?
+
+      max_width = 0
+      cur_width = 0
+      i = 0
+
+      while i < bytes.size
+        b = bytes[i]
+
+        if b == 0x1b_u8
+          i = consume_escape_sequence(bytes, i)
+          next
+        end
+
+        if b == '\n'.ord.to_u8
+          max_width = cur_width if cur_width > max_width
+          cur_width = 0
+          i += 1
+          next
+        end
+
+        if b == '\r'.ord.to_u8
+          cur_width = 0
+          i += 1
+          next
+        end
+
+        cp, len = decode_utf8(bytes, i)
+        cur_width += cell_width_codepoint(cp)
+        i += len
+      end
+
+      max_width = cur_width if cur_width > max_width
+      max_width
+    end
+
+    # Calculate text height based on newline count.
+    def self.height(text : String) : Int32
+      bytes = text.to_slice
+      return 0 if bytes.empty?
+
+      visible = false
+      lines = 1
+      i = 0
+      while i < bytes.size
+        b = bytes[i]
+        if b == 0x1b_u8
+          i = consume_escape_sequence(bytes, i)
+          next
+        end
+        visible = true
+        lines += 1 if b == '\n'.ord.to_u8
+        i += 1
+      end
+
+      visible ? lines : 0
     end
 
     # Get width of a single character (handles wide chars)
     def self.char_width(c : Char) : Int32
-      # Simple heuristic: CJK and some other chars are double-width
-      code = c.ord
-      if code >= 0x1100 && (
-           (code <= 0x115F) ||                   # Hangul Jamo
-           (code >= 0x2E80 && code <= 0x9FFF) || # CJK
-           (code >= 0xAC00 && code <= 0xD7A3) || # Hangul Syllables
-           (code >= 0xF900 && code <= 0xFAFF) || # CJK Compatibility
-           (code >= 0xFE10 && code <= 0xFE1F) || # Vertical forms
-           (code >= 0xFE30 && code <= 0xFE6F) || # CJK Compatibility Forms
-           (code >= 0xFF00 && code <= 0xFF60) || # Fullwidth Forms
-           (code >= 0xFFE0 && code <= 0xFFE6) || # Fullwidth Forms
-           (code >= 0x20000 && code <= 0x2FFFF)  # CJK Extension B+
-         )
-        2
-      else
-        1
-      end
+      UnicodeCharWidth.width(c)
     end
 
-    # Height in lines for a given string
-    def self.height(text : String) : Int32
-      text.count('\n') + 1
-    end
-
-    # Truncate text to width, respecting ANSI codes
+    # Truncate text to width, respecting ANSI codes.
     def self.truncate(text : String, width : Int32) : String
       return text if width <= 0
 
       visible_width = 0
-      result = String::Builder.new
-      in_escape = false
 
-      text.each_char do |c|
-        if c == '\e'
-          in_escape = true
-          result << c
-        elsif in_escape
-          result << c
-          in_escape = false if c == 'm'
-        elsif visible_width < width
-          char_w = char_width(c)
-          if visible_width + char_w <= width
-            result << c
-            visible_width += char_w
+      String.build do |io|
+        bytes = text.to_slice
+        i = 0
+        while i < bytes.size
+          b = bytes[i]
+
+          if b == 0x1b_u8
+            j = consume_escape_sequence(bytes, i)
+            io.write(bytes[i, j - i])
+            i = j
+            next
           end
+
+          cp, len = decode_utf8(bytes, i)
+          cw = cell_width_codepoint(cp)
+          break if visible_width + cw > width
+          io.write(bytes[i, len])
+          visible_width += cw
+          i += len
         end
       end
-
-      result.to_s
     end
-  end
 
-  # NoColor represents the absence of color (used to disable styling)
-  struct NoColor
-    def rgba(renderer : StyleRenderer = StyleRenderer.default) : Tuple(UInt32, UInt32, UInt32, UInt32)
-      {0u32, 0u32, 0u32, 0xFFFFu32}
+    private def self.consume_escape_sequence(bytes : Bytes, i : Int32) : Int32
+      return i + 1 if i + 1 >= bytes.size
+
+      second = bytes[i + 1]
+
+      # CSI: ESC [ ... final-byte(@-~)
+      if second == '['.ord.to_u8
+        j = i + 2
+        while j < bytes.size
+          final = bytes[j]
+          j += 1
+          break if final >= 0x40_u8 && final <= 0x7E_u8
+        end
+        return j
+      end
+
+      # OSC: ESC ] ... BEL or ST(ESC \)
+      if second == ']'.ord.to_u8
+        j = i + 2
+        while j < bytes.size
+          b = bytes[j]
+          j += 1
+          break if b == 0x07_u8
+          if b == 0x1b_u8 && j < bytes.size && bytes[j] == '\\'.ord.to_u8
+            j += 1
+            break
+          end
+        end
+        return j
+      end
+
+      # Other single-char escape sequence
+      i + 2
+    end
+
+    private def self.decode_utf8(bytes : Bytes, idx : Int32) : {Int32, Int32}
+      b0 = bytes[idx]
+      return {b0.to_i32, 1} if b0 < 0x80_u8
+
+      len =
+        if (b0 & 0xE0_u8) == 0xC0_u8
+          2
+        elsif (b0 & 0xF0_u8) == 0xE0_u8
+          3
+        elsif (b0 & 0xF8_u8) == 0xF0_u8
+          4
+        else
+          1
+        end
+      len = 1 if idx + len > bytes.size
+
+      cp = 0_i32
+      case len
+      when 2
+        cp = ((b0 & 0x1F_u8).to_i32 << 6) | (bytes[idx + 1] & 0x3F_u8).to_i32
+      when 3
+        cp = ((b0 & 0x0F_u8).to_i32 << 12) |
+             ((bytes[idx + 1] & 0x3F_u8).to_i32 << 6) |
+             (bytes[idx + 2] & 0x3F_u8).to_i32
+      when 4
+        cp = ((b0 & 0x07_u8).to_i32 << 18) |
+             ((bytes[idx + 1] & 0x3F_u8).to_i32 << 12) |
+             ((bytes[idx + 2] & 0x3F_u8).to_i32 << 6) |
+             (bytes[idx + 3] & 0x3F_u8).to_i32
+      else
+        cp = b0.to_i32
+      end
+
+      {cp, len}
+    end
+
+    private def self.cell_width_codepoint(cp : Int32) : Int32
+      return 0 if cp == 0x200D
+      return 0 if cp == 0xFE0E || cp == 0xFE0F
+      return 0 if (0x1F3FB..0x1F3FF).includes?(cp)
+      return 0 if combining_mark_codepoint?(cp)
+
+      w = UnicodeCharWidth.width(cp)
+      if w == 1 && (0x1F000..0x1FFFF).includes?(cp)
+        2
+      else
+        w
+      end
+    end
+
+    private def self.combining_mark_codepoint?(cp : Int32) : Bool
+      return true if (0x0300..0x036F).includes?(cp)
+      return true if (0x1AB0..0x1AFF).includes?(cp)
+      return true if (0x1DC0..0x1DFF).includes?(cp)
+      return true if (0x20D0..0x20FF).includes?(cp)
+      return true if (0xFE20..0xFE2F).includes?(cp)
+
+      return true if cp == 0x0E31
+      return true if (0x0E34..0x0E3A).includes?(cp)
+      return true if (0x0E47..0x0E4E).includes?(cp)
+      false
     end
   end
 
@@ -528,12 +577,8 @@ module Term2
     def initialize(@light : Color, @dark : Color)
     end
 
-    def resolve(renderer : StyleRenderer = StyleRenderer.default) : Color
-      renderer.has_dark_background? ? @dark : @light
-    end
-
-    def rgba(renderer : StyleRenderer = StyleRenderer.default) : Tuple(UInt32, UInt32, UInt32, UInt32)
-      resolve(renderer).rgba(renderer)
+    def resolve : Color
+      Term2.has_dark_background? ? @dark : @light
     end
   end
 
@@ -547,26 +592,20 @@ module Term2
     end
 
     # Select best color for current terminal
-    def resolve(renderer : StyleRenderer = StyleRenderer.default) : Color?
-      case renderer.color_profile
-      when ColorProfile::TrueColor
-        @true_color || @ansi256 || @ansi
-      when ColorProfile::ANSI256
-        @ansi256 || @ansi || @true_color
-      when ColorProfile::ANSI
-        @ansi || @ansi256 || @true_color
-      else
-        nil
-      end
-    end
-
-    def rgba(renderer : StyleRenderer = StyleRenderer.default) : Tuple(UInt32, UInt32, UInt32, UInt32)
-      (resolve(renderer) || Color::BLACK).rgba(renderer)
+    def resolve : Color?
+      # For now, prefer true color > ansi256 > ansi
+      @true_color || @ansi256 || @ansi
     end
   end
 
   # Style is the core styling primitive - a complete Lipgloss port
   class Style
+    WRAP_CACHE_MAX = 256
+
+    @@wrap_cache = Hash(Tuple(String, Int32), String).new
+    @@wrap_cache_order = Deque(Tuple(String, Int32)).new
+    @@wrap_cache_lock = Mutex.new
+
     # Bitflags for which properties are set
     @[Flags]
     enum Props : UInt64
@@ -624,8 +663,23 @@ module Term2
     @attrs : UInt32 = 0
 
     # Color properties
-    @fg_color : Color | AdaptiveColor | CompleteColor | NoColor | Nil = nil
-    @bg_color : Color | AdaptiveColor | CompleteColor | NoColor | Nil = nil
+    @fg_color : Color | AdaptiveColor | CompleteColor | Nil = nil
+    @bg_color : Color | AdaptiveColor | CompleteColor | Nil = nil
+
+    private COLORS = %w[black red green yellow blue magenta cyan bright_gray dark_gray bright_red bright_green bright_yellow bright_blue bright_magenta bright_cyan white]
+
+    {% for name in COLORS %}
+      def {{ name.id }}
+         @fg_color = Color::{{ name.upcase.id }}
+         self
+      end
+
+      def on_{{ name.id }}
+        @bg_color = Color::{{ name.upcase.id }}
+        self
+      end
+
+    {% end %}
 
     # Dimensions
     @width : Int32 = 0
@@ -648,30 +702,38 @@ module Term2
     @margin_right : Int32 = 0
     @margin_bottom : Int32 = 0
     @margin_left : Int32 = 0
-    @margin_bg_color : Color | AdaptiveColor | NoColor | Nil = nil
+    @margin_bg_color : Color | AdaptiveColor | Nil = nil
 
     # Border
     @border_style : Border = Border.new
-    @border_top_fg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_right_fg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_bottom_fg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_left_fg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_top_bg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_right_bg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_bottom_bg_color : Color | AdaptiveColor | NoColor | Nil = nil
-    @border_left_bg_color : Color | AdaptiveColor | NoColor | Nil = nil
+    @border_top_fg_color : Color | AdaptiveColor | Nil = nil
+    @border_right_fg_color : Color | AdaptiveColor | Nil = nil
+    @border_bottom_fg_color : Color | AdaptiveColor | Nil = nil
+    @border_left_fg_color : Color | AdaptiveColor | Nil = nil
+    @border_top_bg_color : Color | AdaptiveColor | Nil = nil
+    @border_right_bg_color : Color | AdaptiveColor | Nil = nil
+    @border_bottom_bg_color : Color | AdaptiveColor | Nil = nil
+    @border_left_bg_color : Color | AdaptiveColor | Nil = nil
 
     # Other
     @tab_width : Int32 = TAB_WIDTH_DEFAULT
     @transform : Proc(String, String)? = nil
-    @renderer : StyleRenderer? = nil
+
+    # StyleRenderer for lipgloss-like color/profile behavior
+    @style_renderer : StyleRenderer = StyleRenderer.default
 
     def initialize
     end
 
     # Create a new style (factory method like Lipgloss)
     def self.new_style : Style
-      StyleRenderer.default.new_style
+      new
+    end
+
+    def renderer(r : StyleRenderer) : Style
+      @style_renderer = r
+      Term2.has_dark_background = r.has_dark_background
+      self
     end
 
     # ========== SETTERS (Fluent API) ==========
@@ -717,12 +779,6 @@ module Term2
       set_bool(Props::ColorWhitespace, v)
     end
 
-    # Bind this style to a specific renderer (for color profiles/backgrounds)
-    def renderer(r : StyleRenderer) : Style
-      @renderer = r
-      self
-    end
-
     # Colors
     def foreground(c : Color | AdaptiveColor | CompleteColor) : Style
       @fg_color = c
@@ -730,60 +786,18 @@ module Term2
       self
     end
 
-    def foreground(name : Symbol | String) : Style
-      if color = Color.from_name(name)
-        foreground(color)
-      else
-        unset_foreground
-      end
+    def foreground(hex : String) : Style
+      foreground(Color.from_hex(hex))
     end
 
-    def fg_rgb(r : Int32, g : Int32, b : Int32) : Style
-      foreground(Color.rgb(r, g, b))
-    end
-
+    # Compatibility helpers for older example code.
     def fg_indexed(idx : Int32) : Style
       foreground(Color.indexed(idx))
     end
 
     def fg_hex(hex : String) : Style
-      foreground(Color.from_hex(hex))
+      foreground(hex)
     end
-
-    def foreground(hex : String) : Style
-      foreground(Color.from_hex(hex))
-    end
-
-    # Short aliases
-    def fg(c : Color | AdaptiveColor | CompleteColor | Symbol | String) : Style
-      c.is_a?(Symbol) || c.is_a?(String) ? foreground(c.as(Symbol | String)) : foreground(c.as(Color | AdaptiveColor | CompleteColor))
-    end
-
-    # Named foreground helpers (mirror colorize ergonomics)
-    def black(v : Bool = true) : Style; v ? fg(:black) : unset_foreground; self; end
-    def red(v : Bool = true) : Style; v ? fg(:red) : unset_foreground; self; end
-    def green(v : Bool = true) : Style; v ? fg(:green) : unset_foreground; self; end
-    def yellow(v : Bool = true) : Style; v ? fg(:yellow) : unset_foreground; self; end
-    def blue(v : Bool = true) : Style; v ? fg(:blue) : unset_foreground; self; end
-    def magenta(v : Bool = true) : Style; v ? fg(:magenta) : unset_foreground; self; end
-    def cyan(v : Bool = true) : Style; v ? fg(:cyan) : unset_foreground; self; end
-    def light_gray(v : Bool = true) : Style; v ? fg(:light_gray) : unset_foreground; self; end
-    def dark_gray(v : Bool = true) : Style; v ? fg(:dark_gray) : unset_foreground; self; end
-    def light_red(v : Bool = true) : Style; v ? fg(:light_red) : unset_foreground; self; end
-    def light_green(v : Bool = true) : Style; v ? fg(:light_green) : unset_foreground; self; end
-    def light_yellow(v : Bool = true) : Style; v ? fg(:light_yellow) : unset_foreground; self; end
-    def light_blue(v : Bool = true) : Style; v ? fg(:light_blue) : unset_foreground; self; end
-    def light_magenta(v : Bool = true) : Style; v ? fg(:light_magenta) : unset_foreground; self; end
-    def light_cyan(v : Bool = true) : Style; v ? fg(:light_cyan) : unset_foreground; self; end
-    def white(v : Bool = true) : Style; v ? fg(:white) : unset_foreground; self; end
-    def bright_black(v : Bool = true) : Style; v ? fg(:dark_gray) : unset_foreground; self; end
-    def bright_red(v : Bool = true) : Style; v ? fg(:light_red) : unset_foreground; self; end
-    def bright_green(v : Bool = true) : Style; v ? fg(:light_green) : unset_foreground; self; end
-    def bright_yellow(v : Bool = true) : Style; v ? fg(:light_yellow) : unset_foreground; self; end
-    def bright_blue(v : Bool = true) : Style; v ? fg(:light_blue) : unset_foreground; self; end
-    def bright_magenta(v : Bool = true) : Style; v ? fg(:light_magenta) : unset_foreground; self; end
-    def bright_cyan(v : Bool = true) : Style; v ? fg(:light_cyan) : unset_foreground; self; end
-    def bright_white(v : Bool = true) : Style; v ? fg(:white) : unset_foreground; self; end
 
     def background(c : Color | AdaptiveColor | CompleteColor) : Style
       @bg_color = c
@@ -791,58 +805,18 @@ module Term2
       self
     end
 
-    def background(name : Symbol | String) : Style
-      if color = Color.from_name(name)
-        background(color)
-      else
-        unset_background
-      end
+    def background(hex : String) : Style
+      background(Color.from_hex(hex))
     end
 
-    def bg_rgb(r : Int32, g : Int32, b : Int32) : Style
-      background(Color.rgb(r, g, b))
-    end
-
+    # Compatibility helpers for older example code.
     def bg_indexed(idx : Int32) : Style
       background(Color.indexed(idx))
     end
 
     def bg_hex(hex : String) : Style
-      background(Color.from_hex(hex))
+      background(hex)
     end
-
-    def background(hex : String) : Style
-      background(Color.from_hex(hex))
-    end
-
-    def bg(c : Color | AdaptiveColor | CompleteColor | Symbol | String) : Style
-      c.is_a?(Symbol) || c.is_a?(String) ? background(c.as(Symbol | String)) : background(c.as(Color | AdaptiveColor | CompleteColor))
-    end
-
-    def on_black(v : Bool = true) : Style; v ? bg(:black) : unset_background; self; end
-    def on_red(v : Bool = true) : Style; v ? bg(:red) : unset_background; self; end
-    def on_green(v : Bool = true) : Style; v ? bg(:green) : unset_background; self; end
-    def on_yellow(v : Bool = true) : Style; v ? bg(:yellow) : unset_background; self; end
-    def on_blue(v : Bool = true) : Style; v ? bg(:blue) : unset_background; self; end
-    def on_magenta(v : Bool = true) : Style; v ? bg(:magenta) : unset_background; self; end
-    def on_cyan(v : Bool = true) : Style; v ? bg(:cyan) : unset_background; self; end
-    def on_light_gray(v : Bool = true) : Style; v ? bg(:light_gray) : unset_background; self; end
-    def on_dark_gray(v : Bool = true) : Style; v ? bg(:dark_gray) : unset_background; self; end
-    def on_light_red(v : Bool = true) : Style; v ? bg(:light_red) : unset_background; self; end
-    def on_light_green(v : Bool = true) : Style; v ? bg(:light_green) : unset_background; self; end
-    def on_light_yellow(v : Bool = true) : Style; v ? bg(:light_yellow) : unset_background; self; end
-    def on_light_blue(v : Bool = true) : Style; v ? bg(:light_blue) : unset_background; self; end
-    def on_light_magenta(v : Bool = true) : Style; v ? bg(:light_magenta) : unset_background; self; end
-    def on_light_cyan(v : Bool = true) : Style; v ? bg(:light_cyan) : unset_background; self; end
-    def on_white(v : Bool = true) : Style; v ? bg(:white) : unset_background; self; end
-    def on_bright_black(v : Bool = true) : Style; v ? bg(:dark_gray) : unset_background; self; end
-    def on_bright_red(v : Bool = true) : Style; v ? bg(:light_red) : unset_background; self; end
-    def on_bright_green(v : Bool = true) : Style; v ? bg(:light_green) : unset_background; self; end
-    def on_bright_yellow(v : Bool = true) : Style; v ? bg(:light_yellow) : unset_background; self; end
-    def on_bright_blue(v : Bool = true) : Style; v ? bg(:light_blue) : unset_background; self; end
-    def on_bright_magenta(v : Bool = true) : Style; v ? bg(:light_magenta) : unset_background; self; end
-    def on_bright_cyan(v : Bool = true) : Style; v ? bg(:light_cyan) : unset_background; self; end
-    def on_bright_white(v : Bool = true) : Style; v ? bg(:white) : unset_background; self; end
 
     # Dimensions
     def width(w : Int32) : Style
@@ -995,8 +969,9 @@ module Term2
     end
 
     # Border
+    # [FIX] Explicit overload for single argument to satisfy compiler
     def border(b : Border) : Style
-      border(b, true)
+      border(b, true, true, true, true)
     end
 
     def border(b : Border, *sides : Bool) : Style
@@ -1017,11 +992,6 @@ module Term2
       @border_style = b
       @props |= Props::BorderStyle
       self
-    end
-
-    # Return current border style (used by components to detect borders)
-    def border_style : Border
-      @border_style
     end
 
     def border_top(v : Bool = true) : Style
@@ -1126,8 +1096,13 @@ module Term2
     end
 
     # SetString sets the underlying string value for the style
+    @[Deprecated("Use `string=` instead")]
     def set_string(*strs : String) : Style
-      @value = strs.join(" ")
+      self.string = strs.join(" ")
+    end
+
+    def string=(str : String) : Style
+      @value = str
       self
     end
 
@@ -1174,10 +1149,6 @@ module Term2
       is_set?(Props::ColorWhitespace) ? get_bool(Props::ColorWhitespace) : true
     end
 
-    def renderer : StyleRenderer
-      @renderer || StyleRenderer.default
-    end
-
     def foreground_color : Color?
       resolve_color(@fg_color)
     end
@@ -1187,14 +1158,17 @@ module Term2
     end
 
     # Aliases for backwards compatibility
+    @[Deprecated("Use `bold?` instead")]
     def get_bold : Bool
       bold?
     end
 
+    @[Deprecated("Use `italic?` instead")]
     def get_italic : Bool
       italic?
     end
 
+    @[Deprecated("Use `underline?` instead")]
     def get_underline : Bool
       underline?
     end
@@ -1219,18 +1193,22 @@ module Term2
       underline_spaces?
     end
 
+    @[Deprecated("Use `strikethrough_spaces?` instead")]
     def get_strikethrough_spaces : Bool
       strikethrough_spaces?
     end
 
+    @[Deprecated("Use `color_whitespace?` instead")]
     def get_color_whitespace : Bool
       color_whitespace?
     end
 
+    @[Deprecated("Use `foreground_color` instead")]
     def get_foreground : Color?
       foreground_color
     end
 
+    @[Deprecated("Use `background_color` instead")]
     def get_background : Color?
       background_color
     end
@@ -1409,18 +1387,6 @@ module Term2
 
     def get_vertical_border_size : Int32
       get_border_top_size + get_border_bottom_size
-    end
-
-    def get_horizontal_frame_size : Int32
-      get_horizontal_border_size
-    end
-
-    def get_vertical_frame_size : Int32
-      get_vertical_border_size
-    end
-
-    def get_frame_size : Tuple(Int32, Int32)
-      {get_horizontal_frame_size, get_vertical_frame_size}
     end
 
     def get_inline : Bool
@@ -1779,12 +1745,6 @@ module Term2
       new_style
     end
 
-    def self.build(&block : Style ->) : Style
-      style = Style.new
-      yield style
-      style
-    end
-
     # Merge another style into this one
     # Properties that are set in the other style will override this style's properties
     def merge(other : Style) : Style
@@ -1956,31 +1916,30 @@ module Term2
         @border_style,
         @border_top_fg_color, @border_right_fg_color, @border_bottom_fg_color, @border_left_fg_color,
         @border_top_bg_color, @border_right_bg_color, @border_bottom_bg_color, @border_left_bg_color,
-        @tab_width, @transform, @renderer
+        @tab_width, @transform
       )
     end
 
     # Internal method to receive copied properties
     protected def copy_from(
       props : Props, value : String, attrs : UInt32,
-      fg_color : Color | AdaptiveColor | CompleteColor | NoColor | Nil,
-      bg_color : Color | AdaptiveColor | CompleteColor | NoColor | Nil,
+      fg_color : Color | AdaptiveColor | CompleteColor | Nil,
+      bg_color : Color | AdaptiveColor | CompleteColor | Nil,
       width : Int32, height : Int32, max_width : Int32, max_height : Int32,
       align_horizontal : Position, align_vertical : Position,
       padding_top : Int32, padding_right : Int32, padding_bottom : Int32, padding_left : Int32,
       margin_top : Int32, margin_right : Int32, margin_bottom : Int32, margin_left : Int32,
-      margin_bg_color : Color | AdaptiveColor | NoColor | Nil,
+      margin_bg_color : Color | AdaptiveColor | Nil,
       border_style : Border,
-      border_top_fg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_right_fg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_bottom_fg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_left_fg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_top_bg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_right_bg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_bottom_bg_color : Color | AdaptiveColor | NoColor | Nil,
-      border_left_bg_color : Color | AdaptiveColor | NoColor | Nil,
+      border_top_fg_color : Color | AdaptiveColor | Nil,
+      border_right_fg_color : Color | AdaptiveColor | Nil,
+      border_bottom_fg_color : Color | AdaptiveColor | Nil,
+      border_left_fg_color : Color | AdaptiveColor | Nil,
+      border_top_bg_color : Color | AdaptiveColor | Nil,
+      border_right_bg_color : Color | AdaptiveColor | Nil,
+      border_bottom_bg_color : Color | AdaptiveColor | Nil,
+      border_left_bg_color : Color | AdaptiveColor | Nil,
       tab_width : Int32, transform : Proc(String, String)?,
-      renderer : StyleRenderer?,
     ) : Nil
       @props = props
       @value = value
@@ -2013,7 +1972,6 @@ module Term2
       @border_left_bg_color = border_left_bg_color
       @tab_width = tab_width
       @transform = transform
-      @renderer = renderer
     end
 
     # ========== STRING / RENDER ==========
@@ -2024,17 +1982,22 @@ module Term2
     end
 
     # Render applies the style to the given string(s)
-    def render : String
-      render([] of String)
-    end
-
     def render(*strs : String) : String
       render(strs.to_a)
     end
 
     def render(strs : Array(String)) : String
-      str = @value.empty? ? strs.join(" ") : ([@value] + strs).join(" ")
+      str =
+        if strs.empty?
+          @value
+        else
+          strs.join(" ")
+        end
       render_string(str)
+    end
+
+    def render : String
+      render([] of String)
     end
 
     private def render_string(str : String) : String
@@ -2089,7 +2052,7 @@ module Term2
       # Word wrap if width is set
       if !inline_val && width_val > 0
         wrap_at = width_val - left_padding - right_padding
-        str = word_wrap(str, wrap_at) if wrap_at > 0
+        str = self.class.word_wrap_cached(str, wrap_at) if wrap_at > 0
       end
 
       # Build ANSI escape codes
@@ -2107,29 +2070,55 @@ module Term2
         base_codes.concat(bg.background_codes)
       end
 
-      main_codes = base_codes.dup
-      space_codes = base_codes.dup
+      # Lip Gloss applies underline/strikethrough on a per-rune basis when
+      # space styling is enabled, which also affects escape sequences.
+      use_space_styler =
+        (underline_val && !underline_spaces) ||
+          (strikethrough_val && !strikethrough_spaces) ||
+          underline_spaces ||
+          strikethrough_spaces
 
-      if underline_val
-        main_codes << 4 << 4
-        space_codes << 4 if underline_spaces
-      elsif underline_spaces
-        space_codes << 4
-      end
-
-      if strikethrough_val
-        main_codes << 9
-        space_codes << 9 if strikethrough_spaces
-      elsif strikethrough_spaces
-        space_codes << 9
-      end
-
-      use_space_styler = underline_val || strikethrough_val || underline_spaces || strikethrough_spaces
-
-      # Apply text styling
-      if main_codes.any? || space_codes.any?
+      if use_space_styler
         lines = str.split('\n')
-        str = lines.map { |line| apply_codes_to_line(line, main_codes, space_codes, use_space_styler) }.join('\n')
+        str = lines.map do |line|
+          String.build do |io|
+            line.each_char do |ch|
+              codes = base_codes.dup
+
+              if ch.whitespace?
+                codes << 4 if underline_spaces
+                codes << 9 if strikethrough_spaces
+              else
+                if underline_val
+                  codes << 4
+                  codes << 4
+                end
+                codes << 9 if strikethrough_val
+              end
+
+              if codes.empty?
+                io << ch
+              else
+                io << "\e[#{codes.join(';')}m" << ch << "\e[0m"
+              end
+            end
+          end
+        end.join('\n')
+      else
+        codes = base_codes.dup
+        codes << 4 if underline_val
+        codes << 9 if strikethrough_val
+
+        if codes.any?
+          lines = str.split('\n')
+          str = lines.map do |line|
+            if line.empty?
+              line
+            else
+              "\e[#{codes.join(';')}m#{line}\e[0m"
+            end
+          end.join('\n')
+        end
       end
 
       # Apply padding
@@ -2191,34 +2180,6 @@ module Term2
       str
     end
 
-    private def apply_codes_to_line(line : String, codes : Array(Int32), space_codes : Array(Int32), use_space_styler : Bool) : String
-      return line if line.empty?
-
-      if use_space_styler
-        styled = String::Builder.new
-        line.each_char do |ch|
-          if ch == ' '
-            if space_codes.any?
-              styled << "\e[#{space_codes.join(';')}m#{ch}\e[0m"
-            else
-              styled << ch
-            end
-          else
-            if codes.any?
-              styled << "\e[#{codes.join(';')}m#{ch}\e[0m"
-            else
-              styled << ch
-            end
-          end
-        end
-        return styled.to_s
-      end
-
-      # default: style entire line as a block
-      return line if codes.empty?
-      "\e[#{codes.join(';')}m#{line}\e[0m"
-    end
-
     # ========== PRIVATE HELPERS ==========
 
     private def set_bool(prop : Props, v : Bool) : Style
@@ -2265,23 +2226,64 @@ module Term2
         !is_set?(Props::BorderLeft)
     end
 
-    private def resolve_color(c : Color | AdaptiveColor | CompleteColor | NoColor | Nil) : Color?
-      resolve_color(c, renderer)
-    end
-
-    private def resolve_color(c : Color | AdaptiveColor | CompleteColor | NoColor | Nil, r : StyleRenderer) : Color?
+    private def resolve_color(c : Color | AdaptiveColor | CompleteColor | Nil) : Color?
       case c
       when Color
-        c.to_profile(r.color_profile)
+        apply_color_profile(c)
       when AdaptiveColor
-        resolve_color(c.resolve(r), r)
+        apply_color_profile(c.resolve)
       when CompleteColor
-        color = c.resolve(r)
-        color ? resolve_color(color, r) : nil
-      when NoColor
-        nil
+        resolve_complete_color(c)
       else
         nil
+      end
+    end
+
+    private def resolve_complete_color(c : CompleteColor) : Color?
+      case @style_renderer.color_profile
+      when ColorProfile::ASCII
+        nil
+      when ColorProfile::ANSI
+        if cc = c.ansi
+          apply_color_profile(cc)
+        elsif cc = c.ansi256
+          apply_color_profile(cc)
+        elsif cc = c.true_color
+          apply_color_profile(cc)
+        end
+      when ColorProfile::ANSI256
+        if cc = c.ansi256
+          apply_color_profile(cc)
+        elsif cc = c.true_color
+          apply_color_profile(cc)
+        elsif cc = c.ansi
+          apply_color_profile(cc)
+        end
+      else # TrueColor
+        c.true_color || c.ansi256 || c.ansi
+      end
+    end
+
+    private def apply_color_profile(color : Color) : Color?
+      case @style_renderer.color_profile
+      when ColorProfile::ASCII
+        nil
+      when ColorProfile::ANSI
+        r, g, b = color.to_rgb
+        Color.new(Color::Type::Named, Color.rgb_to_ansi16_index(r, g, b))
+      when ColorProfile::ANSI256
+        case color.type
+        when Color::Type::Indexed
+          color
+        when Color::Type::Named
+          # Keep ANSI16 colors as-is.
+          color
+        else
+          r, g, b = color.to_rgb
+          Color.indexed(Color.rgb_to_ansi256_index(r, g, b))
+        end
+      else # TrueColor
+        color
       end
     end
 
@@ -2307,36 +2309,32 @@ module Term2
       str.gsub("\t", " " * @tab_width)
     end
 
-    private def word_wrap(str : String, width : Int32) : String
+    protected def self.word_wrap_cached(str : String, width : Int32) : String
       return str if width <= 0
 
-      lines = str.split('\n')
-      result = [] of String
+      key = {str, width}
+      cached = @@wrap_cache_lock.synchronize { @@wrap_cache[key]? }
+      return cached if cached
 
-      lines.each do |line|
-        if Text.width(line) <= width
-          result << line
-        else
-          # Simple word wrap
-          words = line.split(' ')
-          current_line = ""
+      wrapped = word_wrap_uncached(str, width)
 
-          words.each do |word|
-            if current_line.empty?
-              current_line = word
-            elsif Text.width(current_line) + 1 + Text.width(word) <= width
-              current_line += " " + word
-            else
-              result << current_line
-              current_line = word
-            end
+      @@wrap_cache_lock.synchronize do
+        unless @@wrap_cache.has_key?(key)
+          @@wrap_cache[key] = wrapped
+          @@wrap_cache_order << key
+          if @@wrap_cache_order.size > WRAP_CACHE_MAX
+            evicted = @@wrap_cache_order.shift
+            @@wrap_cache.delete(evicted)
           end
-
-          result << current_line unless current_line.empty?
         end
       end
 
-      result.join('\n')
+      wrapped
+    end
+
+    protected def self.word_wrap_uncached(str : String, width : Int32) : String
+      return str if width <= 0
+      Cellwrap.wrap(str, width)
     end
 
     private def align_text_horizontal(str : String, pos : Position, width : Int32) : String
@@ -2371,7 +2369,6 @@ module Term2
       gap = height - lines.size
 
       return str if gap <= 0
-
       empty_line = ""
 
       case pos
@@ -2460,12 +2457,12 @@ module Term2
       return str if @margin_top == 0 && @margin_right == 0 && @margin_bottom == 0 && @margin_left == 0
 
       lines = str.split('\n')
-      width = lines.max_of? { |l| Text.width(l) } || 0
 
       # Apply horizontal margins
       if @margin_left > 0 || @margin_right > 0
         left_margin = " " * @margin_left
-        lines = lines.map { |l| "#{left_margin}#{l}" }
+        right_margin = " " * @margin_right
+        lines = lines.map { |l| "#{left_margin}#{l}#{right_margin}" }
       end
 
       # Apply vertical margins
@@ -2481,26 +2478,7 @@ module Term2
     end
 
     private def truncate_ansi(str : String, width : Int32) : String
-      # Simple truncation - doesn't handle ANSI codes perfectly
-      # TODO: Implement proper ANSI-aware truncation
-      visible_width = 0
-      result = String::Builder.new
-      in_escape = false
-
-      str.each_char do |c|
-        if c == '\e'
-          in_escape = true
-          result << c
-        elsif in_escape
-          result << c
-          in_escape = false if c == 'm'
-        elsif visible_width < width
-          result << c
-          visible_width += 1
-        end
-      end
-
-      result.to_s
+      Text.truncate(str, width)
     end
   end
 
@@ -2508,70 +2486,27 @@ module Term2
 
   # Join strings horizontally with alignment
   def self.join_horizontal(pos : Position, *blocks : String) : String
-    join_horizontal_enum(pos, blocks.to_a)
+    join_horizontal(pos, blocks.to_a)
   end
 
-  # Join strings horizontally with alignment (array overload)
+  def self.join_horizontal(pos : Float64, *blocks : String) : String
+    join_horizontal(pos, blocks.to_a)
+  end
+
   def self.join_horizontal(pos : Position, blocks : Array(String)) : String
-    join_horizontal_enum(pos, blocks)
-  end
-
-  private def self.join_horizontal_enum(pos : Position, blocks : Array(String)) : String
-    # Normalize widths
-    widths = blocks.map { |b| Text.width(b) }
-    max_height = blocks.max_of? { |b| Text.height(b) } || 0
-
-    padded_blocks = blocks.each_with_index.map do |block, idx|
-      lines = block.split("\n", -1)
-      width = widths[idx]
-      height_diff = max_height - lines.size
-      empty_line = " " * width
-
-      padded = if height_diff <= 0
-                 lines
-               else
-                 top = case pos
-                       when Position::Top
-                         0
-                       when Position::Center
-                         height_diff // 2
-                       when Position::Bottom
-                         height_diff
-                       else
-                         0
-                       end
-                 bottom = height_diff - top
-                 Array.new(top, empty_line) + lines + Array.new(bottom, empty_line)
-               end
-
-      padded.map do |line|
-        gap = width - Text.width(line)
-        gap > 0 ? line + " " * gap : line
-      end
-    end
-
-    result = (0...max_height).map do |i|
-      padded_blocks.map { |block| block[i]? || "" }.join
-    end
-    result.join('\n')
-  end
-
-  def self.join_horizontal(pos_ratio : Float64, *blocks : String) : String
-    join_horizontal_ratio(pos_ratio, blocks.to_a)
-  end
-
-  private def self.join_horizontal_enum(pos : Position, blocks : Array(String)) : String
     return "" if blocks.empty?
 
     block_lines = blocks.map(&.split('\n'))
     block_widths = block_lines.map { |lines| lines.max_of? { |l| Text.width(l) } || 0 }
     max_height = block_lines.max_of?(&.size) || 0
 
+    # Pad each block
     padded_blocks = block_lines.map_with_index do |lines, i|
       width = block_widths[i]
       height_diff = max_height - lines.size
       empty_line = " " * width
 
+      # Vertical alignment
       padded_lines = case pos
                      when Position::Bottom
                        Array.new(height_diff, empty_line) + lines
@@ -2582,6 +2517,37 @@ module Term2
                      else # Top
                        lines + Array.new(height_diff, empty_line)
                      end
+
+      # Ensure each line is width chars
+      padded_lines.map do |line|
+        gap = width - Text.width(line)
+        gap > 0 ? line + " " * gap : line
+      end
+    end
+
+    # Join horizontally
+    result = (0...max_height).map do |i|
+      padded_blocks.map { |block| block[i]? || "" }.join
+    end
+
+    result.join('\n')
+  end
+
+  def self.join_horizontal(pos : Float64, blocks : Array(String)) : String
+    return "" if blocks.empty?
+    ratio = pos.clamp(0.0, 1.0)
+
+    block_lines = blocks.map(&.split('\n'))
+    block_widths = block_lines.map { |lines| lines.max_of? { |l| Text.width(l) } || 0 }
+    max_height = block_lines.max_of?(&.size) || 0
+
+    padded_blocks = block_lines.map_with_index do |lines, i|
+      width = block_widths[i]
+      height_diff = max_height - lines.size
+      top = (height_diff * ratio).round.to_i.clamp(0, height_diff)
+      bottom = height_diff - top
+      empty_line = " " * width
+      padded_lines = Array.new(top, empty_line) + lines + Array.new(bottom, empty_line)
 
       padded_lines.map do |line|
         gap = width - Text.width(line)
@@ -2596,69 +2562,16 @@ module Term2
     result.join('\n')
   end
 
-  private def self.join_horizontal_ratio(pos_ratio : Float64, blocks : Array(String)) : String
-    return "" if blocks.empty?
-    return blocks.first if blocks.size == 1
-
-    block_lines = blocks.map(&.split('\n'))
-    block_widths = block_lines.map { |lines| lines.max_of? { |l| Text.width(l) } || 0 }
-    max_height = block_lines.max_of?(&.size) || 0
-
-    padded_blocks = block_lines.map_with_index do |lines, i|
-      width = block_widths[i]
-      height_diff = max_height - lines.size
-      empty_line = " " * width
-
-      if height_diff <= 0
-        padded = lines
-      else
-        top = (height_diff * pos_ratio).round.to_i32
-        bottom = height_diff - top
-        padded = Array.new(top, empty_line) + lines + Array.new(bottom, empty_line)
-      end
-
-      padded.map do |line|
-        gap = width - Text.width(line)
-        gap > 0 ? line + " " * gap : line
-      end
-    end
-
-    result = (0...max_height).map do |i|
-      padded_blocks.map { |block| block[i]? || "" }.join
-    end
-    result.join('\n')
-  end
-
-  def self.join_horizontal(pos_ratio : Float64, blocks : Array(String)) : String
-    # Treat ratio 0..1 between Top and Bottom
-    join_horizontal_ratio(pos_ratio, blocks)
-  end
-
-  private def self.join_horizontal_ratio(pos_ratio : Float64, blocks : Array(String)) : String
-    pos = pos_ratio_to_enum(pos_ratio)
-    join_horizontal_enum(pos, blocks)
-  end
-
   # Join strings vertically with alignment
   def self.join_vertical(pos : Position, *blocks : String) : String
-    join_vertical_enum(pos, blocks.to_a)
+    join_vertical(pos, blocks.to_a)
   end
 
-  def self.join_vertical(pos_ratio : Float64, *blocks : String) : String
-    join_vertical_ratio(pos_ratio, blocks.to_a)
+  def self.join_vertical(pos : Float64, *blocks : String) : String
+    join_vertical(pos, blocks.to_a)
   end
 
-  private def self.pos_ratio_to_enum(pos_ratio : Float64) : Position
-    if pos_ratio <= 0.0
-      Position::Top
-    elsif pos_ratio >= 1.0
-      Position::Bottom
-    else
-      Position::Center
-    end
-  end
-
-  private def self.join_vertical_enum(pos : Position, blocks : Array(String)) : String
+  def self.join_vertical(pos : Position, blocks : Array(String)) : String
     return "" if blocks.empty?
 
     max_width = blocks.max_of? do |b|
@@ -2688,22 +2601,21 @@ module Term2
     aligned.join('\n')
   end
 
-  private def self.join_vertical_ratio(pos_ratio : Float64, blocks : Array(String)) : String
+  def self.join_vertical(pos : Float64, blocks : Array(String)) : String
     return "" if blocks.empty?
-    return blocks.first if blocks.size == 1
+    ratio = pos.clamp(0.0, 1.0)
 
     max_width = blocks.max_of? do |b|
       b.split('\n').max_of? { |l| Text.width(l) } || 0
     end || 0
 
     aligned = blocks.map do |block|
-      lines = block.split('\n')
-      lines.map do |line|
+      block.split('\n').map do |line|
         gap = max_width - Text.width(line)
         if gap <= 0
           line
         else
-          left = (gap * pos_ratio).round.to_i32
+          left = (gap * ratio).round.to_i.clamp(0, gap)
           right = gap - left
           " " * left + line + " " * right
         end
@@ -2711,20 +2623,6 @@ module Term2
     end
 
     aligned.join('\n')
-  end
-
-  # Range represents a span of visible cells to style
-  struct Range
-    getter start : Int32
-    getter finish : Int32
-    getter style : Style
-
-    def initialize(@start : Int32, @finish : Int32, @style : Style)
-    end
-
-    def contains?(pos : Int32) : Bool
-      pos >= @start && pos < @finish
-    end
   end
 
   # Place content within a box of given dimensions
@@ -2805,116 +2703,8 @@ module Term2
     {w, lines.size}
   end
 
-  # Return the first Unicode rune as a String (parity helper)
-  def self.get_first_rune_as_string(str : String) : String
-    return "" if str.empty?
-    reader = Char::Reader.new(str)
-    String.build { |io| io << reader.current_char }
-  end
-
-  # Apply styles to specific rune indices (parity with Lipgloss StyleRunes)
-  def self.style_runes(str : String, indices : Array(Int32), match_style : Style, unmatched_style : Style = Style.new) : String
-    index_set = indices.to_set
-    builder = String::Builder.new
-    current_match = index_set.includes?(0)
-    chunk = String::Builder.new
-
-    flush = ->(matched : Bool, chunk_str : String) do
-      return if chunk_str.empty?
-      style = matched ? match_style : unmatched_style
-      builder << style.render(chunk_str)
-    end
-
-    str.each_char_with_index do |ch, idx|
-      desired = index_set.includes?(idx)
-      if idx == 0
-        # already set
-      elsif desired != current_match
-        flush.call(current_match, chunk.to_s)
-        chunk = String::Builder.new
-        current_match = desired
-      end
-      chunk << ch
-    end
-
-    flush.call(current_match, chunk.to_s)
-    builder.to_s
-  end
-
-  # Apply styles to ranges of visible cells (parity with Lipgloss StyleRanges)
-  def self.style_ranges(str : String, ranges : Array(Range)) : String
-    return str if ranges.empty?
-    builder = String::Builder.new
-    pos = 0
-    current_range : Range? = nil
-    chunk = String::Builder.new
-    active_ansi = String::Builder.new
-
-    flush = ->(range : Range?, chunk_str : String) do
-      return if chunk_str.empty?
-      if range
-        builder << range.style.render(chunk_str)
-        builder << active_ansi.to_s unless active_ansi.empty?
-      else
-        builder << chunk_str
-      end
-    end
-
-    reader = Char::Reader.new(str)
-    while reader.has_next?
-      ch = reader.current_char
-      if ch == '\e' # ANSI escape
-        flush.call(current_range, chunk.to_s)
-        chunk = String::Builder.new
-        seq = String::Builder.new
-        seq << ch
-        reader.next_char
-        while reader.has_next?
-          c2 = reader.current_char
-          seq << c2
-          reader.next_char
-          break if c2 == 'm'
-        end
-        seq_str = seq.to_s
-        builder << seq_str
-        active_ansi = String::Builder.new if seq_str.includes?("[0m")
-        active_ansi << seq_str unless seq_str.includes?("[0m")
-        next
-      end
-
-      ch_str = ch.to_s
-      width = Text.char_width(ch)
-
-      match = ranges.find { |r| r.contains?(pos) || r.contains?(pos + width - 1) }
-
-      if match != current_range
-        flush.call(current_range, chunk.to_s)
-        chunk = String::Builder.new
-        current_range = match
-      end
-
-      chunk << ch_str
-      pos += width
-      reader.next_char
-    end
-
-    flush.call(current_range, chunk.to_s)
-    builder.to_s
-  end
-
-  def self.style_ranges(str : String, *ranges : Range) : String
-    style_ranges(str, ranges.to_a)
-  end
-
   # Create a new style (convenience)
   def self.new_style : Style
     Style.new
-  end
-
-  # Create a new renderer (parity helper)
-  def self.new_renderer(io : IO = STDOUT) : StyleRenderer
-    r = StyleRenderer.new
-    r.output = io
-    r
   end
 end
