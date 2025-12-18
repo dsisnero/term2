@@ -1,0 +1,3 @@
+Style/HeredocIndent:
+  Excluded:
+    - spec/bubbles/text_area_view_spec.cr

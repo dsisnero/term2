@@ -7,10 +7,18 @@ authors:
 dependencies:
   cml:
     github: dsisnero/cml
+  cellwrap:
+    github: dsisnero/cellwrap
+  uniwidth:
+    github: naqvis/uni_char_width
 
 development_dependencies:
   ameba:
     github: crystal-ameba/ameba
+
+targets:
+  term2:
+    main: src/term2.cr
 
 crystal: ">= 1.18.2"
 

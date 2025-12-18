@@ -1,2 +1,5 @@
 [env]
 _.file = ".env.enc.json"
+
+[tools]
+go = "1.25.5"
