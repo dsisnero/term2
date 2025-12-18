@@ -8,7 +8,7 @@ describe Term2::Components::TextArea do
     textarea = Term2::Components::TextArea.new
     textarea.prompt = ""
     textarea.show_line_numbers = false
-    textarea.set_width(20)
+    textarea.width = 20
     textarea.height = 2
     textarea.char_limit = 100
     textarea.focus
@@ -27,7 +27,7 @@ describe Term2::Components::TextArea do
 
   it "handles word wrap overflow cascading (TestWordWrapOverflowing)" do
     textarea = Term2::Components::TextArea.new
-    textarea.set_width(20)
+    textarea.width = 20
     textarea.height = 3
     textarea.char_limit = 500
     textarea.focus
@@ -52,7 +52,7 @@ describe Term2::Components::TextArea do
 
   it "soft wrap preserves value (TestValueSoftWrap)" do
     textarea = Term2::Components::TextArea.new
-    textarea.set_width(16)
+    textarea.width = 16
     textarea.height = 10
     textarea.char_limit = 500
     textarea.focus
@@ -67,14 +67,15 @@ describe Term2::Components::TextArea do
   end
   it "SetValue sets cursor and resets (TestSetValue)" do
     textarea = Term2::Components::TextArea.new
-    textarea.set_value("Foo\nBar\nBaz")
+    textarea.value = "Foo\nBar\nBaz"
     textarea.cursor_line.should eq 2
     textarea.cursor_col.should eq 3
-    textarea.set_value("Test")
+    textarea.value = "Test"
     textarea.value.should eq "Test"
   end
   it "insert string behavior (TestInsertString)" do
     textarea = Term2::Components::TextArea.new
+    textarea.focus
     input = "foo baz"
     input.each_char do |ch|
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
@@ -85,21 +86,23 @@ describe Term2::Components::TextArea do
   end
   it "handles emoji widths (TestCanHandleEmoji)" do
     textarea = Term2::Components::TextArea.new
+    textarea.focus
     input = "🧋"
     input.each_char do |ch|
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
     end
     textarea.value.should eq input
-    textarea.set_value("🧋🧋🧋")
+    textarea.value = "🧋🧋🧋"
     textarea.value.should eq "🧋🧋🧋"
     textarea.cursor_col.should eq 3
   end
   it "vertical navigation keeps visual column (TestVerticalNavigationKeepsCursorHorizontalPosition)" do
     textarea = Term2::Components::TextArea.new
-    textarea.set_width(20)
-    textarea.set_value("你好你好\nHello")
+    textarea.width = 20
+    textarea.value = "你好你好\nHello"
     textarea.cursor_line = 0
     textarea.cursor_col = 2
+    textarea.focus
 
     info = textarea.line_info
     info.char_offset.should eq 4
@@ -113,8 +116,9 @@ describe Term2::Components::TextArea do
   end
   it "vertical navigation remembers position while traversing (TestVerticalNavigationShouldRememberPositionWhileTraversing)" do
     textarea = Term2::Components::TextArea.new
-    textarea.set_width(40)
-    textarea.set_value("Hello\nWorld\nThis is a long line.")
+    textarea.width = 40
+    textarea.value = "Hello\nWorld\nThis is a long line."
+    textarea.focus
 
     textarea.cursor_col.should eq 20
     textarea.cursor_line.should eq 2

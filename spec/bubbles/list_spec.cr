@@ -27,9 +27,14 @@ class TestDelegate
     0
   end
 
-  def render(io : IO, item : Term2::Components::List::Item, index : Int32, selected : Bool, enumerator : String)
-    prefix = selected ? "> " : "  "
-    io << "#{prefix}#{item.as(TestListItem).title}"
+  # FIX: Signature must match abstract definition exactly
+  def render(io : IO, model : Term2::Components::List, index : Int32, item : Term2::Components::List::Item)
+    # Cast inside method
+    if i = item.as?(TestListItem)
+      selected = (index == model.index)
+      prefix = selected ? "> " : "  "
+      io << "#{prefix}#{i.title}"
+    end
   end
 
   def update(msg : Term2::Message, model : Term2::Components::List) : Term2::Cmd
@@ -82,59 +87,64 @@ describe Term2::Components::List do
   end
 
   it "filters visible items according to filter text and state" do
-    items = ["foo", "bar", "baz"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["foo", "bar", "baz"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
 
     list.filter_value = "ba"
 
-    list.set_filter_state(Term2::Components::List::FilterState::Unfiltered)
+    list.filter_state = Term2::Components::List::FilterState::Unfiltered
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["foo", "bar", "baz"]
 
-    list.set_filter_state(Term2::Components::List::FilterState::Filtering)
+    list.filter_state = Term2::Components::List::FilterState::Filtering
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["bar", "baz"]
 
-    list.set_filter_state(Term2::Components::List::FilterState::FilterApplied)
+    list.filter_state = Term2::Components::List::FilterState::FilterApplied
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["bar", "baz"]
   end
 
   it "supports set_filter_text and matches helper" do
-    items = ["alpha", "beta", "alpine"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["alpha", "beta", "alpine"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
 
-    list.set_filter_text("alp")
+    list.filter_text = "alp"
     list.filter_state.should eq Term2::Components::List::FilterState::FilterApplied
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["alpha", "alpine"]
     list.matches_for_item(0).should_not be_empty
   end
 
   it "orders fuzzy matches by span and start" do
-    items = ["foo", "faoo", "bar"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["foo", "faoo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
 
-    list.set_filter_text("fo")
+    list.filter_text = "fo"
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["foo", "faoo"]
     list.matches_for_item(0).should eq [0, 1]
   end
 
   it "renders status hints for filter states" do
-    items = ["foo", "bar"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["foo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
 
-    list.set_filter_state(Term2::Components::List::FilterState::Unfiltered)
-    list.status_view.should contain("up")
+    list.filter_state = Term2::Components::List::FilterState::Unfiltered
+    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer.should contain("up")
+    footer.should_not contain("clear filter")
 
-    list.set_filter_state(Term2::Components::List::FilterState::Filtering)
-    list.status_view.should contain("filter")
+    list.filter_state = Term2::Components::List::FilterState::Filtering
+    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer.should contain("filter")
+    footer.should_not contain("more")
 
-    list.set_filter_state(Term2::Components::List::FilterState::FilterApplied)
-    list.status_view.should contain("clear filter")
+    list.filter_state = Term2::Components::List::FilterState::FilterApplied
+    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer.should contain("clear")
   end
 
   it "clears filter via clear binding" do
-    items = ["foo", "bar"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["foo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
     list.filter_value = "ba"
-    list.set_filter_state(Term2::Components::List::FilterState::FilterApplied)
+    list.filter_state = Term2::Components::List::FilterState::FilterApplied
     list.visible_items.size.should eq 1
 
     esc = Term2::KeyMsg.new(Term2::Key.new("esc"))
@@ -144,10 +154,10 @@ describe Term2::Components::List do
   end
 
   it "applies filter via enter binding" do
-    items = ["foo", "bar"].map { |t| Term2::Components::List.item(t).as(Term2::Components::List::Item) }
+    items = ["foo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
     list.filter_value = "ba"
-    list.set_filter_state(Term2::Components::List::FilterState::Filtering)
+    list.filter_state = Term2::Components::List::FilterState::Filtering
     list.filter_input.value = "ba"
 
     enter = Term2::KeyMsg.new(Term2::Key.new("enter"))

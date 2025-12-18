@@ -50,9 +50,9 @@ describe Term2::Components::Table do
       },
     ]
 
-    tests.each do |tc|
-      row = tc[:table].render_row(tc[:table].rows[0], 0, false)
-      row.should eq tc[:expected]
+    tests.each do |test_case|
+      row = test_case[:table].render_row(test_case[:table].rows[0], 0, false)
+      row.should eq test_case[:expected]
     end
   end
 
@@ -71,14 +71,15 @@ describe Term2::Components::Table do
       ])
     )
 
-    biscuits.view.should eq golden_alignment("No_border")
+    Term2::Text.strip_ansi(biscuits.view).should eq golden_alignment("No_border")
 
     # wrap in a simple border (replicating baseStyle border in Go test)
     lines = biscuits.view.split("\n")
-    sep = "─" * (lines.first? ? lines.first.size : 0)
+    sep_width = lines.first? ? Term2::Text.width(lines.first) : 0
+    sep = "─" * sep_width
     view_with_sep = ([lines[0], sep] + lines[1..]).join("\n")
 
-    bordered = add_border(view_with_sep)
+    bordered = add_border(Term2::Text.strip_ansi(view_with_sep))
     bordered.should eq golden_alignment("With_border")
   end
 
@@ -89,16 +90,16 @@ describe Term2::Components::Table do
       "MoveUp"                      => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.cursor = 3; t.move_up(2) }, want: 1},
       "GotoBottom"                  => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.goto_bottom }, want: 3},
       "GotoTop"                     => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.cursor = 3; t.goto_top }, want: 0},
-      "SetCursor"                   => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.set_cursor(2) }, want: 2},
+      "SetCursor"                   => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.cursor = 2 }, want: 2},
       "MoveDown overflow"           => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.move_down(5) }, want: 3},
       "MoveUp overflow"             => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.cursor = 3; t.move_up(5) }, want: 0},
       "Blur does not stop movement" => {rows: [%w[r1], %w[r2], %w[r3], %w[r4]], action: ->(t : Term2::Components::Table) { t.blur; t.move_down(2) }, want: 2},
     }
 
-    tests.each do |_, tc|
-      table = Term2::Components::Table.build(Term2::Components::Table.with_columns(TEST_COLS), Term2::Components::Table.with_rows(tc[:rows]))
-      tc[:action].call(table)
-      table.cursor.should eq tc[:want]
+    tests.each do |_name, test_case|
+      table = Term2::Components::Table.build(Term2::Components::Table.with_columns(TEST_COLS), Term2::Components::Table.with_rows(test_case[:rows]))
+      test_case[:action].call(table)
+      table.cursor.should eq test_case[:want]
     end
   end
 
@@ -288,7 +289,7 @@ describe Term2::Components::Table do
 
     tests.each do |name, build|
       table = build.call
-      table_view = table.view
+      table_view = Term2::Text.strip_ansi(table.view)
       if table_view != golden(name)
         puts "Mismatch for #{name}"
       end

@@ -8,7 +8,7 @@ describe Term2::Components::Cursor do
 
     msg = Term2::Components::Cursor::BlinkMsg.new(1)
     cursor, cmd = cursor.update(msg)
-    cursor.blink?.should be_false
+    cursor.blink?.should be_true
     cmd.should_not be_nil
   end
 

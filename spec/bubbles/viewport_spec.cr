@@ -44,7 +44,7 @@ describe Term2::Components::Viewport do
     m = Term2::Components::Viewport.new(10, 10)
     m.horizontal_step = DEFAULT_HORIZONTAL_STEP
     m.horizontal_step.should eq DEFAULT_HORIZONTAL_STEP
-    m.set_horizontal_step(-1)
+    m.horizontal_step = -1
     m.horizontal_step.should eq 0
   end
 
@@ -63,8 +63,8 @@ describe Term2::Components::Viewport do
 
   it "scrolls right within bounds" do
     m = Term2::Components::Viewport.new(10, 10)
-    m.set_horizontal_step(DEFAULT_HORIZONTAL_STEP)
-    m.set_content("Some line that is longer than width")
+    m.horizontal_step = DEFAULT_HORIZONTAL_STEP
+    m.content = "Some line that is longer than width"
     m.x_offset.should eq 0
     m.scroll_right(m.horizontal_step)
     m.x_offset.should eq DEFAULT_HORIZONTAL_STEP
@@ -73,7 +73,7 @@ describe Term2::Components::Viewport do
   it "resets indent" do
     m = Term2::Components::Viewport.new(10, 10)
     m.x_offset = 500
-    m.set_x_offset(0)
+    m.x_offset = 0
     m.x_offset.should eq 0
   end
 
@@ -88,7 +88,7 @@ describe Term2::Components::Viewport do
     it "returns lines clamped to width" do
       number_of_lines = 10
       m = Term2::Components::Viewport.new(10, number_of_lines)
-      m.set_content(DEFAULT_LIST.join("\n"))
+      m.content = DEFAULT_LIST.join("\n")
       list = m.visible_lines
       list.size.should eq number_of_lines
       last_idx = number_of_lines - 1
@@ -98,7 +98,7 @@ describe Term2::Components::Viewport do
     it "respects y offset" do
       number_of_lines = 10
       m = Term2::Components::Viewport.new(10, number_of_lines)
-      m.set_content(DEFAULT_LIST.join("\n"))
+      m.content = DEFAULT_LIST.join("\n")
       m.y_offset = 5
       list = m.visible_lines
       list.size.should eq number_of_lines
@@ -111,8 +111,8 @@ describe Term2::Components::Viewport do
       number_of_lines = 10
       m = Term2::Components::Viewport.new(10, number_of_lines)
       m.horizontal_step = DEFAULT_HORIZONTAL_STEP
-      m.set_content(DEFAULT_LIST.join("\n"))
-      m.set_y_offset(7)
+      m.content = DEFAULT_LIST.join("\n")
+      m.y_offset = 7
 
       list = m.visible_lines
       list.size.should eq number_of_lines
@@ -140,7 +140,7 @@ describe Term2::Components::Viewport do
       m = Term2::Components::Viewport.new(20, number_of_lines)
       m.lines = init_list
       m.longest_line_width = 30
-      m.set_horizontal_step(5)
+      m.horizontal_step = 5
 
       list = m.visible_lines
       list.size.should eq number_of_lines
@@ -166,7 +166,7 @@ describe Term2::Components::Viewport do
   it "prevents right overscroll" do
     content = "Content is short"
     m = Term2::Components::Viewport.new(content.size + 1, 5)
-    m.set_content(content)
+    m.content = content
     10.times { m.scroll_right(m.horizontal_step) }
     m.visible_lines[0].should eq content
   end
