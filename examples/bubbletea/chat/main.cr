@@ -24,17 +24,19 @@ class ChatModel
     @textarea.prompt = "┃ "
     @textarea.char_limit = 280
 
-    @textarea.set_width(30)
+    @textarea.width = 30
     @textarea.height = 3
 
     @textarea.show_line_numbers = false
-    @textarea.key_map.insert_newline.set_enabled(false)
 
     @viewport = TC::Viewport.new(30, 5)
     @viewport.content = initial_welcome
 
     @messages = [] of String
     @sender_style = Term2::Style.new.magenta
+
+    # Ensure the textarea starts focused for direct model usage (matches Bubble Tea behavior).
+    @textarea.focus
   end
 
   def init : Cmd
@@ -101,7 +103,7 @@ MSG
   private def resize(width : Int32, height : Int32)
     gap_height = Text.height(GAP)
     @viewport.width = width
-    @textarea.set_width(width)
+    @textarea.width = width
     @viewport.height = (height - @textarea.height - gap_height).clamp(1, height)
     update_viewport_content
     @viewport.goto_bottom

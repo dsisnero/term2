@@ -5,9 +5,9 @@ include Term2::Prelude
 class StopwatchKeymap
   TC::Key.key_bindings(
     start: {["s"], "s", "start"},
-    stop:  {["s"], "s", "stop"},
+    stop: {["s"], "s", "stop"},
     reset: {["r"], "r", "reset"},
-    quit:  {["ctrl+c", "q"], "q", "quit"},
+    quit: {["ctrl+c", "q"], "q", "quit"},
   )
 end
 

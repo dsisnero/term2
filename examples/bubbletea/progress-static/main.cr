@@ -10,14 +10,14 @@ class ProgressStaticModel
 
   PADDING    =  2
   MAX_WIDTH  = 80
-HELP_STYLE = Term2::Style.new.fg_hex("#626262")
+  HELP_STYLE = Term2::Style.new.fg_hex("#626262")
 
   getter percent : Float64
   getter progress : TC::Progress
 
   def initialize
     @percent = 0.0
-    @progress = TC::Progress.with_scaled_gradient("#FF7CCB", "#FDFF8C")
+    @progress = TC::Progress.new([TC::Progress.with_scaled_gradient("#FF7CCB", "#FDFF8C")])
   end
 
   def init : Term2::Cmd

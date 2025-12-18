@@ -8,12 +8,12 @@ class HelpKeys
   include TC::Help::KeyMap
 
   TC::Key.key_bindings(
-    up:    {["up", "k"], "↑/k", "move up"},
-    down:  {["down", "j"], "↓/j", "move down"},
-    left:  {["left", "h"], "←/h", "move left"},
+    up: {["up", "k"], "↑/k", "move up"},
+    down: {["down", "j"], "↓/j", "move down"},
+    left: {["left", "h"], "←/h", "move left"},
     right: {["right", "l"], "→/l", "move right"},
-    help:  {["?"], "?", "toggle help"},
-    quit:  {["q", "esc", "ctrl+c"], "q", "quit"},
+    help: {["?"], "?", "toggle help"},
+    quit: {["q", "esc", "ctrl+c"], "q", "quit"},
   )
 
   def short_help : Array(TC::Key::Binding)

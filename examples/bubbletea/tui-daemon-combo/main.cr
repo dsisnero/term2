@@ -11,7 +11,7 @@ class ProcessFinishedMsg < Term2::Message
 end
 
 def run_pretend_process : Term2::Cmd
-  Proc(Term2::Msg).new do
+  Proc(Term2::Msg?).new do
     pause = Random.rand(100..999).milliseconds
     sleep pause
     ProcessFinishedMsg.new(pause)

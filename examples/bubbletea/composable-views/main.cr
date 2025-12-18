@@ -41,30 +41,7 @@ class ComposableModel
     cmds = [] of Term2::Cmd
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
-      when "ctrl+c", "q"
-        return {self, Term2::Cmds.quit}
-      when "tab"
-        @state = @state == SessionState::TimerView ? SessionState::SpinnerView : SessionState::TimerView
-      when "n"
-        if @state == SessionState::TimerView
-          @timer = TC::Timer.new(timeout: DEFAULT_TIME, interval: 1.second)
-          cmds << @timer.tick_cmd
-        else
-          next_spinner
-          reset_spinner
-          cmds << @spinner.tick
-        end
-      end
-
-      case @state
-      when SessionState::SpinnerView
-        @spinner, cmd = @spinner.update(msg)
-        cmds << cmd if cmd
-      else
-        @timer, cmd = @timer.update(msg)
-        cmds << cmd if cmd
-      end
+      cmds.concat(handle_key_msg(msg))
     when TC::Spinner::TickMsg
       @spinner, cmd = @spinner.update(msg)
       cmds << cmd if cmd
@@ -92,12 +69,43 @@ class ComposableModel
   end
 
   def next_spinner
-    @index = (@index + 1) % TC::Spinner::SPINNERS.size
+    @index = (@index + 1) % TC::Spinner::SPINNER_LIST.size
   end
 
   def reset_spinner
-    @spinner = TC::Spinner.new(TC::Spinner::SPINNERS[@index])
+    @index = 0 if @index >= TC::Spinner::SPINNER_LIST.size
+    @spinner = TC::Spinner.new(TC::Spinner::SPINNER_LIST[@index])
     @spinner.style = SPINNER_STYLE
+  end
+
+  private def handle_key_msg(msg : Term2::KeyMsg) : Array(Term2::Cmd)
+    cmds = [] of Term2::Cmd
+    case msg.key.to_s
+    when "ctrl+c", "q"
+      cmds << Term2::Cmds.quit
+      return cmds
+    when "tab"
+      @state = @state == SessionState::TimerView ? SessionState::SpinnerView : SessionState::TimerView
+    when "n"
+      if @state == SessionState::TimerView
+        @timer = TC::Timer.new(timeout: DEFAULT_TIME, interval: 1.second)
+        cmds << @timer.tick_cmd
+      else
+        next_spinner
+        reset_spinner
+        cmds << @spinner.tick
+      end
+    end
+
+    case @state
+    when SessionState::SpinnerView
+      @spinner, cmd = @spinner.update(msg)
+      cmds << cmd if cmd
+    else
+      @timer, cmd = @timer.update(msg)
+      cmds << cmd if cmd
+    end
+    cmds
   end
 end
 

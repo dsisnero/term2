@@ -10,7 +10,7 @@ class ProgressAnimatedModel
 
   PADDING    =  2
   MAX_WIDTH  = 80
-HELP_STYLE = Term2::Style.new.fg_hex("#626262")
+  HELP_STYLE = Term2::Style.new.fg_hex("#626262")
 
   getter progress : TC::Progress
 
@@ -37,7 +37,7 @@ HELP_STYLE = Term2::Style.new.fg_hex("#626262")
       end
       cmd = @progress.incr_percent(0.25)
       return {self, Term2::Cmds.batch(tick_cmd, cmd)}
-    when TC::Progress::FrameMsg
+    when TC::Progress::IncrementMsg, TC::Progress::SetPercentMsg, TC::Progress::FrameMsg
       @progress, cmd = @progress.update(msg)
       return {self, cmd}
     end
@@ -50,7 +50,7 @@ HELP_STYLE = Term2::Style.new.fg_hex("#626262")
   end
 
   private def tick_cmd : Term2::Cmd
-    Term2::Cmds.tick(1.second) { ProgressAnimatedTick.new }
+    Term2::Cmds.tick(0.2.seconds) { ProgressAnimatedTick.new }
   end
 end
 

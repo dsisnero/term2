@@ -76,7 +76,9 @@ class FancyDelegate
     io << Term2::Style.new.faint(true).render("    #{desc}")
   end
 
-  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
+  def render(io : IO, model : TC::List, index : Int32, item : TC::List::Item)
+    selected = index == model.index
+    enumerator = model.enumerator.value(index)
     render_with_matches(io, item, index, selected, enumerator, [] of Int32)
   end
 
@@ -119,12 +121,12 @@ end
 
 class FancyListKeys
   TC::Key.key_bindings(
-    insert_item:       {["a"], "a", "add item"},
-    toggle_spinner:    {["s"], "s", "toggle spinner"},
-    toggle_title_bar:  {["T"], "T", "toggle title"},
+    insert_item: {["a"], "a", "add item"},
+    toggle_spinner: {["s"], "s", "toggle spinner"},
+    toggle_title_bar: {["T"], "T", "toggle title"},
     toggle_status_bar: {["S"], "S", "toggle status"},
     toggle_pagination: {["P"], "P", "toggle pagination"},
-    toggle_help_menu:  {["H"], "H", "toggle help"},
+    toggle_help_menu: {["H"], "H", "toggle help"},
   )
 end
 

@@ -17,11 +17,11 @@ BLURRED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.hidden)
 
 class SplitEditorsKeymap
   TC::Key.key_bindings(
-    next:   {["tab"], "tab", "next"},
-    prev:   {["shift+tab"], "shift+tab", "prev"},
-    add:    {["ctrl+n"], "ctrl+n", "add an editor"},
+    next: {["tab"], "tab", "next"},
+    prev: {["shift+tab"], "shift+tab", "prev"},
+    add: {["ctrl+n"], "ctrl+n", "add an editor"},
     remove: {["ctrl+w"], "ctrl+w", "remove an editor"},
-    quit:   {["esc", "ctrl+c"], "esc", "quit"},
+    quit: {["esc", "ctrl+c"], "esc", "quit"},
   )
 end
 
@@ -32,7 +32,7 @@ def new_textarea : TC::TextArea
   t.show_line_numbers = true
   t.cursor.style = SPLIT_EDITORS_CURSOR_STYLE
   t.placeholder = PLACEHOLDER_STYLE.render(t.placeholder)
-  t.end_of_buffer_char = END_OF_BUFFER_STYLE.render(t.end_of_buffer_char.to_s)[0]
+  t.end_of_buffer_char = END_OF_BUFFER_STYLE.render(t.end_of_buffer_char)
   t.key_map.delete_word_backward.enabled = false
   # Keep default key map but simplify movement keys to arrows only
   km = TC::TextArea::KeyMap.new
@@ -134,7 +134,7 @@ class SplitEditorsModel
   def view : String
     help_view = @help.view_short(self)
     views = @inputs.map(&.view)
-    Term2.join_horizontal(0.0, views) + "\n\n" + help_view
+    Term2.join_horizontal(Term2::Position::Top, views) + "\n\n" + help_view
   end
 end
 

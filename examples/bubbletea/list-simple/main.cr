@@ -1,34 +1,34 @@
 require "../../../src/term2"
+require "../../../src/components/list"
 
-include Term2::Prelude
+# Define global styles to match Go example
+TITLE_STYLE         = Term2::Style.new.margin_left(2)
+ITEM_STYLE          = Term2::Style.new.padding_left(4)
+SELECTED_ITEM_STYLE = Term2::Style.new.padding_left(2).foreground(Term2::Color.indexed(170))
+PAGINATION_STYLE    = Term2::Components::List::Styles.new.pagination_style.padding_left(4)
+HELP_STYLE          = Term2::Components::List::Styles.new.help_style.padding_left(4).padding_bottom(1)
+QUIT_TEXT_STYLE     = Term2::Style.new.margin(1, 0, 2, 4)
 
-LIST_HEIGHT                = 14
-ITEM_STYLE                 = Term2::Style.new.padding(0, 0, 0, 4)
-LIST_SIMPLE_SELECTED_STYLE = Term2::Style.new.padding(0, 0, 0, 2).fg_indexed(170)
-PAGINATION_STYLE           = Term2::Style.new.padding(0, 0, 0, 4)
-QUIT_STYLE                 = Term2::Style.new.margin(1, 0, 2, 4)
-
+# 1. Define the concrete Item struct
 struct MenuItem
-  include TC::List::Item
+  include Term2::Components::List::Item
   getter title : String
 
   def initialize(@title : String)
   end
 
-  def description : String
-    ""
+  def filter_value : String
+    "" # Not used in this example as filtering is disabled
   end
 
-  def filter_value : String
+  def to_s
     @title
   end
 end
 
+# 2. Define the Delegate
 class SimpleDelegate
-  include TC::List::ItemDelegate
-
-  def initialize(@match_style = Term2::Style.new.underline(true))
-  end
+  include Term2::Components::List::ItemDelegate
 
   def height : Int32
     1
@@ -38,37 +38,34 @@ class SimpleDelegate
     0
   end
 
-  def render_with_matches(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String, matches : Array(Int32))
-    menu_item = item.as(MenuItem)
-    str = highlight("#{index + 1}. #{menu_item.title}", matches)
-    line = selected ? LIST_SIMPLE_SELECTED_STYLE.render("> #{str}") : ITEM_STYLE.render(str)
-    io << line
+  def update(msg : Term2::Msg, model : Term2::Components::List) : Term2::Cmd
+    nil
   end
 
-  def render(io : IO, item : TC::List::Item, index : Int32, selected : Bool, enumerator : String)
-    render_with_matches(io, item, index, selected, enumerator, [] of Int32)
-  end
+  # Fix: Signature must match abstract def exactly
+  def render(io : IO, model : Term2::Components::List, index : Int32, item : Term2::Components::List::Item)
+    # Cast to concrete type
+    if i = item.as?(MenuItem)
+      str = "#{index + 1}. #{i.title}"
 
-  private def highlight(text : String, matches : Array(Int32)) : String
-    return text if matches.empty?
-    String.build do |s|
-      text.chars.each_with_index do |ch, i|
-        if matches.includes?(i)
-          s << @match_style.render(ch.to_s)
-        else
-          s << ch
-        end
+      if index == model.index
+        # Selected
+        io << SELECTED_ITEM_STYLE.render("> " + str)
+      else
+        # Normal
+        io << ITEM_STYLE.render(str)
       end
     end
   end
 end
 
+# 3. Define the Application Model
 class ListSimpleModel
   include Term2::Model
 
-  getter list : TC::List
-  getter choice : String
-  getter? quitting : Bool
+  @list : Term2::Components::List
+  getter choice : String = ""
+  @quitting : Bool = false
 
   def initialize
     items = [
@@ -82,21 +79,18 @@ class ListSimpleModel
       "Fillet Mignon",
       "Caviar",
       "Just Wine",
-    ].map { |i| MenuItem.new(i).as(TC::List::Item) }
+    ].map { |t| MenuItem.new(t).as(Term2::Components::List::Item) }
 
-    delegate = SimpleDelegate.new
-    @list = TC::List.new(items, 20, LIST_HEIGHT)
-    @list.delegate = delegate
+    @list = Term2::Components::List.new(items, 20, 14)
+    @list.delegate = SimpleDelegate.new
     @list.title = "What do you want for dinner?"
     @list.show_status_bar = false
-    @list.filtering_enabled = true
-    @list.show_filter = true
-    @list.show_help = true
-    @list.show_pagination = true
-    @list.styles = @list.styles.tap { |s| s.default_filter_character_match = Term2::Style.new.underline(true) }
-    @list.enumerator = TC::List::Enumerators::None
-    @choice = ""
-    @quitting = false
+    @list.filtering_enabled = false
+
+    # Apply styles
+    @list.styles.title = TITLE_STYLE
+    @list.styles.pagination_style = PAGINATION_STYLE
+    @list.styles.help_style = HELP_STYLE
   end
 
   def init : Term2::Cmd
@@ -107,6 +101,7 @@ class ListSimpleModel
     case msg
     when Term2::WindowSizeMsg
       @list.width = msg.width
+      return {self, nil}
     when Term2::KeyMsg
       case msg.key.to_s
       when "q", "ctrl+c"
@@ -114,28 +109,34 @@ class ListSimpleModel
         return {self, Term2::Cmds.quit}
       when "enter"
         if selected = @list.selected_item
-          @choice = selected.as(MenuItem).title
+          if i = selected.as?(MenuItem)
+            @choice = i.title
+          end
         end
         return {self, Term2::Cmds.quit}
       end
     end
 
-    @list, cmd = @list.update(msg)
+    # Forward other messages to the list
+    new_list, cmd = @list.update(msg)
+    @list = new_list.as(Term2::Components::List)
+
     {self, cmd}
   end
 
   def view : String
     if !@choice.empty?
-      return QUIT_STYLE.render("#{@choice}? Sounds good to me.")
+      return QUIT_TEXT_STYLE.render("#{@choice}? Sounds good to me.")
     end
     if @quitting
-      return QUIT_STYLE.render("Not hungry? That’s cool.")
+      return QUIT_TEXT_STYLE.render("Not hungry? That’s cool.")
     end
 
     "\n" + @list.view
   end
 end
 
+# 4. Run
 unless ENV["TERM2_REQUIRE_ONLY"]?
   Term2.run(ListSimpleModel.new)
 end

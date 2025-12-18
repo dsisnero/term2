@@ -19,7 +19,7 @@ class ProgressDownloadModel
 
   PADDING    =  2
   MAX_WIDTH  = 80
-HELP_STYLE = Term2::Style.new.fg_hex("#626262")
+  HELP_STYLE = Term2::Style.new.fg_hex("#626262")
 
   getter progress : TC::Progress
   getter? quitting : Bool
@@ -48,16 +48,10 @@ HELP_STYLE = Term2::Style.new.fg_hex("#626262")
       @err = msg.error
       return {self, Term2::Cmds.quit}
     when ProgressMsg
-      if @progress.percent >= 1.0
-        return {self, Term2::Cmds.quit}
-      end
-      cmd = @progress.incr_percent(msg.delta)
-      if @progress.percent + msg.delta >= 1.0
-        finish_cmd = Term2::Cmds.sequence(final_pause, Term2::Cmds.quit)
-        return {self, Term2::Cmds.batch(cmd, finish_cmd)}
-      else
-        return {self, Term2::Cmds.batch(cmd, tick_download)}
-      end
+      @progress, _ = @progress.update(TC::Progress::IncrementMsg.new(msg.delta))
+      return {self, Term2::Cmds.sequence(final_pause, Term2::Cmds.quit)} if @progress.percent >= 1.0
+
+      return {self, Term2::Cmds.batch(tick_download, @progress.frame)}
     when TC::Progress::FrameMsg
       @progress, cmd = @progress.update(msg)
       return {self, cmd}

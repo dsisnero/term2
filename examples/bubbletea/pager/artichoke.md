@@ -1,4 +1,4 @@
-Glow
+# Glow
 ====
 
 A casual introduction. 你好世界!
@@ -25,8 +25,8 @@ _carduus_ in Carthage and Cordoba.
 1. Carrots
 1. Celery
 1. Tacos
-    * Soft
-    * Hard
+   * Soft
+   * Hard
 1. Cucumber
 
 ## Things to eat today

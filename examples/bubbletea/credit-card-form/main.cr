@@ -88,21 +88,21 @@ class CreditCardModel
     @inputs[Field::CCN.value].char_limit = 20
     @inputs[Field::CCN.value].width = 30
     @inputs[Field::CCN.value].prompt = ""
-    @inputs[Field::CCN.value].validate = ->(s : String) { ccn_validator(s) }
+    @inputs[Field::CCN.value].validate = ->(s : String) { ccn_validator(s) ? nil : Exception.new("invalid card number") }
 
     # EXP
     @inputs[Field::EXP.value].placeholder = "MM/YY"
     @inputs[Field::EXP.value].char_limit = 5
     @inputs[Field::EXP.value].width = 5
     @inputs[Field::EXP.value].prompt = ""
-    @inputs[Field::EXP.value].validate = ->(s : String) { exp_validator(s) }
+    @inputs[Field::EXP.value].validate = ->(s : String) { exp_validator(s) ? nil : Exception.new("invalid expiration") }
 
     # CVV
     @inputs[Field::CVV.value].placeholder = "XXX"
     @inputs[Field::CVV.value].char_limit = 3
     @inputs[Field::CVV.value].width = 5
     @inputs[Field::CVV.value].prompt = ""
-    @inputs[Field::CVV.value].validate = ->(s : String) { cvv_validator(s) }
+    @inputs[Field::CVV.value].validate = ->(s : String) { cvv_validator(s) ? nil : Exception.new("invalid cvv") }
 
     @inputs[Field::CCN.value].focus
   end

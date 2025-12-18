@@ -59,7 +59,7 @@ class PreventQuitModel
     if @quitting
       if @has_changes
         text = Term2.join_horizontal(
-          0.0,
+          Term2::Position::Left,
           [
             "You have unsaved changes. Quit without saving?",
             CHOICE_STYLE.render("[yn]"),
@@ -123,7 +123,7 @@ end
 
 unless ENV["TERM2_REQUIRE_ONLY"]?
   model = PreventQuitModel.new
-  options = Term2::ProgramOptions.new(Term2::WithFilter.new(->(msg : Term2::Message?) { prevent_filter(model, msg) }))
+  options = Term2::ProgramOptions.new(Term2::WithFilter.new(->(msg : Term2::Message) { prevent_filter(model, msg) }))
   program = Term2::Program(PreventQuitModel).new(model, options: options)
   program.run
 end

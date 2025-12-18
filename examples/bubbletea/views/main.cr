@@ -2,6 +2,7 @@ require "../../../src/term2"
 require "colorize"
 
 include Term2::Prelude
+alias Msg = Term2::Msg
 
 PROGRESS_BAR_WIDTH  = 71
 PROGRESS_FULL_CHAR  = "█"

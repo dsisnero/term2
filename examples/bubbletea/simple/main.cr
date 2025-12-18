@@ -6,10 +6,10 @@ class SimpleTickMsg < Term2::Message
 end
 
 def tick : Term2::Cmd
-  -> {
+  Proc(Term2::Msg?).new do
     sleep 1.second
-    SimpleTickMsg.new.as(Term2::Message)
-  }
+    SimpleTickMsg.new
+  end
 end
 
 class SimpleModel

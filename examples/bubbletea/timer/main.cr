@@ -7,9 +7,9 @@ TIMEOUT = (ENV["TERM2_TIMER_TIMEOUT"]? ? ENV["TERM2_TIMER_TIMEOUT"].try &.to_i :
 class TimerKeymap
   TC::Key.key_bindings(
     start: {["s"], "s", "start"},
-    stop:  {["s"], "s", "stop"},
+    stop: {["s"], "s", "stop"},
     reset: {["r"], "r", "reset"},
-    quit:  {["q", "ctrl+c"], "q", "quit"},
+    quit: {["q", "ctrl+c"], "q", "quit"},
   )
 end
 

@@ -33,9 +33,9 @@ class Keymap
 
   TC::Key.key_bindings(
     complete: {["tab"], "tab", "complete"},
-    next:     {["ctrl+n"], "ctrl+n", "next"},
-    prev:     {["ctrl+p"], "ctrl+p", "prev"},
-    quit:     {["esc", "ctrl+c"], "esc", "quit"},
+    next: {["ctrl+n"], "ctrl+n", "next"},
+    prev: {["ctrl+p"], "ctrl+p", "prev"},
+    quit: {["esc", "ctrl+c"], "esc", "quit"},
   )
 
   def short_help : Array(TC::Key::Binding)
@@ -50,19 +50,32 @@ end
 class AutocompleteModel
   include Model
 
+  DEFAULT_WIDTH     = 20
+  LIST_HEIGHT       =  5
+  CHAR_LIMIT        = 32
+  WAITING_INDICATOR = "…"
+
   getter text_input : TC::TextInput
-  getter help : TC::Help
-  getter keymap : Keymap
-  getter status : String?
+  getter choices : Array(TC::List::Item)
+  matches = Array(TC::List::Item)
 
   def initialize
-    @text_input = TC::TextInput.new("autocomplete-input")
+    @text_input = TC::TextInput.new
+    @text_input.char_limit = 50
+
+    items = %w[bubbletea bubbles lipgloss].map { |item| TC::List.item(item) }
+
+    list = TC::List.new(items, DEFAULT_WIDTH, LIST_HEIGHT)
+    list.infinite_scrolling = true
+    list.show_help = false
+    list.disable_quit_keybindings
+    @choices = items
+
     @text_input.placeholder = "repository"
     @text_input.prompt = "charmbracelet/"
     @text_input.prompt_style = Term2::Style.new.cyan
     @text_input.cursor.style = Term2::Style.new.cyan
     @text_input.focus
-    @text_input.char_limit = 50
     @text_input.width = 30
     @text_input.show_suggestions = true
     @text_input.set_suggestions(DEFAULT_SUGGESTIONS)
@@ -117,7 +130,7 @@ class AutocompleteModel
   end
 
   private def fetch_repos_cmd : Cmd
-    -> : Term2::Msg? do
+    -> do
       begin
         headers = HTTP::Headers{
           "Accept"               => "application/vnd.github+json",
