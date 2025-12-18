@@ -18,31 +18,31 @@ puts "=" * 60
 
 # Arabic numerals
 arabic_list = List.new(["First item", "Second item", "Third item"])
-  .enumerator(List::Enumerators::Arabic)
+  .tap(&.enumerator=(List::Enumerators::Arabic))
 puts "\nArabic Numerals:"
 puts arabic_list.view
 
 # Bullet points
 bullet_list = List.new(["Apple", "Banana", "Cherry"])
-  .enumerator(List::Enumerators::Bullet)
+  .tap(&.enumerator=(List::Enumerators::Bullet))
 puts "\nBullet Points:"
 puts bullet_list.view
 
 # Alphabet
 alpha_list = List.new(["One", "Two", "Three", "Four", "Five"])
-  .enumerator(List::Enumerators::Alphabet)
+  .tap(&.enumerator=(List::Enumerators::Alphabet))
 puts "\nAlphabet:"
 puts alpha_list.view
 
 # Roman numerals
 roman_list = List.new(["Caesar", "Augustus", "Nero"])
-  .enumerator(List::Enumerators::Roman)
+  .tap(&.enumerator=(List::Enumerators::Roman))
 puts "\nRoman Numerals:"
 puts roman_list.view
 
 # Dash
 dash_list = List.new(["Task A", "Task B", "Task C"])
-  .enumerator(List::Enumerators::Dash)
+  .tap(&.enumerator=(List::Enumerators::Dash))
 puts "\nDash:"
 puts dash_list.view
 

@@ -100,13 +100,7 @@ class TabsModel
       rendered_tabs << style.render(t)
     end
 
-    row = rendered_tabs.reduce("") do |acc, tab|
-      if acc.empty?
-        tab
-      else
-        Term2.join_horizontal(Term2::Position::Top, acc, tab)
-      end
-    end
+    row = Term2.join_horizontal(Term2::Position::Top, rendered_tabs)
 
     content = window_style
       .width(Term2.width(row) - window_style.get_horizontal_frame_size)

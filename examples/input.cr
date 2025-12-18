@@ -10,11 +10,11 @@ include Term2::Prelude
 # Define styles
 TITLE_STYLE = Term2::Style.new
   .bold(true)
-  .cyan
+  .foreground(Term2::Color::CYAN)
 
 LABEL_STYLE = Term2::Style.new.bold(true)
-VALUE_STYLE = Term2::Style.new.dark_gray # gray
-KEY_STYLE   = Term2::Style.new.cyan
+VALUE_STYLE = Term2::Style.new.foreground(Term2::Color::BRIGHT_BLACK) # gray
+KEY_STYLE   = Term2::Style.new.foreground(Term2::Color::CYAN)
 
 class InputModel
   include Model

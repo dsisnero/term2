@@ -8,13 +8,13 @@ class ListModel
 
   def initialize
     @list = TC::List.new(
-      items: [
+      items: TC::List.items([
         {"Raspberry Pi", "Tiny computer"},
         {"Arduino", "Microcontroller"},
         {"ESP32", "WiFi + Bluetooth"},
         {"Teensy", "High performance"},
         {"STM32", "Industry standard"},
-      ],
+      ]),
       width: 20,
       height: 10
     )

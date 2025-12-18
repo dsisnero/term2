@@ -12,21 +12,21 @@ include Term2::Prelude
 # Define styles
 TITLE_STYLE = Term2::Style.new
   .bold(true)
-  .cyan
+  .foreground(Term2::Color::CYAN)
 
 COUNT_STYLE = Term2::Style.new
   .bold(true)
-  .bright_cyan
+  .foreground(Term2::Color::BRIGHT_CYAN)
 
 LABEL_STYLE = Term2::Style.new
   .bold(true)
 
 CONTROLS_STYLE = Term2::Style.new
   .bold(true)
-  .yellow
+  .foreground(Term2::Color::YELLOW)
 
 KEY_STYLE = Term2::Style.new
-  .cyan
+  .foreground(Term2::Color::CYAN)
 
 # Custom messages for explicit actions
 class Increment < Message
