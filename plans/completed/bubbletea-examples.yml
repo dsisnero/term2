@@ -1,0 +1,541 @@
+# Workstream Definition Template
+# This template defines the structure for machine-readable workstream plans
+
+# Basic workstream metadata
+workstream:
+  id: "bubbletea-examples-port"
+  title: "Port Bubbletea Examples to examples/bubbletea"
+  letter: "E"
+  status: "completed"
+  priority: 1
+  created_at: "2025-12-03T00:25:45Z"
+  updated_at: "2025-12-04T02:05:50Z"
+
+# Agent assignment and coordination
+assignment:
+  assigned_agent: "codex"
+  agent_type: "specialist"
+  required_skills: ["crystal", "tui", "porting", "tests"]
+  estimated_completion: "2026-01-15"
+
+# Dependencies and relationships
+dependencies:
+  blocks: []
+  blocked_by: []
+  depends_on: []
+  related_to: []
+
+# Requirements and constraints
+requirements:
+  - "crystal_spec_passing"
+  - "stdin_handling_fixed"
+acceptance_criteria:
+  - "Every bubbletea example has a Term2 port in examples/bubbletea/<name>"
+  - "Ports compile with make build-examples"
+  - "Behavior matches upstream where feasible"
+
+# Task breakdown with progress tracking
+tasks:
+  - id: "altscreen-toggle"
+    description: "Port bubbletea/examples/altscreen-toggle"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 0
+    dependencies: []
+    acceptance_criteria:
+      - "Example builds and toggles alt screen"
+    notes: ""
+  - id: "autocomplete"
+    description: "Port bubbletea/examples/autocomplete"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Autocomplete renders and selects entries"
+    notes: ""
+  - id: "cellbuffer"
+    description: "Port bubbletea/examples/cellbuffer"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Cell buffer output matches reference"
+    notes: ""
+  - id: "composable-views"
+    description: "Port bubbletea/examples/composable-views"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Composable views render and swap correctly"
+    notes: ""
+  - id: "chat"
+    description: "Port bubbletea/examples/chat"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Chat example sends and displays messages"
+    notes: ""
+  - id: "credit-card-form"
+    description: "Port bubbletea/examples/credit-card-form"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Form input and validation behave like upstream"
+    notes: ""
+  - id: "debounce"
+    description: "Port bubbletea/examples/debounce"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Debounced input updates as expected"
+    notes: ""
+  - id: "exec"
+    description: "Port bubbletea/examples/exec"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Exec example runs subprocess and captures output"
+    notes: ""
+  - id: "eyes"
+    description: "Port bubbletea/examples/eyes"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Eyes track cursor or input as in upstream"
+    notes: ""
+  - id: "file-picker"
+    description: "Port bubbletea/examples/file-picker"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "File picker navigates and selects files"
+    notes: ""
+  - id: "focus-blur"
+    description: "Port bubbletea/examples/focus-blur"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Focus/blur transitions mirror upstream"
+    notes: ""
+  - id: "fullscreen"
+    description: "Port bubbletea/examples/fullscreen"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Fullscreen toggle works in Term2"
+    notes: ""
+  - id: "glamour"
+    description: "Port bubbletea/examples/glamour"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Markdown rendering matches glamour output"
+    notes: ""
+  - id: "help"
+    description: "Port bubbletea/examples/help"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Help view shows key bindings"
+    notes: ""
+  - id: "http"
+    description: "Port bubbletea/examples/http"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "HTTP polling/rendering mirrors upstream"
+    notes: ""
+  - id: "list-default"
+    description: "Port bubbletea/examples/list-default"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Default list renders and navigates"
+    notes: ""
+  - id: "list-fancy"
+    description: "Port bubbletea/examples/list-fancy"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Fancy list styles and selection match upstream"
+    notes: ""
+  - id: "list-simple"
+    description: "Port bubbletea/examples/list-simple"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Simple list behaviors ported"
+    notes: ""
+  - id: "mouse"
+    description: "Port bubbletea/examples/mouse"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Mouse interactions mapped to Term2 input"
+    notes: ""
+  - id: "package-manager"
+    description: "Port bubbletea/examples/package-manager"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Package manager flow mirrors upstream"
+    notes: ""
+  - id: "pager"
+    description: "Port bubbletea/examples/pager"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Pager scrolls content correctly"
+    notes: ""
+  - id: "paginator"
+    description: "Port bubbletea/examples/paginator"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Paginator increments/decrements pages"
+    notes: ""
+  - id: "pipe"
+    description: "Port bubbletea/examples/pipe"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Pipe example streams data as upstream"
+    notes: ""
+  - id: "prevent-quit"
+    description: "Port bubbletea/examples/prevent-quit"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Quit prevention and messaging match upstream"
+    notes: ""
+  - id: "progress-animated"
+    description: "Port bubbletea/examples/progress-animated"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Animated progress behaves correctly"
+    notes: ""
+  - id: "progress-download"
+    description: "Port bubbletea/examples/progress-download"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Download simulation reflects progress"
+    notes: ""
+  - id: "progress-static"
+    description: "Port bubbletea/examples/progress-static"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Static progress renders correctly"
+    notes: ""
+  - id: "realtime"
+    description: "Port bubbletea/examples/realtime"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Realtime updates reflected in UI"
+    notes: ""
+  - id: "result"
+    description: "Port bubbletea/examples/result"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Result handling mirrors upstream"
+    notes: ""
+  - id: "send-msg"
+    description: "Port bubbletea/examples/send-msg"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Messages send/receive as in upstream"
+    notes: ""
+  - id: "sequence"
+    description: "Port bubbletea/examples/sequence"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Sequential actions mirror upstream"
+    notes: ""
+  - id: "set-window-title"
+    description: "Port bubbletea/examples/set-window-title"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Window title updates work"
+    notes: ""
+  - id: "simple"
+    description: "Port bubbletea/examples/simple"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Simple example runs and exits cleanly"
+    notes: ""
+  - id: "spinner"
+    description: "Port bubbletea/examples/spinner"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Spinner renders and ticks"
+    notes: ""
+  - id: "spinners"
+    description: "Port bubbletea/examples/spinners"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Multiple spinners behave as upstream"
+    notes: ""
+  - id: "split-editors"
+    description: "Port bubbletea/examples/split-editors"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Split editors render and edit content"
+    notes: ""
+  - id: "stopwatch"
+    description: "Port bubbletea/examples/stopwatch"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Stopwatch starts/stops as expected"
+    notes: ""
+  - id: "suspend"
+    description: "Port bubbletea/examples/suspend"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Suspend/resume behavior matches upstream"
+    notes: ""
+  - id: "table"
+    description: "Port bubbletea/examples/table"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Table renders and navigates rows"
+    notes: ""
+  - id: "table-resize"
+    description: "Port bubbletea/examples/table-resize"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Table resizing works with keyboard/mouse"
+    notes: ""
+  - id: "tabs"
+    description: "Port bubbletea/examples/tabs"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Tabs switch and render content"
+    notes: "View parity needs verification"
+  - id: "textarea"
+    description: "Port bubbletea/examples/textarea"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Textarea editing mirrors upstream"
+    notes: ""
+  - id: "textinput"
+    description: "Port bubbletea/examples/textinput"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Text input interactions match upstream"
+    notes: ""
+  - id: "textinputs"
+    description: "Port bubbletea/examples/textinputs"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Multiple text inputs work together"
+    notes: ""
+  - id: "timer"
+    description: "Port bubbletea/examples/timer"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Timer ticks and displays"
+    notes: ""
+  - id: "tui-daemon-combo"
+    description: "Port bubbletea/examples/tui-daemon-combo"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Daemon combo behavior matches upstream"
+    notes: ""
+  - id: "views"
+    description: "Port bubbletea/examples/views"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Views demo matches upstream output"
+    notes: ""
+  - id: "window-size"
+    description: "Port bubbletea/examples/window-size"
+    status: "completed"
+    priority: 2
+    estimated_hours: 1
+    actual_hours: 1
+    dependencies: []
+    acceptance_criteria:
+      - "Window resize events handled correctly"
+    notes: ""
+
+# Progress tracking
+progress:
+  total_tasks: 48
+  completed_tasks: 48
+  blocked_tasks: 0
+  completion_percentage: 100
+  last_progress_update: "2025-12-04T02:05:50Z"
+
+# Oracle insights and optimization
+oracle_insights:
+  strategic_importance: "high"
+  complexity: "high"
+  risk_level: "medium"
+  optimization_suggestions: []
+
+# Links and references
+links:
+  plan_reference: "plan.md#bubbletea-examples"
+  related_files:
+    - "bubbletea/examples"
+    - "examples/bubbletea"
+  documentation: []

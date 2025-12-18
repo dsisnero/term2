@@ -2,7 +2,7 @@
 workstream:
   id: term2-update-api-improvement
   title: Term2 Update API Improvement - Model Bubble Tea More Closely
-  status: active
+  status: completed
   created_at: 2025-11-29 08:22:10.518948000
   updated_at: 2025-11-29 08:22:10.518948000
 assignment:
@@ -57,7 +57,7 @@ tasks:
   acceptance_criteria: []
 - id: task-8
   description: '  2.3 Add macro helpers for defining update functions inline'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-9
@@ -89,68 +89,68 @@ tasks:
   acceptance_criteria: []
 - id: task-14
   description: 'Phase 4: Add Functional Model Alternative'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-15
   description: '  4.1 Create Term2::App struct that takes init, update, view as Procs'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-16
   description: '  4.2 Allow users to skip class inheritance entirely'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-17
   description: '  4.3 Support both class-based and functional styles'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-18
   description: 'Phase 5: Update Components'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-19
   description: '  5.1 Update all existing components (Spinner, Timer, etc.) to new
     API'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-20
   description: '  5.2 Create component Update method that returns (Component, Cmd)'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-21
   description: '  5.3 Add helper macros for component composition'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-22
   description: 'Phase 6: Migration and Documentation'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-23
   description: '  6.1 Keep backward compatibility with deprecation warnings'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-24
   description: '  6.2 Update all examples to new API style'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-25
   description: '  6.3 Write migration guide'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 - id: task-26
   description: '  6.4 Update tutorials and documentation'
-  status: pending
+  status: completed
   dependencies: []
   acceptance_criteria: []
 tags:
