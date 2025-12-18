@@ -39,7 +39,7 @@ class TestModelValue
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::MouseEvent
-      Term2::Zone.any_in_bounds_and_update(self, msg)
+      return Term2::Zone.any_in_bounds_and_update(self, msg)
     when Term2::ZoneInBoundsMsg
       @received << msg
     end

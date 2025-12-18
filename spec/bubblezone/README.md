@@ -4,7 +4,7 @@ This directory contains the Crystal port of the Go bubblezone test suite.
 
 ## Structure
 
-```
+```text
 spec/bubblezone/
 ├── unit/                    # Unit tests for individual components
 │   ├── zoneinfo_spec.cr    # ZoneInfo functionality tests
@@ -44,12 +44,14 @@ This test suite ports the following Go test files:
 
 ## Running Tests
 
-### Run all bubblezone tests:
+### Run all bubblezone tests
+
 ```bash
 crystal spec spec/bubblezone/
 ```
 
-### Run specific test categories:
+### Run specific test categories
+
 ```bash
 # Unit tests only
 crystal spec spec/bubblezone/unit/
@@ -61,7 +63,8 @@ crystal spec spec/bubblezone/integration/
 crystal spec spec/bubblezone/unit/zoneinfo_spec.cr
 ```
 
-### Run with coverage (if configured):
+### Run with coverage (if configured)
+
 ```bash
 crystal spec --coverage spec/bubblezone/
 ```
@@ -69,6 +72,7 @@ crystal spec --coverage spec/bubblezone/
 ## Test Patterns
 
 ### Custom Matchers
+
 The test suite includes custom matchers in `support/bubblezone_helpers.cr`:
 
 ```crystal
@@ -80,6 +84,7 @@ zone.should have_zone_at(x, y)
 ```
 
 ### Helper Methods
+
 Common test patterns are available via the `BubbleZoneHelpers` module:
 
 ```crystal
@@ -112,6 +117,7 @@ mark_and_wait("id", content, 100)
 ### Behavior Differences
 
 Some tests may behave differently due to:
+
 - Different event loop implementations
 - Timing differences in async processing
 - Memory model variations
@@ -119,6 +125,7 @@ Some tests may behave differently due to:
 ### Pending Tests
 
 Some tests are marked as `pending` when functionality:
+
 - Doesn't exist in Crystal port yet
 - Behaves significantly differently
 - Requires additional implementation
