@@ -122,4 +122,5 @@ Each phase should be completed with thorough documentation and practical example
 cml, concurrent-ml, crystal, concurrency, research, mastery, patterns, performance
 
 ---
+
 *Generated as part of Bubble Tea Library Port to Crystal initiative*

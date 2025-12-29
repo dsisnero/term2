@@ -1,6 +1,6 @@
 # Style API Refactor Plan
 
-**Status:** ✅ Completed - Archive on 2025-12-18  
+**Status:** ✅ Completed - Archive on 2025-12-18
 **Note:** Style API refactor completed; legacy accessors replaced with ameba-compliant names.
 
 ## Overview

@@ -2,7 +2,7 @@
 
 **Goal**: Ensure Crystal test suite has 1:1 parity with Go test suite (the source of truth)
 
-**Last Updated**: 2024-12-09  
+**Last Updated**: 2024-12-09
 **Status**: COMPLETE
 
 ## Overview
@@ -55,7 +55,7 @@ This document tracks all missing tests from the Go reference implementation and 
 - [x] `TestInBoundsZero` - test bounds checking with zero/empty zones
 - [x] `TestPos` - test position calculation within zone
 
-### messages_test.go  
+### messages_test.go
 
 **Status**: COMPLETE
 

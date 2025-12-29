@@ -74,7 +74,7 @@ spec/bubblezone/
 Based on typical bubblezone implementation, expect these Go test files:
 
 1. **zone_test.go** - Basic zone functionality
-2. **bubblezone_test.go** - Manager functionality  
+2. **bubblezone_test.go** - Manager functionality
 3. **mouse_test.go** - Mouse event handling
 4. **focus_test.go** - Focus management
 5. **integration_test.go** - Integration tests

@@ -1,12 +1,12 @@
 # Lipgloss Test Porting Plan
 
-**Status:** ✅ Completed - Archive on 2025-12-18  
+**Status:** ✅ Completed - Archive on 2025-12-18
 **Note:** Lipgloss test porting considered complete; remaining gaps addressed via subsequent style API improvements.
 
 ## Overview
 
 Port all Go tests from `lipgloss/*_test.go` to Crystal specs in `spec/style*` and align implementations for full parity (borders, alignment, rendering, width/height, ANSI handling).
-If anything differs from our port which is in the src/stlye.cr from the golang lipgloss implementation located in lipgloss/ directory, the correct logic is in the golang code. Have to match their logic but use crystal idioms, library, etc.  The lipgloss specs need to be under spec/lipgloss/.  To reach parity, our lipgloss code is under src/style.cr. If you need to create directories or more files for lipgloss code, put it under src/style/ directory.  Any questions about logic or structures needed can be found in libgloss/**/*.go code.  All code for bubbles/ is ported to src/components.
+If anything differs from our port which is in the src/stlye.cr from the golang lipgloss implementation located in lipgloss/ directory, the correct logic is in the golang code. Have to match their logic but use crystal idioms, library, etc. The lipgloss specs need to be under spec/lipgloss/. To reach parity, our lipgloss code is under src/style.cr. If you need to create directories or more files for lipgloss code, put it under src/style/ directory. Any questions about logic or structures needed can be found in libgloss/**/*.go code. All code for bubbles/ is ported to src/components.
 
 **Completion Notes:** Core test porting completed; remaining implementation gaps tracked separately.
 

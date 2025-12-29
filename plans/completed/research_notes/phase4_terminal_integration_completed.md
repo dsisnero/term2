@@ -7,11 +7,12 @@
 #### Key Architecture Patterns Identified
 
 **Multi-Channel Event Loop Pattern:**
+
 ```crystal
 class TerminalEventLoop
   def initialize
     @keyboard_chan = CML::Chan(KeyEvent).new
-    @mouse_chan = CML::Chan(MouseEvent).new  
+    @mouse_chan = CML::Chan(MouseEvent).new
     @resize_chan = CML::Chan(ResizeEvent).new
     @timer_chan = CML::Chan(TimerEvent).new
     @shutdown_chan = CML::Chan(Nil).new
@@ -46,6 +47,7 @@ end
 ```
 
 **Benefits of CML Event Loop:**
+
 - **Non-blocking event selection**: `choose` handles multiple event sources efficiently
 - **Type-safe event handling**: Each channel has specific event type
 - **Graceful shutdown**: Dedicated shutdown channel for clean termination
@@ -56,6 +58,7 @@ end
 #### Input Processing Architecture
 
 **CML IO Event Integration:**
+
 ```crystal
 class TerminalInputHandler
   def initialize(@input_io : IO)
@@ -68,7 +71,7 @@ class TerminalInputHandler
         # Use CML's read_evt for non-blocking IO
         bytes = CML.sync(CML.read_evt(@input_io, 1))
         break if bytes.empty?
-        
+
         event = parse_key_event(bytes)
         CML.sync(@key_events.send_evt(event))
       end
@@ -82,6 +85,7 @@ end
 ```
 
 **ANSI Sequence Parsing with CML:**
+
 - **Buffered reading**: CML's `read_evt` with appropriate buffer sizes
 - **Sequence detection**: State machine for escape sequence parsing
 - **Event transformation**: Raw bytes → structured events
@@ -89,6 +93,7 @@ end
 #### Output Rendering Patterns
 
 **Channel-Based Output Buffering:**
+
 ```crystal
 class TerminalRenderer
   def initialize(@output_io : IO)
@@ -115,6 +120,7 @@ end
 #### Concurrent Rendering Architecture
 
 **Frame-Based Rendering Pattern:**
+
 ```crystal
 class ConcurrentTerminalRenderer
   def initialize
@@ -126,10 +132,10 @@ class ConcurrentTerminalRenderer
     spawn do
       loop do
         frame = CML.sync(@frame_chan.recv_evt)
-        
+
         # Concurrent frame processing
         processed_frame = process_frame_concurrently(frame)
-        
+
         # Signal completion
         CML.sync(@render_complete_chan.send_evt(nil))
       end
@@ -141,10 +147,10 @@ class ConcurrentTerminalRenderer
     result_evts = frame.components.map do |component|
       CML.spawn_evt { process_component(component) }
     end
-    
+
     # Wait for all components
     results = result_evts.map { |evt| CML.sync(evt) }
-    
+
     Frame.new(results)
   end
 end
@@ -155,6 +161,7 @@ end
 #### Signal Integration Pattern
 
 **CML-Based Signal Processing:**
+
 ```crystal
 class TerminalSignalHandler
   def initialize
@@ -186,11 +193,13 @@ end
 #### Event Loop Performance Optimization
 
 **Key Findings:**
+
 1. **Channel contention**: Minimal in terminal apps (low event frequency)
 2. **Event creation overhead**: Acceptable for interactive applications
 3. **Fiber scheduling**: Efficient for I/O-bound terminal operations
 
 **Performance Patterns:**
+
 - **Batch rendering**: Group multiple screen updates
 - **Differential updates**: Only render changed screen regions
 - **Event coalescing**: Merge rapid successive events
@@ -198,6 +207,7 @@ end
 #### Memory Management
 
 **Optimization Strategies:**
+
 - **Object pooling**: Reuse event objects to reduce GC pressure
 - **Buffer reuse**: Reuse byte buffers for input/output
 - **Lazy allocation**: Defer object creation until needed
@@ -207,6 +217,7 @@ end
 #### Graceful Error Recovery Pattern
 
 **Component Isolation with Channels:**
+
 ```crystal
 class ErrorAwareTerminalComponent
   def initialize
@@ -239,6 +250,7 @@ end
 #### Elm Architecture with CML
 
 **Message Passing Pattern:**
+
 ```crystal
 class ElmArchitectureWithCML
   def initialize
@@ -250,7 +262,7 @@ class ElmArchitectureWithCML
   def event_loop
     spawn do
       model = initial_model
-      
+
       loop do
         choice = CML.choose([
           @msg_chan.recv_evt,
@@ -259,14 +271,14 @@ class ElmArchitectureWithCML
         ])
 
         event = CML.sync(choice)
-        
+
         # Update model based on event
         new_model, cmd = update(model, event)
         model = new_model
-        
+
         # Send model update
         CML.sync(@model_chan.send_evt(model))
-        
+
         # Execute command if any
         execute_command(cmd) if cmd
       end
@@ -278,6 +290,7 @@ end
 #### Component Communication Pattern
 
 **Parent-Child Component Communication:**
+
 ```crystal
 class ParentComponent
   def initialize
@@ -305,6 +318,7 @@ end
 #### CML Wrapper for Terminal I/O
 
 **Pattern for Wrapping Blocking I/O:**
+
 ```crystal
 module TerminalIOWrapper
   def self.nonblocking_read(io : IO, timeout : Time::Span) : CML::Event(Bytes)
@@ -325,6 +339,7 @@ end
 #### Deterministic Testing Pattern
 
 **Mock Terminal Input/Output:**
+
 ```crystal
 class MockTerminal
   def initialize

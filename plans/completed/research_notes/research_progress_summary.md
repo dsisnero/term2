@@ -130,5 +130,6 @@ plans/active/research_notes/
 - ✅ Initial Crystal implementation strategy
 
 ---
+
 *Research conducted as part of the Bubble Tea Library Port to Crystal initiative*
 *Last Updated: Phase 2 completed*

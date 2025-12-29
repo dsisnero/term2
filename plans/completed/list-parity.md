@@ -1,6 +1,6 @@
 # List Parity Plan
 
-**Status:** ✅ Completed - Archive on 2025-12-18  
+**Status:** ✅ Completed - Archive on 2025-12-18
 **Note:** List component parity achieved; remaining test cases and examples considered non-blocking for core functionality.
 
 ## Goal

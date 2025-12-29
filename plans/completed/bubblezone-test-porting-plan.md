@@ -1,6 +1,6 @@
 # BubbleZone Test Porting Plan
 
-**Status:** ✅ Completed - Archive on 2025-12-18  
+**Status:** ✅ Completed - Archive on 2025-12-18
 **Note:** Bubblezone test porting completed; core functionality verified.
 
 ## Overview
@@ -74,7 +74,7 @@ Create directory structure:
 ```text
 spec/bubblezone/
 ├── unit/          # Isolated bubblezone tests
-├── integration/   # Widget interaction tests  
+├── integration/   # Widget interaction tests
 ├── fixtures/      # Test data and helpers
 └── support/       # Shared utilities, matchers
 ```
