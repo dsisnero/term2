@@ -100,4 +100,25 @@ describe Term2::Components::Table do
     # Should be wrapped in reverse style
     # We can check for ANSI codes if we knew exact format, but checking content is good start.
   end
+
+  it "filters rows with fuzzy search" do
+    cols = [
+      Term2::Components::Table::Column.new("ID", 5),
+      Term2::Components::Table::Column.new("Name", 10),
+    ]
+    rows = [
+      ["1", "Alice"],
+      ["2", "Bob"],
+      ["3", "Alicia"],
+    ]
+
+    table = Term2::Components::Table.new(cols, rows)
+    table.filter_text = "alic"
+
+    table.visible_rows.size.should eq 2
+    table.visible_rows[0][1].should contain "Ali"
+    Term2::Text.strip_ansi(table.view).should contain "Alice"
+    Term2::Text.strip_ansi(table.view).should contain "Alicia"
+    Term2::Text.strip_ansi(table.view).should_not contain "Bob"
+  end
 end

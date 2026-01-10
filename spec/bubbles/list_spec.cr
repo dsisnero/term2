@@ -121,6 +121,25 @@ describe Term2::Components::List do
     list.matches_for_item(0).should eq [0, 1]
   end
 
+  it "matches fuzzy input regardless of case" do
+    items = ["Alpha", "beta", "Gamma"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
+    list = Term2::Components::List.new(items, 10, 10)
+
+    list.filter_text = "alp"
+    list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["Alpha"]
+
+    list.filter_text = "GMA"
+    list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["Gamma"]
+  end
+
+  it "filters using non-prefix fuzzy matches" do
+    items = ["file-name", "feature", "alpha"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
+    list = Term2::Components::List.new(items, 10, 10)
+
+    list.filter_text = "fn"
+    list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["file-name"]
+  end
+
   it "renders status hints for filter states" do
     items = ["foo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)

@@ -35,6 +35,15 @@ describe Term2::Components::FilePicker do
     fp.files.should contain "subdir" # Dirs always shown
   end
 
+  it "filters files with fuzzy search" do
+    fp = Term2::Components::FilePicker.new(temp_dir)
+    fp.filter_text = "f1t"
+
+    fp.visible_files.should contain "file1.txt"
+    fp.visible_files.should_not contain "file2.log"
+    fp.visible_files.should_not contain "subdir"
+  end
+
   it "navigates directories" do
     fp = Term2::Components::FilePicker.new(temp_dir)
 

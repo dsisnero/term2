@@ -1,3 +1,4 @@
+require "nucleoc"
 require "../term2"
 require "./cursor"
 require "./key"
@@ -445,7 +446,7 @@ module Term2
         end
       end
 
-      def update_suggestions
+      def update_suggestions : Nil
         return unless @show_suggestions
         if @value.empty? || @suggestions.empty?
           @matched_suggestions = [] of String
@@ -453,10 +454,29 @@ module Term2
           return
         end
 
-        val_lower = @value.downcase
-        @matched_suggestions = @suggestions.select do |s|
-          s.downcase.starts_with?(val_lower)
+        ranks = [] of Tuple(Int32, UInt16, String)
+        @suggestions.each_with_index do |suggestion, index|
+          if score = Nucleoc.fuzzy_match(suggestion, @value)
+            ranks << {index, score, suggestion}
+          end
         end
+
+        if ranks.empty?
+          @matched_suggestions = [] of String
+          @current_suggestion_index = 0
+          return
+        end
+
+        ranks.sort! do |a, b|
+          score_comparison = b[1] <=> a[1]
+          if score_comparison != 0
+            score_comparison
+          else
+            a[0] <=> b[0]
+          end
+        end
+
+        @matched_suggestions = ranks.map(&.[2])
         @current_suggestion_index = 0
       end
 

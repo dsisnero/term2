@@ -46,6 +46,21 @@ describe Term2::Components::TextInput do
     ti.view.should be_a(String)
   end
 
+  it "matches suggestions with fuzzy input" do
+    ti = Term2::Components::TextInput.new
+    ti.show_suggestions = true
+    ti.suggestions = ["abc", "adc", "a1c", "zzz"]
+
+    ti.set_value("ac")
+    ti.update_suggestions
+
+    ti.matched_suggestions.size.should eq 3
+    ti.matched_suggestions.should contain "abc"
+    ti.matched_suggestions.should contain "adc"
+    ti.matched_suggestions.should contain "a1c"
+    ti.matched_suggestions.should_not contain "zzz"
+  end
+
   it "renders Chinese placeholder padded to width" do
     ti = Term2::Components::TextInput.new
     ti.placeholder = "输入消息..."

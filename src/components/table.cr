@@ -1,7 +1,8 @@
+require "nucleoc"
 require "../term2"
-require "./viewport"
-require "./key"
 require "./help"
+require "./key"
+require "./viewport"
 
 module Term2
   module Components
@@ -45,6 +46,7 @@ module Term2
 
       property columns : Array(Column) = [] of Column
       property rows : Array(Row) = [] of Row
+      property filter_text : String = ""
       property cursor : Int32 = 0
       property width : Int32 = 0
       # Total height including header + viewport. If 0, uses Bubble Tea defaults.
@@ -92,9 +94,23 @@ module Term2
       property border_column : Bool = false
       property border_row : Bool = false
 
+      struct FilteredRow
+        property index : Int32
+        property row : Row
+        property score : UInt16
+
+        def initialize(@index, @row, @score)
+        end
+      end
+
+      alias FilterFunc = Proc(String, Array(Row), Array(FilteredRow))
+
+      @filtered_rows : Array(FilteredRow) = [] of FilteredRow
+
       # Components
       property viewport : Viewport
       property key_map : KeyMap
+      property filter_func : FilterFunc = ->Table.default_filter(String, Array(Row))
 
       struct KeyMap
         getter line_up : Key::Binding
@@ -212,7 +228,7 @@ module Term2
       end
 
       def goto_bottom
-        @cursor = [@rows.size - 1, 0].max
+        @cursor = [visible_rows.size - 1, 0].max
         update_viewport
       end
 
@@ -238,8 +254,7 @@ module Term2
 
       def rows=(rows : Array(Row))
         @rows = rows
-        @cursor = 0
-        update_viewport
+        apply_filter
       end
 
       def columns=(columns : Array(Column))
@@ -248,7 +263,7 @@ module Term2
       end
 
       def selected_row : Row?
-        @rows[@cursor]?
+        visible_rows[@cursor]?
       end
 
       def update(msg : Msg) : {Table, Cmd}
@@ -257,7 +272,7 @@ module Term2
           if msg.id == @id
             focus
             clicked_row = @viewport.y_offset + msg.y - 1
-            if clicked_row >= 0 && clicked_row < @rows.size
+            if clicked_row >= 0 && clicked_row < visible_rows.size
               @cursor = clicked_row
               update_viewport
             end
@@ -288,14 +303,59 @@ module Term2
       end
 
       def move_cursor(delta : Int32)
-        @cursor = (@cursor + delta).clamp(0, [@rows.size - 1, 0].max)
+        @cursor = (@cursor + delta).clamp(0, [visible_rows.size - 1, 0].max)
+        update_viewport
+      end
+
+      def filter_text=(text : String)
+        @filter_text = text
+        apply_filter
+      end
+
+      def visible_rows : Array(Row)
+        return @rows if @filter_text.empty?
+        @filtered_rows.map(&.row)
+      end
+
+      def self.default_filter(term : String, targets : Array(Row)) : Array(FilteredRow)
+        return [] of FilteredRow if term.empty?
+
+        ranks = [] of FilteredRow
+
+        targets.each_with_index do |row, idx|
+          target = row.join(" ")
+          if score = Nucleoc.fuzzy_match(target, term)
+            ranks << FilteredRow.new(idx, row, score)
+          end
+        end
+
+        ranks.sort! do |a, b|
+          score_comparison = b.score <=> a.score
+          if score_comparison != 0
+            score_comparison
+          else
+            a.index <=> b.index
+          end
+        end
+
+        ranks
+      end
+
+      private def apply_filter
+        if @filter_text.empty?
+          @filtered_rows.clear
+        else
+          @filtered_rows = @filter_func.call(@filter_text, @rows)
+        end
+        @cursor = 0
         update_viewport
       end
 
       def update_viewport
         @viewport.width = @width if @width > 0
 
-        rendered_rows = @rows.map_with_index do |row, i|
+        rows_for_view = visible_rows
+        rendered_rows = rows_for_view.map_with_index do |row, i|
           render_row(row, i, i == @cursor)
         end
 

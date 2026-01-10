@@ -1,7 +1,8 @@
+require "file_utils"
+require "nucleoc"
 require "../term2"
 require "../zone"
 require "./key"
-require "file_utils"
 
 module Term2
   module Components
@@ -18,6 +19,7 @@ module Term2
       property files : Array(String) = [] of String
       property selected_index : Int32 = 0
       property height : Int32 = 10
+      property filter_text : String = ""
 
       # Styles
       property cursor_style : Style = Style.new.foreground(Color::MAGENTA)
@@ -28,6 +30,19 @@ module Term2
 
       property error : String?
       property selected_file : String?
+
+      struct Rank
+        property index : Int32
+        property score : UInt16
+
+        def initialize(@index, @score)
+        end
+      end
+
+      alias FilterFunc = Proc(String, Array(String), Array(Rank))
+
+      property filter_func : FilterFunc = ->FilePicker.default_filter(String, Array(String))
+      @filtered_files : Array(Rank) = [] of Rank
 
       def did_select_file?
         !@selected_file.nil?
@@ -95,7 +110,7 @@ module Term2
           else
             @files = msg.files
             @error = nil
-            @selected_index = 0
+            apply_filter
           end
         when ZoneClickMsg
           if !@id.empty? && msg.id == @id
@@ -122,7 +137,8 @@ module Term2
       end
 
       def move_cursor(delta : Int32)
-        @selected_index = (@selected_index + delta).clamp(0, [@files.size - 1, 0].max)
+        count = visible_files.size
+        @selected_index = (@selected_index + delta).clamp(0, [count - 1, 0].max)
       end
 
       def navigate_up
@@ -134,9 +150,10 @@ module Term2
       end
 
       def open_selected
-        return if @files.empty?
+        files = visible_files
+        return if files.empty?
 
-        file = @files[@selected_index]
+        file = files[@selected_index]
         path = File.join(@current_directory, file)
 
         if File.directory?(path)
@@ -181,10 +198,53 @@ module Term2
 
         @files = entries
         @error = nil
-        @selected_index = 0
+        apply_filter
       rescue ex
         @error = ex.message
         @files = [] of String
+      end
+
+      def filter_text=(text : String)
+        @filter_text = text
+        apply_filter
+      end
+
+      def visible_files : Array(String)
+        return @files if @filter_text.empty?
+        @filtered_files.map { |rank| @files[rank.index] }
+      end
+
+      def self.default_filter(term : String, targets : Array(String)) : Array(Rank)
+        return [] of Rank if term.empty?
+
+        config = Nucleoc::Config::DEFAULT.match_paths
+        ranks = [] of Rank
+
+        targets.each_with_index do |target, i|
+          if score = Nucleoc.fuzzy_match(target, term, config)
+            ranks << Rank.new(i, score)
+          end
+        end
+
+        ranks.sort! do |a, b|
+          score_comparison = b.score <=> a.score
+          if score_comparison != 0
+            score_comparison
+          else
+            a.index <=> b.index
+          end
+        end
+
+        ranks
+      end
+
+      private def apply_filter
+        if @filter_text.empty?
+          @filtered_files.clear
+        else
+          @filtered_files = @filter_func.call(@filter_text, @files)
+        end
+        @selected_index = 0
       end
 
       def view : String
@@ -194,8 +254,9 @@ module Term2
                     String.build do |io|
                       io << @dir_style.render(@current_directory) << "\n\n"
 
+                      files = visible_files
                       start_idx = 0
-                      end_idx = [@files.size, @height].min
+                      end_idx = [files.size, @height].min
 
                       # Simple scrolling
                       if @selected_index >= @height
@@ -203,9 +264,9 @@ module Term2
                         end_idx = start_idx + @height
                       end
 
-                      visible_files = @files[start_idx...end_idx]
+                      visible_entries = files[start_idx...end_idx]
 
-                      visible_files.each_with_index do |file, i|
+                      visible_entries.each_with_index do |file, i|
                         real_idx = start_idx + i
                         selected = real_idx == @selected_index
 
@@ -225,7 +286,7 @@ module Term2
                         io << "\n"
                       end
 
-                      if @files.empty?
+                      if files.empty?
                         io << "  (empty)"
                       end
                     end
