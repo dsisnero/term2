@@ -279,7 +279,7 @@ module Term2
       @output_io = output
       @mailbox = CML::Mailbox(Msg).new
       @render_mailbox = CML::Mailbox(RenderOp).new
-      @done = CML::IVar(Nil).new
+      @done = CML::IVar(Bool).new
       @shutdown_ch = CML::Chan(Nil).new
 
       @dispatcher = Dispatcher.new(@mailbox)
@@ -363,7 +363,7 @@ module Term2
     def stop : Nil
       return unless @running.compare_and_set(true, false)
       @dispatcher.stop
-      @done.i_put(nil) rescue nil
+      @done.i_put(true) rescue nil
     end
 
     def kill : Nil
@@ -1059,7 +1059,7 @@ module Term2
       restore_terminal
       restore_signal_handlers
       @dispatcher.stop
-      @done.i_put(nil) rescue nil
+      @done.i_put(true) rescue nil
     end
 
     private def restore_terminal
