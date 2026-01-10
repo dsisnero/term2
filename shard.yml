@@ -9,6 +9,8 @@ dependencies:
     github: dsisnero/cml
   cellwrap:
     github: dsisnero/cellwrap
+  nucleoc:
+    github: dsisnero/nucleoc
   uniwidth:
     github: naqvis/uni_char_width
 

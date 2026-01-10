@@ -4,6 +4,7 @@ require "./help"
 require "./key"
 require "./text_input"
 require "./spinner"
+require "nucleoc"
 
 module Term2
   module Components
@@ -127,108 +128,43 @@ module Term2
       # Filter rank result
       struct Rank
         property index : Int32
+        property score : UInt16
         property matched_indexes : Array(Int32)
 
-        def initialize(@index, @matched_indexes)
+        def initialize(@index, @score, @matched_indexes)
         end
       end
 
       # Filter function type
       alias FilterFunc = Proc(String, Array(String), Array(Rank))
 
-      # Fuzzy filter implementation with ranking by span and start position
+      # Fuzzy filter implementation using nucleoc library
       def self.default_filter(term : String, targets : Array(String)) : Array(Rank)
+        return [] of Rank if term.empty?
+
         ranks = [] of Rank
-        term_lower = term.downcase
 
         targets.each_with_index do |target, i|
-          target_lower = target.downcase
-          matches = find_fuzzy_matches(term_lower, target_lower)
-          if matches
-            ranks << Rank.new(i, matches)
+          # Use nucleoc's fuzzy_match_indices to get both score and match indices
+          if result = Nucleoc.fuzzy_match_indices(target, term)
+            score, indices = result
+            # Convert UInt32 indices to Int32 for compatibility
+            int_indices = indices.map(&.to_i32)
+            ranks << Rank.new(i, score, int_indices)
           end
         end
 
-        # Sort by:
-        # 1. Longer contiguous spans (more consecutive matches)
-        # 2. Earlier start position
+        # Sort by nucleoc score (higher is better), with tie-breaking by original index
         ranks.sort! do |a, b|
-          a_span = calculate_span(a.matched_indexes)
-          b_span = calculate_span(b.matched_indexes)
-
-          # Compare by span (longer contiguous matches are better)
-          span_comparison = b_span <=> a_span
-          if span_comparison != 0
-            span_comparison
+          score_comparison = b.score <=> a.score
+          if score_comparison != 0
+            score_comparison
           else
-            # If spans are equal, compare by start position (earlier is better)
-            a_start = a.matched_indexes.first? || Int32::MAX
-            b_start = b.matched_indexes.first? || Int32::MAX
-            a_start <=> b_start
+            a.index <=> b.index
           end
         end
 
         ranks
-      end
-
-      private def self.find_fuzzy_matches(term : String, target : String) : Array(Int32)?
-        return if term.empty? || target.empty?
-
-        # Try to find the best match by scanning through target
-        best_match = nil
-        best_span = 0
-        best_start = Int32::MAX
-
-        # For each possible starting position in target
-        (0..(target.size - term.size)).each do |start_idx|
-          match_indices = [] of Int32
-          term_idx = 0
-          target_idx = start_idx
-
-          # Try to match term characters in order
-          while term_idx < term.size && target_idx < target.size
-            if term[term_idx] == target[target_idx]
-              match_indices << target_idx
-              term_idx += 1
-            end
-            target_idx += 1
-          end
-
-          # If we matched all characters
-          if term_idx == term.size
-            span = calculate_span(match_indices)
-            current_start = match_indices.first? || Int32::MAX
-
-            # Check if this is better than current best
-            if best_match.nil? ||
-               span > best_span ||
-               (span == best_span && current_start < best_start)
-              best_match = match_indices
-              best_span = span
-              best_start = current_start
-            end
-          end
-        end
-
-        best_match
-      end
-
-      private def self.calculate_span(indices : Array(Int32)) : Int32
-        return 0 if indices.empty?
-
-        max_span = 1
-        current_span = 1
-
-        (1...indices.size).each do |i|
-          if indices[i] == indices[i - 1] + 1
-            current_span += 1
-            max_span = Math.max(max_span, current_span)
-          else
-            current_span = 1
-          end
-        end
-
-        max_span
       end
 
       enum FilterState
@@ -310,13 +246,14 @@ module Term2
 
       property items : Array(Item)
 
-      # Stores filter results (index in original items, item, matches)
+      # Stores filter results (index in original items, item, score, matches)
       struct FilteredItem
         property index : Int32
         property item : Item
+        property score : UInt16
         property matches : Array(Int32)
 
-        def initialize(@index, @item, @matches); end
+        def initialize(@index, @item, @score, @matches); end
       end
 
       @filtered_items : Array(FilteredItem) = [] of FilteredItem
@@ -811,7 +748,7 @@ module Term2
         ranks = @filter_func.call(val, targets)
 
         @filtered_items = ranks.map do |rank|
-          FilteredItem.new(rank.index, @items[rank.index], rank.matched_indexes)
+          FilteredItem.new(rank.index, @items[rank.index], rank.score, rank.matched_indexes)
         end
 
         @paginator.page = 0
