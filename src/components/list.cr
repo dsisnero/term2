@@ -661,9 +661,10 @@ module Term2
           end
         end
 
+        previous_value = @filter_input.value
         new_input, cmd = @filter_input.update(msg)
-        input_changed = @filter_input.value != new_input.value
         @filter_input = new_input.as(TextInput)
+        input_changed = previous_value != @filter_input.value
 
         if input_changed
           filter_items
