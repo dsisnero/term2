@@ -115,6 +115,12 @@ module Term2
             title = item.filter_value
           end
 
+          if model.debug_mode?
+            if score = model.score_for_item(index)
+              title = "#{title} [score=#{score}]"
+            end
+          end
+
           if index == model.index
             io << styles.selected_title.render(title) << "\n"
             io << styles.selected_desc.render(desc)
@@ -502,12 +508,23 @@ module Term2
       def matches_for_item(index : Int32) : Array(Int32)
         return [] of Int32 if @filter_state == FilterState::Unfiltered
 
-        # In filtered mode, index maps directly to filtered_items array
-        if index >= 0 && index < @filtered_items.size
-          @filtered_items[index].matches
+        if filtered_index = filtered_index_for(index)
+          @filtered_items[filtered_index].matches
         else
           [] of Int32
         end
+      end
+
+      def score_for_item(index : Int32) : UInt16?
+        return nil if @filter_state == FilterState::Unfiltered
+
+        if filtered_index = filtered_index_for(index)
+          @filtered_items[filtered_index].score
+        end
+      end
+
+      def debug_mode? : Bool
+        !!ENV["TERM2_DEBUG"]?
       end
 
       # [NEW] Helper to toggle filter state (for testing/shortcuts)
@@ -714,6 +731,17 @@ module Term2
         len = visible_items.size
         return 0 if len == 0
         @paginator.items_on_page(len)
+      end
+
+      private def filtered_index_for(index : Int32) : Int32?
+        return nil if index < 0
+        return nil if @filter_state == FilterState::Unfiltered
+
+        offset = @paginator.page * @paginator.per_page
+        filtered_index = offset + index
+        return nil if filtered_index < 0 || filtered_index >= @filtered_items.size
+
+        filtered_index
       end
 
       def disable_quit_keybindings

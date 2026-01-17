@@ -140,6 +140,28 @@ describe Term2::Components::List do
     list.visible_items.map(&.as(Term2::Components::List::DefaultItem).title).should eq ["file-name"]
   end
 
+  it "renders fuzzy scores in debug mode" do
+    previous = ENV["TERM2_DEBUG"]?
+    ENV["TERM2_DEBUG"] = "1"
+
+    begin
+      items = ["alpha", "alpine", "beta"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
+      list = Term2::Components::List.new(items, 40, 10)
+      list.filter_text = "alp"
+
+      output = Term2::Text.strip_ansi(list.view)
+      score = list.score_for_item(0)
+      score.should_not be_nil
+      output.should contain("score=#{score}")
+    ensure
+      if previous
+        ENV["TERM2_DEBUG"] = previous
+      else
+        ENV.delete("TERM2_DEBUG")
+      end
+    end
+  end
+
   it "renders status hints for filter states" do
     items = ["foo", "bar"].map { |title| Term2::Components::List.item(title).as(Term2::Components::List::Item) }
     list = Term2::Components::List.new(items, 10, 10)
