@@ -16,6 +16,7 @@
 /.clarity/
 /.clarity2/
 /.qodo/
+/.beads/
 
 # Reference code (Go BubbleTea source)
 # /bubbletea/
