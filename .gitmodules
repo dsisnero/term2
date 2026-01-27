@@ -17,3 +17,7 @@
 [submodule "charm_x"]
 	path = charm_x
 	url = git@github.com:charmbracelet/x.git
+
+[submodule "zuse"]
+	path = zuse
+	url = git@github.com:babycommando/zuse.git
