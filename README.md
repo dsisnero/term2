@@ -4,22 +4,22 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
 
 ## Features
 
-- **Elm Architecture**: Model-Update-View pattern for building terminal applications
-- **Concurrent ML**: Built on [cml](https://github.com/dsisnero/cml) for efficient concurrency
-- **200+ Key Sequences**: Support for xterm, urxvt, linux console, VT100/VT220
-- **Mouse Support**: SGR and legacy X10 mouse protocols
-- **Focus Reporting**: FocusIn/FocusOut events
-- **Alternate Screen**: Clean terminal restoration
-- **Components**: TextInput, Spinner, ProgressBar, CountdownTimer
-- **Zone System**: Built-in focus and click tracking with automatic tab cycling
-- **Tree/List/Table**: Static rendering components for hierarchical data
-- **Rich Command System**: Batch, sequence, timeout, and async commands
-- **Styling API**: Full color and style support with fluent API
-- **Cross-platform**: Works on Linux, macOS, and Windows
+* **Elm Architecture**: Model-Update-View pattern for building terminal applications
+* **Concurrent ML**: Built on [cml](https://github.com/dsisnero/cml) for efficient concurrency
+* **200+ Key Sequences**: Support for xterm, urxvt, linux console, VT100/VT220
+* **Mouse Support**: SGR and legacy X10 mouse protocols
+* **Focus Reporting**: FocusIn/FocusOut events
+* **Alternate Screen**: Clean terminal restoration
+* **Components**: TextInput, Spinner, ProgressBar, CountdownTimer
+* **Zone System**: Built-in focus and click tracking with automatic tab cycling
+* **Tree/List/Table**: Static rendering components for hierarchical data
+* **Rich Command System**: Batch, sequence, timeout, and async commands
+* **Styling API**: Full color and style support with fluent API
+* **Cross-platform**: Works on Linux, macOS, and Windows
 
 ## Installation
 
-1. Add the dependency to your `shard.yml`:
+1.  Add the dependency to your `shard.yml`:
 
    ```yaml
    dependencies:
@@ -29,7 +29,7 @@ A Crystal port of the [Bubble Tea](https://github.com/charmbracelet/bubbletea) t
        github: dsisnero/cml
    ```
 
-2. Run `shards install`
+2.  Run `shards install`
 
 ## Quick Start
 
@@ -78,10 +78,10 @@ Term2.run(CounterModel.new)
 
 Including `Term2::Prelude` provides convenient aliases for common types:
 
-- `Model`, `Cmd`, `Cmds`, `Message` - Core types
-- `TC` - Alias for `Term2::Components` (e.g., `TC::TextInput`)
-- `KeyMsg`, `WindowSizeMsg`, `FocusMsg`, `BlurMsg` - Common messages
-- `MouseEvent` - Mouse input events
+*   `Model`, `Cmd`, `Cmds`, `Message` - Core types
+*   `TC` - Alias for `Term2::Components` (e.g., `TC::TextInput`)
+*   `KeyMsg`, `WindowSizeMsg`, `FocusMsg`, `BlurMsg` - Common messages
+*   `MouseEvent` - Mouse input events
 
 ## Program Options
 
@@ -97,16 +97,16 @@ Term2.run(model, options: Term2::ProgramOptions.new(
 
 Available options:
 
-- `WithAltScreen` - Use alternate screen buffer
-- `WithMouseAllMotion` - Track all mouse motion (hover)
-- `WithMouseCellMotion` - Track mouse drag only
-- `WithReportFocus` - Report focus in/out events
-- `WithInput(io)` - Custom input source
-- `WithOutput(io)` - Custom output destination
-- `WithFPS(fps)` - Set frame rate
-- `WithoutRenderer` - Disable rendering (headless mode)
-- `WithoutCatchPanics` - Disable panic recovery
-- `WithoutBracketedPaste` - Disable bracketed paste
+*   `WithAltScreen` - Use alternate screen buffer
+*   `WithMouseAllMotion` - Track all mouse motion (hover)
+*   `WithMouseCellMotion` - Track mouse drag only
+*   `WithReportFocus` - Report focus in/out events
+*   `WithInput(io)` - Custom input source
+*   `WithOutput(io)` - Custom output destination
+*   `WithFPS(fps)` - Set frame rate
+*   `WithoutRenderer` - Disable rendering (headless mode)
+*   `WithoutCatchPanics` - Disable panic recovery
+*   `WithoutBracketedPaste` - Disable bracketed paste
 
 ## Text Styling
 
@@ -179,38 +179,38 @@ puts content_style.render("Content goes here")
 
 **Text Attributes:**
 
-- `.bold`, `.faint`/`.dim`, `.italic`, `.underline`
-- `.blink`, `.reverse`, `.hidden`, `.strike`
+*   `.bold`, `.faint`/`.dim`, `.italic`, `.underline`
+*   `.blink`, `.reverse`, `.hidden`, `.strike`
 
 **Foreground Colors:**
 
-- Standard: `.black`, `.red`, `.green`, `.yellow`, `.blue`, `.magenta`, `.cyan`,
+*   Standard: `.black`, `.red`, `.green`, `.yellow`, `.blue`, `.magenta`, `.cyan`,
   `.white`, `.gray`
-- Bright: `.bright_red`, `.bright_green`, `.bright_yellow`, `.bright_blue`,
+*   Bright: `.bright_red`, `.bright_green`, `.bright_yellow`, `.bright_blue`,
   `.bright_magenta`, `.bright_cyan`, `.bright_white`
-- 256-color: `.fg(0-255)`
-- RGB: `.fg(r, g, b)`
+*   256-color: `.fg(0-255)`
+*   RGB: `.fg(r, g, b)`
 
 **Background Colors:**
 
-- Standard: `.on_black`, `.on_red`, `.on_green`, `.on_yellow`, `.on_blue`,
+*   Standard: `.on_black`, `.on_red`, `.on_green`, `.on_yellow`, `.on_blue`,
   `.on_magenta`, `.on_cyan`, `.on_white`
-- 256-color: `.bg(0-255)`
-- RGB: `.bg(r, g, b)`
+*   256-color: `.bg(0-255)`
+*   RGB: `.bg(r, g, b)`
 
 **Style API Features:**
 
 The `Term2::Style` class provides a comprehensive fluent API:
 
-- **Text Formatting**: `.bold()`, `.italic()`, `.underline()`, `.strikethrough()`, `.reverse()`, `.blink()`, `.faint()`
-- **Colors**: `.foreground()`, `.background()` (accepts `Color`, hex strings, or `AdaptiveColor`)
-- **Dimensions**: `.width()`, `.height()`, `.max_width()`, `.max_height()`
-- **Alignment**: `.align()`, `.align_horizontal()`, `.align_vertical()`
-- **Padding**: `.padding()` (CSS-style shorthand), `.padding_top()`, `.padding_right()`, etc.
-- **Margins**: `.margin()` (CSS-style shorthand), `.margin_top()`, `.margin_right()`, etc.
-- **Borders**: `.border()`, `.border_style()`, `.border_top()`, `.border_foreground()`, `.border_background()`
-- **Layout**: `.inline()`, `.tab_width()`, `.transform()`
-- **Rendering**: `.render()` to apply style to text, `.to_s()` for string representation
+* **Text Formatting**: `.bold()`, `.italic()`, `.underline()`, `.strikethrough()`, `.reverse()`, `.blink()`, `.faint()`
+* **Colors**: `.foreground()`, `.background()` (accepts `Color`, hex strings, or `AdaptiveColor`)
+* **Dimensions**: `.width()`, `.height()`, `.max_width()`, `.max_height()`
+* **Alignment**: `.align()`, `.align_horizontal()`, `.align_vertical()`
+* **Padding**: `.padding()` (CSS-style shorthand), `.padding_top()`, `.padding_right()`, etc.
+* **Margins**: `.margin()` (CSS-style shorthand), `.margin_top()`, `.margin_right()`, etc.
+* **Borders**: `.border()`, `.border_style()`, `.border_top()`, `.border_foreground()`, `.border_background()`
+* **Layout**: `.inline()`, `.tab_width()`, `.transform()`
+* **Rendering**: `.render()` to apply style to text, `.to_s()` for string representation
 
 ## Zone System: Focus and Click Tracking
 
@@ -220,11 +220,11 @@ Term2 includes a built-in Zone system that incorporates BubbleZone functionality
 
 The Zone system works by embedding invisible markers in the rendered output that are scanned after each frame to determine zone positions:
 
-1. **Zone Registration**: Components define a `zone_id` and wrap their output with `Zone.mark(id, content)`
-2. **Automatic Scanning**: After each render, Term2 scans the output to extract zone positions using invisible Unicode markers
-3. **Focus Management**: Zones can be focused via Tab/Shift+Tab or mouse clicks
-4. **Click Handling**: Mouse clicks automatically dispatch to the correct zone with relative coordinates
-5. **Keyboard Navigation**: Tab and Shift+Tab cycle through registered zones
+1.  **Zone Registration**: Components define a `zone_id` and wrap their output with `Zone.mark(id, content)`
+2.  **Automatic Scanning**: After each render, Term2 scans the output to extract zone positions using invisible Unicode markers
+3.  **Focus Management**: Zones can be focused via Tab/Shift+Tab or mouse clicks
+4.  **Click Handling**: Mouse clicks automatically dispatch to the correct zone with relative coordinates
+5.  **Keyboard Navigation**: Tab and Shift+Tab cycle through registered zones
 
 ### Basic Zone Usage
 
@@ -314,26 +314,26 @@ end
 
 The Zone system is fully integrated into Term2's core:
 
-- **Zone Module**: Provides global zone management (`Term2::Zone`)
-- **ZoneInfo**: Tracks zone boundaries and coordinates
-- **Zone Messages**: `ZoneClickMsg`, `ZoneFocusMsg`, `ZoneBlurMsg` for event handling
-- **Automatic Integration**: Built into the main event loop and render pipeline
+* **Zone Module**: Provides global zone management (`Term2::Zone`)
+* **ZoneInfo**: Tracks zone boundaries and coordinates
+* **Zone Messages**: `ZoneClickMsg`, `ZoneFocusMsg`, `ZoneBlurMsg` for event handling
+* **Automatic Integration**: Built into the main event loop and render pipeline
 
 ### Focus Navigation
 
-- **Tab**: Move focus to next zone (cycles through all registered zones)
-- **Shift+Tab**: Move focus to previous zone
-- **Mouse Click**: Focus clicked zone automatically on press
-- **Programmatic**: Use `Zone.focus(id)` and `Zone.blur(id)`
-- **Auto-focus**: Components can call `focus` method to request focus
+* **Tab**: Move focus to next zone (cycles through all registered zones)
+* **Shift+Tab**: Move focus to previous zone
+* **Mouse Click**: Focus clicked zone automatically on press
+* **Programmatic**: Use `Zone.focus(id)` and `Zone.blur(id)`
+* **Auto-focus**: Components can call `focus` method to request focus
 
 ### Advanced Zone Features
 
-- **Z-index Support**: Zones can have different z-index values for overlapping areas
-- **Relative Coordinates**: Click events include coordinates relative to zone bounds
-- **Efficient Scanning**: Zone scanning skips ANSI escape sequences
-- **Spatial Indexing**: Optimized zone lookup by coordinates
-- **Tab Cycle**: Automatic focus cycling through all interactive elements
+* **Z-index Support**: Zones can have different z-index values for overlapping areas
+* **Relative Coordinates**: Click events include coordinates relative to zone bounds
+* **Efficient Scanning**: Zone scanning skips ANSI escape sequences
+* **Spatial Indexing**: Optimized zone lookup by coordinates
+* **Tab Cycle**: Automatic focus cycling through all interactive elements
 
 ### Integration with Event System
 
@@ -359,10 +359,10 @@ end
 
 ### Built-in Components with Zone Support
 
-- **TextInput**: Full-featured text input with cursor navigation and automatic zone registration
-- **Checkbox**: Toggleable checkbox with focus support
-- **Radio**: Radio button groups with keyboard navigation
-- **Custom Components**: Any component can implement `zone_id` and use `Zone.mark`
+* **TextInput**: Full-featured text input with cursor navigation and automatic zone registration
+* **Checkbox**: Toggleable checkbox with focus support
+* **Radio**: Radio button groups with keyboard navigation
+* **Custom Components**: Any component can implement `zone_id` and use `Zone.mark`
 
 ## Layout System
 
@@ -401,14 +401,14 @@ puts style.render("Hello Styled Text!")
 
 The Style API provides comprehensive styling capabilities including:
 
-- **Layout utilities**: `Term2.join_horizontal`, `Term2.join_vertical`, `Term2.place`
-- **Borders**: Multiple border styles (normal, rounded, thick, double, hidden, block, half-block)
-- **Spacing**: Full padding and margin control with CSS-style shorthand syntax
-- **Alignment**: Horizontal and vertical alignment options
-- **Colors**: Named colors, 256-color palette, true color RGB, adaptive colors, hex support
-- **Text formatting**: Bold, italic, underline, strikethrough, reverse, blink, faint
-- **Dimensions**: Fixed and maximum width/height constraints
-- **Transformations**: Custom text transformation functions
+* **Layout utilities**: `Term2.join_horizontal`, `Term2.join_vertical`, `Term2.place`
+* **Borders**: Multiple border styles (normal, rounded, thick, double, hidden, block, half-block)
+* **Spacing**: Full padding and margin control with CSS-style shorthand syntax
+* **Alignment**: Horizontal and vertical alignment options
+* **Colors**: Named colors, 256-color palette, true color RGB, adaptive colors, hex support
+* **Text formatting**: Bold, italic, underline, strikethrough, reverse, blink, faint
+* **Dimensions**: Fixed and maximum width/height constraints
+* **Transformations**: Custom text transformation functions
 
 ## Handling Input
 
@@ -584,9 +584,9 @@ end
 
 ## Documentation
 
-- [Migration Guide from BubbleTea (Go)](docs/migration-from-go.md)
-- [Tutorials](docs/tutorials.md)
-- [Examples](examples/)
+*   [Migration Guide from BubbleTea (Go)](docs/migration-from-go.md)
+*   [Tutorials](docs/tutorials.md)
+*   [Examples](examples/)
 
 ## Development
 
@@ -630,11 +630,11 @@ src/
 
 ## Contributing
 
-1. Fork it (<https://github.com/dsisnero/term2/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+1.  Fork it (<https://github.com/dsisnero/term2/fork>)
+2.  Create your feature branch (`git checkout -b my-new-feature`)
+3.  Commit your changes (`git commit -am 'Add some feature'`)
+4.  Push to the branch (`git push origin my-new-feature`)
+5.  Create a new Pull Request
 
 ## License
 
