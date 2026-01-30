@@ -325,10 +325,13 @@ module Term2
       @input_type = :stdin
 
       @options.apply(self)
+      CML.trace "Program.initialize", tag: "term2" if ENV["TERM2_TRACE"]?
+      STDERR.puts "DEBUG: Program initialize completed" if ENV["TERM2_DEBUG"]?
+      STDERR.flush
     end
 
     def run : M
-      STDERR.puts "DEBUG: Program.run starting"
+      STDERR.puts "DEBUG: run start" if ENV["TERM2_DEBUG"]?
       if the_io = @input_io
         if the_io.responds_to?(:raw!) && the_io.is_a?(IO::FileDescriptor)
           if the_io.tty?
@@ -387,8 +390,8 @@ module Term2
     end
 
     def stop : Nil
+      CML.trace "Program.stop", tag: "term2" if ENV["TERM2_TRACE"]?
       return unless @running.compare_and_set(true, false)
-      STDERR.puts "DEBUG: stop called" if ENV["TERM2_DEBUG"]?
       @dispatcher.stop
       @done.i_put(true) rescue nil
     end
@@ -567,6 +570,9 @@ module Term2
     end
 
     private def bootstrap
+      STDERR.puts "DEBUG: bootstrap start" if ENV["TERM2_DEBUG"]?
+      CML::Tracer.set_fiber_name("term2-main") if ENV["TERM2_TRACE"]?
+      CML.trace "bootstrap.start", tag: "term2" if ENV["TERM2_TRACE"]?
       @running.set(true)
       @profile = ENV["TERM2_PROFILE"]? == "1"
       if path = ENV["TERM2_LOG_FILE"]?
@@ -616,14 +622,19 @@ module Term2
     end
 
     private def start_input_reader
+      CML.trace "start_input_reader", tag: "term2" if ENV["TERM2_TRACE"]?
       return unless io = @input_io
-      spawn(name: "term2-input") { read_input(io) }
+      spawn(name: "term2-input") {
+        CML::Tracer.set_fiber_name("term2-input") if ENV["TERM2_TRACE"]?
+        CML.trace "input_reader.start", tag: "term2" if ENV["TERM2_TRACE"]?
+        read_input(io)
+      }
     end
 
     private def read_input(io : IO)
-      STDERR.puts "DEBUG: read_input start" if ENV["TERM2_DEBUG"]?
       key_reader = KeyReader.new
       while running?
+        CML.trace "read_input.iteration", tag: "term2" if ENV["TERM2_TRACE"]?
         begin
           result = key_reader.read_key(io)
           next unless result
@@ -660,7 +671,6 @@ module Term2
             dispatch(KeyPress.new(key.to_s))
           end
         rescue IO::EOFError
-          STDERR.puts "DEBUG: read_input EOF, breaking" if ENV["TERM2_DEBUG"]?
           break
         end
       end
@@ -674,6 +684,7 @@ module Term2
       loop do
         drain_render_queue
         event = CML.sync(next_event)
+        CML.trace "listen_loop.event", event.class.to_s, tag: "term2" if ENV["TERM2_TRACE"]?
         case event
         when InputEvent
           handle_message(event.message)
@@ -756,12 +767,13 @@ module Term2
         spawn { exec_sequence(filtered_msg) }
         return
       when QuitMsg
-        STDERR.puts "DEBUG: QuitMsg handled, setting pending_shutdown=true" if ENV["TERM2_DEBUG"]?
+        CML.trace "handle_message.QuitMsg", tag: "term2" if ENV["TERM2_TRACE"]?
         @pending_shutdown = true
         unless @shutdown_ch.closed?
           @shutdown_ch.close
         end
         schedule_render
+        stop
         return
       when EnterAltScreenMsg
         Terminal.enter_alt_screen(@output_io)
@@ -906,7 +918,6 @@ module Term2
     end
 
     private def drain_render_queue
-      STDERR.puts "DEBUG: drain_render_queue called" if ENV["TERM2_DEBUG"]?
       last_frame = nil.as(String?)
       print_msgs = [] of PrintMsg
 
@@ -963,10 +974,7 @@ module Term2
         total_ms = ((t1 - t0.not_nil!).total_milliseconds)
         @log_file.try { |f| f.puts("profile render scan_ms=#{scan_ms} render_ms=#{render_ms} total_ms=#{total_ms}") }
       end
-      if @pending_shutdown
-        STDERR.puts "DEBUG: pending_shutdown true, calling stop" if ENV["TERM2_DEBUG"]?
-        stop
-      end
+      stop if @pending_shutdown
     end
 
     private def render_frame(frame : View)
@@ -983,11 +991,15 @@ module Term2
     end
 
     private def run_cmd(cmd : Cmd?)
+      STDERR.puts "DEBUG: run_cmd called" if ENV["TERM2_DEBUG"]?
       return unless cmd
 
+      STDERR.puts "DEBUG: spawning cmd fiber" if ENV["TERM2_DEBUG"]?
       spawn do
         begin
+          STDERR.puts "DEBUG: cmd fiber executing" if ENV["TERM2_DEBUG"]?
           if msg = cmd.call
+            STDERR.puts "DEBUG: cmd returned #{msg.class}" if ENV["TERM2_DEBUG"]?
             handle_cmd_result(msg)
           end
         rescue ex
@@ -997,6 +1009,7 @@ module Term2
     end
 
     private def handle_cmd_result(msg : Msg)
+      STDERR.puts "DEBUG: handle_cmd_result #{msg.class}" if ENV["TERM2_DEBUG"]?
       case msg
       when BatchMsg
         exec_batch(msg)
