@@ -98,8 +98,8 @@ class PackageManagerModel
 
     pkg_count = " #{sprintf("%#{w}d", @index)}/#{sprintf("%#{w}d", n)}"
 
-    spin = "#{@spinner.view} "
-    prog = @progress.view
+    spin = "#{@spinner.view.content} "
+    prog = @progress.view.content
     cells_avail = Math.max(0, @width - Term2::Text.width(spin + prog + pkg_count))
 
     pkg_name = CURRENT_PKG_STYLE.render(@packages[@index])

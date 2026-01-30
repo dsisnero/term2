@@ -236,7 +236,7 @@ class FancyListModel
   end
 
   def view : String
-    APP_STYLE.render(@list.view)
+    APP_STYLE.render(@list.view.content)
   end
 
   private def status_message(text : String) : String

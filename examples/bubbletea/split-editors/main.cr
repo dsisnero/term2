@@ -134,7 +134,7 @@ class SplitEditorsModel
   def view : String
     help_view = @help.view_short(self)
     views = @inputs.map(&.view.content)
-    Term2.join_horizontal(Term2::Position::Top, views) + "\n\n" + help_view
+    Term2.join_horizontal(Term2::Position::Top, views) + "\n\n" + help_view.content
   end
 end
 

@@ -101,21 +101,21 @@ module Term2
 
       def view : View
         content = case @type
-        when Type::Arabic
-          sprintf(@arabic_format, @page + 1, @total_pages)
-        when Type::Dots
-          String.build do |s|
-            @total_pages.times do |i|
-              if i == @page
-                s << @active_dot
-              else
-                s << @inactive_dot
-              end
-            end
-          end
-        else
-          ""
-        end
+                  when Type::Arabic
+                    sprintf(@arabic_format, @page + 1, @total_pages)
+                  when Type::Dots
+                    String.build do |s|
+                      @total_pages.times do |i|
+                        if i == @page
+                          s << @active_dot
+                        else
+                          s << @inactive_dot
+                        end
+                      end
+                    end
+                  else
+                    ""
+                  end
         View.new(content: content)
       end
     end

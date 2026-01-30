@@ -84,10 +84,10 @@ class HelpModel
              end
 
     help_view = @help.view(@keys)
-    height = 8 - status.count('\n') - help_view.count('\n')
+    height = 8 - status.count('\n') - help_view.content.count('\n')
     spacer = height > 0 ? "\n" * height : ""
 
-    "\n#{status}#{spacer}#{help_view}"
+    "\n#{status}#{spacer}#{help_view.content}"
   end
 end
 

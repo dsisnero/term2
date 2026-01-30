@@ -135,7 +135,7 @@ module BubblezoneListDefaultExample
     end
 
     def view : String
-      DOC_STYLE.render(@list.view)
+      DOC_STYLE.render(@list.view.content)
     end
   end
 end

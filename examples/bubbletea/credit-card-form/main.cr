@@ -75,9 +75,9 @@ class CreditCardModel
     String.build do |str|
       str << "Total: $21.50:\n\n"
       str << INPUT_STYLE.width(30).render("Card Number") << "\n"
-      str << @inputs[Field::CCN.value].view << "\n\n"
+      str << @inputs[Field::CCN.value].view.content << "\n\n"
       str << INPUT_STYLE.width(6).render("EXP") << "  " << INPUT_STYLE.width(6).render("CVV") << "\n"
-      str << @inputs[Field::EXP.value].view << "  " << @inputs[Field::CVV.value].view << "\n\n"
+      str << @inputs[Field::EXP.value].view.content << "  " << @inputs[Field::CVV.value].view.content << "\n\n"
       str << CONTINUE_STYLE.render("Continue ->") << "\n\n"
     end
   end

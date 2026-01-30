@@ -85,7 +85,7 @@ class ListDefaultModel
 
   def view : String
     @list.title = @list_title
-    DOC_STYLE.render(@list.view)
+    DOC_STYLE.render(@list.view.content)
   end
 end
 

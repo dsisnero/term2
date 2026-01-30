@@ -55,7 +55,7 @@ class ComposableModel
 
   def view : String
     focused_timer = @state == SessionState::TimerView
-    left = (focused_timer ? FOCUSED_MODEL_STYLE : MODEL_STYLE).render(@timer.view.rjust(4))
+    left = (focused_timer ? FOCUSED_MODEL_STYLE : MODEL_STYLE).render(@timer.view.content.rjust(4))
     right = (focused_timer ? MODEL_STYLE : FOCUSED_MODEL_STYLE).render(@spinner.view.content)
     model_name = focused_timer ? "timer" : "spinner"
     String.build do |str|

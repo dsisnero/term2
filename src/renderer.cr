@@ -2,6 +2,8 @@
 require "./color_profile"
 require "./style"
 require "./view"
+require "./mouse"
+require "./terminal"
 
 module Term2
   # Renderer is the abstract base class for terminal rendering
@@ -44,6 +46,10 @@ module Term2
     @fps : Float64 = 60.0
     @last_frame_time : Time = Time::UNIX_EPOCH
     @frame_duration : Time::Span = Time::Span.new(nanoseconds: 16_666_667) # ~60 fps
+    @current_mouse_mode : MouseMode = MouseMode::None
+    @current_keyboard_enhancements : KeyboardEnhancements = KeyboardEnhancements.new
+    @current_background : Color? = nil
+    @current_foreground : Color? = nil
 
     def initialize(@output : IO = STDOUT)
       update_frame_duration
@@ -95,6 +101,7 @@ module Term2
         # line-diff updates are non-linear, so terminal SGR state must not leak
         # from whatever was last written.
         @output.print("\e[0m")
+        apply_current_colors
         if curr
           @output.print(curr)
         end
@@ -106,6 +113,7 @@ module Term2
         (new_lines.size...@last_lines.size).each do |i|
           Terminal.move_to(i + 1, 1, @output)
           @output.print("\e[0m")
+          apply_current_colors
           Terminal.clear_entire_line(@output)
         end
       end
@@ -118,19 +126,150 @@ module Term2
 
     def render(view : View) : Nil
       # Apply background/foreground colors if set
-      # For now, just render content
+      apply_colors(view.background_color, view.foreground_color)
+
+      # Render content (this will also handle line diff updates)
       render(view.content)
+
       # Set cursor position if provided
       if cursor = view.cursor
         Terminal.move_to(cursor.position.y + 1, cursor.position.x + 1, @output)
         # Set cursor shape and blink
-        # TODO: implement cursor shape and blink
+        apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
       end
+
       # Set window title if provided
       if title = view.window_title
         Terminal.set_window_title(@output, title)
       end
-      # TODO: handle mouse mode, keyboard enhancements, background/foreground colors
+
+      # Handle mouse mode
+      apply_mouse_mode(view.mouse_mode)
+
+      # Handle keyboard enhancements
+      apply_keyboard_enhancements(view.keyboard_enhancements)
+
+      # Handle progress bar if provided
+      if progress = view.progress_bar
+        apply_progress_bar(progress)
+      end
+
+      # Reset colors after rendering? Colors persist, but we reset at start of each render
+      # via apply_colors (which resets if nil). The content render resets attributes per line.
+    end
+
+    private def apply_colors(background : Color?, foreground : Color?)
+      # Store old colors for comparison
+      old_bg = @current_background
+      old_fg = @current_foreground
+
+      # Update stored colors
+      @current_background = background
+      @current_foreground = foreground
+
+      # Handle background change
+      if background != old_bg
+        if background
+          codes = background.background_codes
+          @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+        else
+          # Reset to default background
+          @output.print("\e[49m")
+        end
+      end
+
+      # Handle foreground change
+      if foreground != old_fg
+        if foreground
+          codes = foreground.foreground_codes
+          @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+        else
+          # Reset to default foreground
+          @output.print("\e[39m")
+        end
+      end
+    end
+
+    private def apply_current_colors
+      # Apply stored background and foreground colors
+      if bg = @current_background
+        codes = bg.background_codes
+        @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+      end
+      if fg = @current_foreground
+        codes = fg.foreground_codes
+        @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+      end
+    end
+
+    private def apply_cursor_shape(shape : CursorShape, blink : Bool, color : Color?)
+      # DECSCUSR sequences for cursor shape
+      code = case {shape, blink}
+             when {CursorShape::Block, true}      then 1
+             when {CursorShape::Block, false}     then 2
+             when {CursorShape::Underline, true}  then 3
+             when {CursorShape::Underline, false} then 4
+             when {CursorShape::Bar, true}        then 5
+             when {CursorShape::Bar, false}       then 6
+             else                                      1 # default blinking block
+             end
+      @output.print("\e[#{code} q")
+
+      # Cursor color via OSC 12 (not widely supported)
+      if color
+        codes = color.foreground_codes
+        unless codes.empty?
+          # OSC 12 ; rgb:RR/GG/BB ST
+          r, g, b = color.to_rgb
+          @output.print("\e]12;rgb:#{r.to_s(16).rjust(2, '0')}/#{g.to_s(16).rjust(2, '0')}/#{b.to_s(16).rjust(2, '0')}\e\\")
+        end
+      end
+    end
+
+    private def apply_mouse_mode(mode : MouseMode)
+      return if mode == @current_mouse_mode
+
+      # Disable current tracking
+      case @current_mouse_mode
+      when MouseMode::CellMotion
+        disable_mouse_cell_motion
+      when MouseMode::AllMotion
+        disable_mouse_all_motion
+      when MouseMode::None
+        # Already disabled, nothing to do
+      end
+
+      # Enable new tracking
+      case mode
+      when MouseMode::CellMotion
+        enable_mouse_cell_motion
+      when MouseMode::AllMotion
+        enable_mouse_all_motion
+      when MouseMode::None
+        disable_mouse_tracking
+      end
+
+      @current_mouse_mode = mode
+    end
+
+    private def apply_keyboard_enhancements(ke : KeyboardEnhancements)
+      return if ke == @current_keyboard_enhancements
+
+      # Handle report_event_types flag
+      if ke.report_event_types != @current_keyboard_enhancements.report_event_types
+        if ke.report_event_types
+          enable_keyboard_enhancements
+        else
+          disable_keyboard_enhancements
+        end
+      end
+
+      @current_keyboard_enhancements = ke
+    end
+
+    private def apply_progress_bar(progress : ProgressBar)
+      # TODO: implement progress bar display
+      # OSC 9 ; 0 ; <percent> ST ?
     end
 
     def flush : Nil
@@ -183,6 +322,48 @@ module Term2
     # Compatibility no-op with Bubble Tea renderer API
     def reset_lines_rendered : Nil
       # We don't track rendered lines; noop for compatibility.
+    end
+
+    # Enable mouse cell motion tracking (clicks and drags)
+    def enable_mouse_cell_motion : Nil
+      @output.print("\e[?1002h\e[?1006h")
+      @output.flush
+    end
+
+    # Disable mouse cell motion tracking
+    def disable_mouse_cell_motion : Nil
+      @output.print("\e[?1002l\e[?1003l\e[?1006l")
+      @output.flush
+    end
+
+    # Enable mouse all motion tracking (including hover)
+    def enable_mouse_all_motion : Nil
+      @output.print("\e[?1003h\e[?1006h")
+      @output.flush
+    end
+
+    # Disable mouse all motion tracking
+    def disable_mouse_all_motion : Nil
+      @output.print("\e[?1003l")
+      @output.flush
+    end
+
+    # Disable all mouse tracking
+    def disable_mouse_tracking : Nil
+      @output.print("\e[?1002l\e[?1003l\e[?1006l")
+      @output.flush
+    end
+
+    # Enable keyboard enhancements (key repeat/release reporting)
+    def enable_keyboard_enhancements : Nil
+      @output.print("\e[?1001h")
+      @output.flush
+    end
+
+    # Disable keyboard enhancements
+    def disable_keyboard_enhancements : Nil
+      @output.print("\e[?1001l")
+      @output.flush
     end
   end
 

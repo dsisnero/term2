@@ -517,7 +517,7 @@ module Term2
       end
 
       def score_for_item(index : Int32) : UInt16?
-        return nil if @filter_state == FilterState::Unfiltered
+        return if @filter_state == FilterState::Unfiltered
 
         if filtered_index = filtered_index_for(index)
           @filtered_items[filtered_index].score
@@ -736,12 +736,12 @@ module Term2
       end
 
       private def filtered_index_for(index : Int32) : Int32?
-        return nil if index < 0
-        return nil if @filter_state == FilterState::Unfiltered
+        return if index < 0
+        return if @filter_state == FilterState::Unfiltered
 
         offset = @paginator.page * @paginator.per_page
         filtered_index = offset + index
-        return nil if filtered_index < 0 || filtered_index >= @filtered_items.size
+        return if filtered_index < 0 || filtered_index >= @filtered_items.size
 
         filtered_index
       end
