@@ -14,6 +14,7 @@
 #
 require "cml"
 require "./view"
+require "./style"
 
 module Term2
   # Msg is any message that can be sent to the update function.
@@ -610,6 +611,39 @@ module Term2
 
   # RequestCursorColorMsg signals a request for the terminal's cursor color
   class RequestCursorColorMsg < Message
+  end
+
+  # ForegroundColorMsg signals the terminal's foreground color response
+  class ForegroundColorMsg < Message
+    getter color : Color
+
+    def initialize(@color : Color)
+    end
+  end
+
+  # BackgroundColorMsg signals the terminal's background color response
+  class BackgroundColorMsg < Message
+    getter color : Color
+
+    def initialize(@color : Color)
+    end
+  end
+
+  # CursorColorMsg signals the terminal's cursor color response
+  class CursorColorMsg < Message
+    getter color : Color
+
+    def initialize(@color : Color)
+    end
+  end
+
+  # ClipboardMsg signals a clipboard read response
+  class ClipboardMsg < Message
+    getter content : String
+    getter selection : UInt8
+
+    def initialize(@content : String, @selection : UInt8)
+    end
   end
 
   # EnableMouseCellMotionMsg signals enabling mouse cell motion tracking

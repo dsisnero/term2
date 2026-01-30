@@ -1,4 +1,6 @@
 # Terminal control utilities for advanced terminal features
+require "base64"
+
 module Term2
   {% if flag?(:unix) %}
     lib LibC
@@ -67,6 +69,37 @@ module Term2
     # Set the terminal window title
     def self.set_window_title(io : IO, title : String)
       io.print "\033]2;#{title}\033\\"
+      io.flush
+    end
+
+    # Request terminal foreground color (OSC 10)
+    def self.request_foreground_color(io : IO)
+      io.print "\033]10;?\x07"
+      io.flush
+    end
+
+    # Request terminal background color (OSC 11)
+    def self.request_background_color(io : IO)
+      io.print "\033]11;?\x07"
+      io.flush
+    end
+
+    # Request terminal cursor color (OSC 12)
+    def self.request_cursor_color(io : IO)
+      io.print "\033]12;?\x07"
+      io.flush
+    end
+
+    # Read clipboard (OSC 52)
+    def self.read_clipboard(io : IO, selection : Char = 'c')
+      io.print "\033]52;#{selection};?\x07"
+      io.flush
+    end
+
+    # Set clipboard (OSC 52)
+    def self.set_clipboard(io : IO, content : String, selection : Char = 'c')
+      b64 = Base64.strict_encode(content)
+      io.print "\033]52;#{selection};#{b64}\x07"
       io.flush
     end
 

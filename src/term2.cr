@@ -7,6 +7,7 @@ require "./program_context"
 require "./program_options"
 require "./key_sequences"
 require "./mouse"
+require "./osc"
 require "./style"
 require "./join"
 require "./style_table"
@@ -38,11 +39,14 @@ module Term2
   class KeyReader
     @buffer : String = ""
     @mouse_reader : MouseReader = MouseReader.new
+    @osc_reader : OSCReader = OSCReader.new
     @in_paste : Bool = false
     @paste_buffer : String = ""
     @last_mouse_event : MouseEvent? = nil
+    @last_osc_event : Message? = nil
 
     getter last_mouse_event : MouseEvent?
+    getter last_osc_event : Message?
 
     # Bracketed paste escape sequences
     PASTE_START = "\e[200~"
@@ -147,6 +151,23 @@ module Term2
       end
 
       @last_mouse_event = nil
+
+      # Check for OSC events
+      if @buffer.starts_with?("\e]") || (@buffer.bytesize > 0 && @buffer.to_slice[0] == 0x9D_u8)
+        osc_event, consumed = @osc_reader.check_osc_event(@buffer)
+        if osc_event && consumed > 0
+          @buffer = @buffer[consumed..] || ""
+          @last_osc_event = osc_event
+          return Key.new(KeyType::Null)
+        elsif consumed == 0
+          # Partial OSC sequence, wait for more data
+          return
+        else
+          # Unknown OSC command, consume and ignore
+          @buffer = @buffer[consumed..] || ""
+          return
+        end
+      end
 
       # Check for escape sequences
       if @buffer.starts_with?("\e")
@@ -307,6 +328,7 @@ module Term2
     end
 
     def run : M
+      STDERR.puts "DEBUG: Program.run starting"
       if the_io = @input_io
         if the_io.responds_to?(:raw!) && the_io.is_a?(IO::FileDescriptor)
           if the_io.tty?
@@ -328,6 +350,7 @@ module Term2
     end
 
     private def run_internal
+      STDERR.puts "DEBUG: run_internal start" if ENV["TERM2_DEBUG"]?
       if @panic_recovery_enabled
         begin
           bootstrap
@@ -365,6 +388,7 @@ module Term2
 
     def stop : Nil
       return unless @running.compare_and_set(true, false)
+      STDERR.puts "DEBUG: stop called" if ENV["TERM2_DEBUG"]?
       @dispatcher.stop
       @done.i_put(true) rescue nil
     end
@@ -597,6 +621,7 @@ module Term2
     end
 
     private def read_input(io : IO)
+      STDERR.puts "DEBUG: read_input start" if ENV["TERM2_DEBUG"]?
       key_reader = KeyReader.new
       while running?
         begin
@@ -606,6 +631,11 @@ module Term2
           if mouse_event = key_reader.last_mouse_event
             @log_file.try { |f| f.puts("in mouse #{mouse_event} x=#{mouse_event.x} y=#{mouse_event.y} button=#{mouse_event.button} action=#{mouse_event.action}") }
             dispatch(mouse_event)
+            next
+          end
+
+          if osc_event = key_reader.last_osc_event
+            dispatch(osc_event)
             next
           end
 
@@ -630,6 +660,7 @@ module Term2
             dispatch(KeyPress.new(key.to_s))
           end
         rescue IO::EOFError
+          STDERR.puts "DEBUG: read_input EOF, breaking" if ENV["TERM2_DEBUG"]?
           break
         end
       end
@@ -725,6 +756,7 @@ module Term2
         spawn { exec_sequence(filtered_msg) }
         return
       when QuitMsg
+        STDERR.puts "DEBUG: QuitMsg handled, setting pending_shutdown=true" if ENV["TERM2_DEBUG"]?
         @pending_shutdown = true
         unless @shutdown_ch.closed?
           @shutdown_ch.close
@@ -756,19 +788,19 @@ module Term2
         dispatch(WindowSizeMsg.new(width, height))
         return
       when ReadClipboardMsg
-        # TODO: Implement clipboard reading
+        Terminal.read_clipboard(@output_io)
         return
       when SetClipboardMsg
-        # TODO: Implement clipboard writing
+        Terminal.set_clipboard(@output_io, filtered_msg.text, 'c')
         return
       when RequestForegroundColorMsg
-        # TODO: Implement color request
+        Terminal.request_foreground_color(@output_io)
         return
       when RequestBackgroundColorMsg
-        # TODO: Implement color request
+        Terminal.request_background_color(@output_io)
         return
       when RequestCursorColorMsg
-        # TODO: Implement color request
+        Terminal.request_cursor_color(@output_io)
         return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
@@ -874,6 +906,7 @@ module Term2
     end
 
     private def drain_render_queue
+      STDERR.puts "DEBUG: drain_render_queue called" if ENV["TERM2_DEBUG"]?
       last_frame = nil.as(String?)
       print_msgs = [] of PrintMsg
 
@@ -930,7 +963,10 @@ module Term2
         total_ms = ((t1 - t0.not_nil!).total_milliseconds)
         @log_file.try { |f| f.puts("profile render scan_ms=#{scan_ms} render_ms=#{render_ms} total_ms=#{total_ms}") }
       end
-      stop if @pending_shutdown
+      if @pending_shutdown
+        STDERR.puts "DEBUG: pending_shutdown true, calling stop" if ENV["TERM2_DEBUG"]?
+        stop
+      end
     end
 
     private def render_frame(frame : View)

@@ -51,8 +51,6 @@ module Term2
     end
   end
 
-
-
   # Disables signal handling (SIGINT, SIGTERM, etc.).
   struct WithoutSignalHandler < ProgramOption
     def apply(program : Program) : Nil
@@ -237,8 +235,6 @@ module Term2
       program.color_profile = @profile
     end
   end
-
-
 
   # Container for multiple program options.
   #

@@ -18,7 +18,7 @@ class TestViewOpts < Term2::Message
     @show_cursor = false,
     @disable_bracketed_paste = false,
     @key_releases = false,
-    @bg_color = nil
+    @bg_color = nil,
   )
   end
 end
@@ -173,15 +173,15 @@ describe "Bubbletea parity: screen_test.go" do
         io = IO::Memory.new
         input = IO::Memory.new
         model = TestViewModel.new
-        
+
         # Create commands for each option
         cmds = tc[:opts].map do |opt|
-          ->{ opt.as(Term2::Msg?) }
+          -> { opt.as(Term2::Msg?) }
         end
-        
+
         # Add quit command at the end
         cmds << Term2::Cmds.quit
-        
+
         program = Term2::Program(TestViewModel).new(
           model,
           input: input,
@@ -192,7 +192,7 @@ describe "Bubbletea parity: screen_test.go" do
             Term2::WithEnvironment.new(["TERM=xterm-256color"])
           )
         )
-        
+
         # Send sequence of commands
         spawn do
           cmds.each do |cmd|
@@ -201,14 +201,14 @@ describe "Bubbletea parity: screen_test.go" do
             end
           end
         end
-        
+
         program.run
-        
+
         Golden.require_equal(io.to_s, tc[:name], base_dir: File.join(__DIR__, "..", "..", "bubbletea"))
       end
     end
   end
-  
+
   # TestClearMsg tests (matching TestClearMsg in Go)
   describe "TestClearMsg" do
     test_cases = [
@@ -229,15 +229,15 @@ describe "Bubbletea parity: screen_test.go" do
         ],
       },
     ]
-    
+
     test_cases.each do |tc|
       it tc[:name] do
         io = IO::Memory.new
         input = IO::Memory.new
         model = ScreenTestModel.new
-        
+
         cmds = tc[:cmds] + [Term2::Cmds.quit]
-        
+
         program = Term2::Program(ScreenTestModel).new(
           model,
           input: input,
@@ -248,7 +248,7 @@ describe "Bubbletea parity: screen_test.go" do
             Term2::WithEnvironment.new(["TERM=xterm-256color"])
           )
         )
-        
+
         spawn do
           cmds.each do |cmd|
             if cmd
@@ -256,9 +256,9 @@ describe "Bubbletea parity: screen_test.go" do
             end
           end
         end
-        
+
         program.run
-        
+
         Golden.require_equal(io.to_s, tc[:name], base_dir: File.join(__DIR__, "..", "..", "bubbletea"))
       end
     end
