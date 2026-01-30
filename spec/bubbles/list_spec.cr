@@ -47,11 +47,11 @@ describe Term2::Components::List do
     items = [TestListItem.new("foo"), TestListItem.new("bar")].map(&.as(Term2::Components::List::Item))
     list = Term2::Components::List.new(items, 10, 10)
     list.show_status_bar?.should be_true
-    list_view = list.view
+    list_view = list.view.content
     list_view.includes?("items").should be_true
 
     list.items = [TestListItem.new("foo")].map(&.as(Term2::Components::List::Item))
-    list_view = list.view
+    list_view = list.view.content
     list_view.includes?("item").should be_true
   end
 
@@ -61,11 +61,11 @@ describe Term2::Components::List do
     list.item_name_singular = "connection"
     list.item_name_plural = "connections"
 
-    list.view.includes?("connections").should be_true
+    list.view.content.includes?("connections").should be_true
     list.items = [TestListItem.new("foo")].map(&.as(Term2::Components::List::Item))
-    list.view.includes?("connection").should be_true
+    list.view.content.includes?("connection").should be_true
     list.items = [] of Term2::Components::List::Item
-    list.view.includes?("No connections").should be_true
+    list.view.content.includes?("No connections").should be_true
   end
 
   it "toggles filter state via keybinding" do
@@ -149,7 +149,7 @@ describe Term2::Components::List do
       list = Term2::Components::List.new(items, 40, 10)
       list.filter_text = "alp"
 
-      output = Term2::Text.strip_ansi(list.view)
+      output = Term2::Text.strip_ansi(list.view.content)
       score = list.score_for_item(0)
       score.should_not be_nil
       output.should contain("score=#{score}")
@@ -167,17 +167,17 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(items, 10, 10)
 
     list.filter_state = Term2::Components::List::FilterState::Unfiltered
-    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("up")
     footer.should_not contain("clear filter")
 
     list.filter_state = Term2::Components::List::FilterState::Filtering
-    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("filter")
     footer.should_not contain("more")
 
     list.filter_state = Term2::Components::List::FilterState::FilterApplied
-    footer = Term2::Text.strip_ansi(list.view).split("\n").last
+    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("clear")
   end
 
@@ -219,7 +219,7 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(["foo"], 40, 10)
     list.show_help = true
     list.help.show_all = false
-    output = list.view
+    output = list.view.content
     output.should contain("up")
     output.should contain("filter")
   end
@@ -228,7 +228,7 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(["foo"], 40, 10)
     list.filtering_enabled = false
     list.show_help = true
-    output = list.view
+    output = list.view.content
     output.should_not contain("filter")
   end
 end

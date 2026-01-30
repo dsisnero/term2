@@ -63,7 +63,7 @@ class TimerModel
   end
 
   def help_view : String
-    "\n" + @help.view_short(self)
+    "\n" + @help.view_short(self).content
   end
 
   def short_help : Array(TC::Key::Binding)
@@ -77,7 +77,7 @@ class TimerModel
   end
 
   def view : String
-    s = @timer.view
+    s = @timer.view.content
     if @timer.timed_out?
       s = "All done!"
     end

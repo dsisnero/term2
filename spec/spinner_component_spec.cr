@@ -31,7 +31,7 @@ private class SpinnerTestModel
     {self, cmd}
   end
 
-  def view : String
+  def view : Term2::View
     @spinner.view
   end
 end
@@ -53,6 +53,6 @@ describe Term2::Components::Spinner do
   it "renders correctly" do
     type = Term2::Components::Spinner::Type.new(["*"], 10.milliseconds)
     spinner = Term2::Components::Spinner.new(type)
-    spinner.view.should eq("*")
+    spinner.view.content.should eq("*")
   end
 end

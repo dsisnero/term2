@@ -118,9 +118,9 @@ class AutocompleteModel
   def view : String
     String.build do |str|
       str << "Pick a Charm™ repo:\n\n  "
-      str << @text_input.view
+      str << @text_input.view.content
       str << "\n\n"
-      str << @help.view(@keymap)
+      str << @help.view.content(@keymap)
       str << "\n"
       if status = @status
         str << "\n" << status

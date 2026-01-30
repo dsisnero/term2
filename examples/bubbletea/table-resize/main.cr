@@ -115,7 +115,7 @@ class TableResizeModel
   end
 
   def view : String
-    "\n" + @table.view + "\n"
+    "\n" + @table.view.content + "\n"
   end
 end
 

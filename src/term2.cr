@@ -894,6 +894,10 @@ module Term2
       stop if @pending_shutdown
     end
 
+    private def render_frame(frame : View)
+      @renderer.render(frame)
+    end
+
     private def render_print(msg : PrintMsg)
       if @renderer_enabled
         @renderer.print(msg.text)

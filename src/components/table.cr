@@ -446,16 +446,17 @@ module Term2
         row_content
       end
 
-      def view : String
+      def view : View
         content = String.build do |io|
           # Header
           io << render_header << "\n"
 
           # Body
-          io << @viewport.view
+          io << @viewport.view.content
         end
 
-        @id.empty? ? content : Zone.mark(@id, content)
+        final_content = @id.empty? ? content : Zone.mark(@id, content)
+        View.new(content: final_content)
       end
     end
   end

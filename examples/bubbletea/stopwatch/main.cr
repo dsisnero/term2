@@ -63,11 +63,11 @@ class StopwatchModel
   end
 
   def help_view : String
-    "\n" + @help.view_short(self)
+    "\n" + @help.view_short(self).content
   end
 
   def view : String
-    s = @stopwatch.view + "\n"
+    s = @stopwatch.view.content + "\n"
     unless @quitting
       s = "Elapsed: " + s
       s += help_view

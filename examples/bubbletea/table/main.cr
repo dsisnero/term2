@@ -160,7 +160,7 @@ class TableModel
   end
 
   def view : String
-    BASE_STYLE.render(@table.view) + "\n"
+    BASE_STYLE.render(@table.view.content) + "\n"
   end
 end
 

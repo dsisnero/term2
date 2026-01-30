@@ -18,10 +18,10 @@ describe Term2::Components::TextArea do
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
     end
 
-    view = textarea.view
+    view = textarea.view.content
     view.should contain "This is a really"
     textarea.viewport.line_down
-    view = textarea.view
+    view = textarea.view.content
     view.should contain "long line that"
   end
 

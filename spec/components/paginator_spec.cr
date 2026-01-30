@@ -34,8 +34,8 @@ describe Term2::Components::Paginator do
     p.set_total_pages(25)
 
     # Page 0: •○○
-    p.view.should contain "•"
-    p.view.should contain "○"
+    p.view.content.should contain "•"
+    p.view.content.should contain "○"
   end
 
   it "renders arabic correctly" do
@@ -45,6 +45,6 @@ describe Term2::Components::Paginator do
     p.set_total_pages(25)
 
     # Page 0: 1/3
-    p.view.should contain "1/3"
+    p.view.content.should contain "1/3"
   end
 end

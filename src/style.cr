@@ -2558,8 +2558,20 @@ module Term2
     join_horizontal(pos, blocks.to_a)
   end
 
+  def self.join_horizontal(pos : Position, *blocks : View) : String
+    join_horizontal(pos, blocks.map(&.content))
+  end
+
   def self.join_horizontal(pos : Float64, *blocks : String) : String
     join_horizontal(pos, blocks.to_a)
+  end
+
+  def self.join_horizontal(pos : Float64, *blocks : View) : String
+    join_horizontal(pos, blocks.map(&.content))
+  end
+
+  def self.join_horizontal(pos : Position, blocks : Array(View)) : String
+    join_horizontal(pos, blocks.map(&.content))
   end
 
   def self.join_horizontal(pos : Position, blocks : Array(String)) : String
@@ -2602,6 +2614,10 @@ module Term2
     result.join('\n')
   end
 
+  def self.join_horizontal(pos : Float64, blocks : Array(View)) : String
+    join_horizontal(pos, blocks.map(&.content))
+  end
+
   def self.join_horizontal(pos : Float64, blocks : Array(String)) : String
     return "" if blocks.empty?
     ratio = pos.clamp(0.0, 1.0)
@@ -2636,8 +2652,16 @@ module Term2
     join_vertical(pos, blocks.to_a)
   end
 
+  def self.join_vertical(pos : Position, *blocks : View) : String
+    join_vertical(pos, blocks.map(&.content))
+  end
+
   def self.join_vertical(pos : Float64, *blocks : String) : String
     join_vertical(pos, blocks.to_a)
+  end
+
+  def self.join_vertical(pos : Float64, *blocks : View) : String
+    join_vertical(pos, blocks.map(&.content))
   end
 
   def self.join_vertical(pos : Position, blocks : Array(String)) : String

@@ -63,7 +63,7 @@ describe Term2::Components::TextArea do
     ta.focus
     ta.value = "hello"
 
-    view = ta.view
+    view = ta.view.content
     view.should contain "1"
     view.should contain "ello" # 'h' is inside cursor style
 

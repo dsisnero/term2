@@ -194,8 +194,8 @@ module Term2
 
       # --- View ---
 
-      def view : String
-        view_as(@percent_shown)
+      def view : View
+        View.new(content: view_as(@percent_shown))
       end
 
       def view_as(percent : Float64) : String

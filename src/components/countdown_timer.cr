@@ -51,10 +51,11 @@ module Term2
         end
       end
 
-      def view : String
+      def view : View
         remaining_seconds = (@remaining.total_milliseconds / 1000.0).clamp(0.0, @duration.total_milliseconds / 1000.0)
         status = @running ? "running" : "finished"
-        "Timer: #{remaining_seconds.round(2)}s (#{status})"
+        content = "Timer: #{remaining_seconds.round(2)}s (#{status})"
+        View.new(content: content)
       end
 
       private def restart(duration : Time::Span) : {Model, Cmd}

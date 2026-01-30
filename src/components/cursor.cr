@@ -176,15 +176,16 @@ module Term2
       end
 
       # View displays the cursor.
-      def view : String
+      def view : View
         # In Go: if m.Blink { return TextStyle } else { return Style...Reverse }
-        if @blink
+        content = if @blink
           # Cursor Hidden (Blink phase off, or blurred)
           @text_style.inline(true).render(@char)
         else
           # Cursor Visible (Block)
           @style.inline(true).reverse(true).render(@char)
         end
+        View.new(content: content)
       end
     end
   end

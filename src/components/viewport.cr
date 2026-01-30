@@ -1,4 +1,5 @@
 require "../term2"
+require "../term2"
 require "./key"
 require "uniwidth"
 
@@ -240,7 +241,7 @@ module Term2
       end
 
       # Helper to render as a string
-      def view : String
+      def view : View
         lines = visible_lines
 
         # Pad to full height (Bubble Tea viewport parity).
@@ -265,7 +266,7 @@ module Term2
           end
         end
 
-        result
+        View.new(content: result)
       end
     end
   end

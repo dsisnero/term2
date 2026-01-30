@@ -7,7 +7,7 @@ describe Term2::Components::Viewport do
     vp.content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
 
     # Should show first 3 lines
-    output = vp.view
+    output = vp.view.content
     # Strip ANSI codes for easier testing
     plain_output = output.gsub(/\e\[[0-9;]*[mH]/, "").gsub(/\e\[[0-9;]*[A-Z]/, "")
     # The renderer might output "Line 1Line 2Line 3" if it uses absolute positioning without newlines

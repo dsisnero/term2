@@ -90,12 +90,12 @@ describe Term2::Components::TextInput do
     # And prompt
 
     view = ti.view
-    view.should contain "> "
-    view.should contain "a"
-    view.should contain "c"
+    view.content.should contain "> "
+    view.content.should contain "a"
+    view.content.should contain "c"
     # Check for reverse video code around 'b'
     # \e[7mb\e[0m (standard ANSI reverse video)
-    view.should match /\e\[7mb\e\[0m/
+    view.content.should match /\e\[7mb\e\[0m/
   end
 
   it "handles space input" do

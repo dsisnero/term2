@@ -90,8 +90,8 @@ module Term2
         end
       end
 
-      def view : String
-        @style.render(@type.frames[@frame_index])
+      def view : View
+        View.new(content: @style.render(@type.frames[@frame_index]))
       end
     end
   end

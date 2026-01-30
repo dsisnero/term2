@@ -1,6 +1,7 @@
 # Renderer interface and implementations for Term2
 require "./color_profile"
 require "./style"
+require "./view"
 
 module Term2
   # Renderer is the abstract base class for terminal rendering
@@ -13,6 +14,7 @@ module Term2
 
     # Render a frame
     abstract def render(view : String) : Nil
+    abstract def render(view : View) : Nil
 
     # Flush any pending output
     abstract def flush : Nil
@@ -114,6 +116,23 @@ module Term2
       @last_lines = new_lines
     end
 
+    def render(view : View) : Nil
+      # Apply background/foreground colors if set
+      # For now, just render content
+      render(view.content)
+      # Set cursor position if provided
+      if cursor = view.cursor
+        Terminal.move_to(cursor.position.y + 1, cursor.position.x + 1, @output)
+        # Set cursor shape and blink
+        # TODO: implement cursor shape and blink
+      end
+      # Set window title if provided
+      if title = view.window_title
+        Terminal.set_window_title(@output, title)
+      end
+      # TODO: handle mouse mode, keyboard enhancements, background/foreground colors
+    end
+
     def flush : Nil
       @output.flush
     end
@@ -189,6 +208,10 @@ module Term2
     end
 
     def render(view : String) : Nil
+      # No-op
+    end
+
+    def render(view : View) : Nil
       # No-op
     end
 

@@ -47,11 +47,11 @@ describe Term2::Components::Help do
 
     # "↑ up • ↓ down • q quit" (with styles)
     view = help.view(km)
-    view.should contain "↑"
-    view.should contain "up"
-    view.should contain "•"
-    view.should contain "q"
-    view.should contain "quit"
+    view.content.should contain "↑"
+    view.content.should contain "up"
+    view.content.should contain "•"
+    view.content.should contain "q"
+    view.content.should contain "quit"
   end
 
   it "renders full help" do
@@ -60,7 +60,7 @@ describe Term2::Components::Help do
     km = MockKeyMap.new
 
     view = help.view(km)
-    lines = view.split("\n")
+    lines = view.content.split("\n")
 
     lines.size.should be >= 2
     lines[0].should contain "↑"
@@ -74,10 +74,10 @@ describe Term2::Components::Help do
     km = SingleColumnKeyMap.new
 
     view = help.view_full(km)
-    view.split("\n").size.should eq 3
-    view.should contain "alpha"
-    view.should contain "beta"
-    view.should contain "gamma"
+    view.content.split("\n").size.should eq 3
+    view.content.should contain "alpha"
+    view.content.should contain "beta"
+    view.content.should contain "gamma"
   end
 
   it "builds bindings from named tuples" do

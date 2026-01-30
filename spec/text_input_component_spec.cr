@@ -5,7 +5,7 @@ describe Term2::Components::TextInput do
     input = Term2::Components::TextInput.new
     input.placeholder = "Type..."
 
-    input.view.gsub(/\e\[[0-9;]*m/, "").should contain("Type...")
+    input.view.content.gsub(/\e\[[0-9;]*m/, "").should contain("Type...")
   end
 
   it "inserts characters and responds to key bindings" do

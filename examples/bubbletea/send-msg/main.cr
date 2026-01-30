@@ -65,7 +65,7 @@ class SendMsgModel
     if @quitting
       s += "That’s all for today!"
     else
-      s += @spinner.view + " Eating food..."
+      s += @spinner.view.content + " Eating food..."
     end
 
     s += "\n\n"

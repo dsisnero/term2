@@ -69,8 +69,8 @@ module Term2
         Cmds.message(ResetMsg.new)
       end
 
-      def view : String
-        @elapsed.to_s
+      def view : View
+        View.new(content: @elapsed.to_s)
       end
     end
   end

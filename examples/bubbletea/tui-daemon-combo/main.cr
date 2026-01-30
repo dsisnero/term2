@@ -64,7 +64,7 @@ class TuiDaemonModel
   end
 
   def view : String
-    s = "\n" + @spinner.view + " Doing some work...\n\n"
+    s = "\n" + @spinner.view.content + " Doing some work...\n\n"
     @results.each do |res|
       if res[1] == Time::Span.zero
         s += "........................\n"

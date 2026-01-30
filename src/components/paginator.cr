@@ -99,8 +99,8 @@ module Term2
         end
       end
 
-      def view : String
-        case @type
+      def view : View
+        content = case @type
         when Type::Arabic
           sprintf(@arabic_format, @page + 1, @total_pages)
         when Type::Dots
@@ -116,6 +116,7 @@ module Term2
         else
           ""
         end
+        View.new(content: content)
       end
     end
   end

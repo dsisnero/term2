@@ -6,7 +6,7 @@ describe Term2::Components::Progress do
     bar.full_char = '#'
     bar.empty_char = '.'
 
-    view = bar.view.gsub(/\e\[[0-9;]*m/, "")
+    view = bar.view.content.gsub(/\e\[[0-9;]*m/, "")
     # Percent uses a 3-wide field: "  0%" (4 chars), so bar width is 6.
     view.should contain("......")
     view.should contain("0%")

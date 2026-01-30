@@ -279,10 +279,10 @@ module Term2
         end
       end
 
-      def view : String
+      def view : View
         # Placeholder
         if @value.empty? && !@placeholder.empty?
-          return placeholder_view
+          return View.new(content: placeholder_view)
         end
 
         # Current viewable window
@@ -324,12 +324,13 @@ module Term2
             @cursor.char = completion_char.to_s
 
             rest_completion = suggestion[@value.size + 1..-1]
-            cursor_view = @cursor.view
-            return @prompt_style.render(@prompt) + v + cursor_view + @completion_style.render(rest_completion)
+            cursor_view = @cursor.view.content
+            content = @prompt_style.render(@prompt) + v + cursor_view + @completion_style.render(rest_completion)
+            return View.new(content: content)
           end
         end
 
-        v += @cursor.view
+        v += @cursor.view.content
         v += @text_style.render(post_cursor)
 
         visible_width = Term2::Text.width(echo_transform(visible_value))
@@ -341,7 +342,8 @@ module Term2
           v += @text_style.render(" " * padding)
         end
 
-        @prompt_style.render(@prompt) + v
+        content = @prompt_style.render(@prompt) + v
+        View.new(content: content)
       end
 
       private def placeholder_view : String
@@ -363,7 +365,7 @@ module Term2
         v = ""
         @cursor.text_style = @placeholder_style
         @cursor.char = first
-        v += @cursor.view
+        v += @cursor.view.content
 
         if @width > 0
           available = @width - Term2::Text.width(p) - Term2::Text.width(v)

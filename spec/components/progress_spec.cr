@@ -32,7 +32,7 @@ describe Term2::Components::Progress do
 
     # 5 filled, 5 empty
     expected = "█████░░░░░"
-    prog.view.gsub(/\e\[[0-9;]*m/, "").should eq expected
+    prog.view.content.gsub(/\e\[[0-9;]*m/, "").should eq expected
   end
 
   it "renders with percentage" do
@@ -44,6 +44,6 @@ describe Term2::Components::Progress do
     # 50% of 6 is 3.
     # 3 filled, 3 empty.
     expected = "███░░░ 50%"
-    prog.view.gsub(/\e\[[0-9;]*m/, "").should eq expected
+    prog.view.content.gsub(/\e\[[0-9;]*m/, "").should eq expected
   end
 end

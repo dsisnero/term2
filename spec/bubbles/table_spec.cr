@@ -71,10 +71,10 @@ describe Term2::Components::Table do
       ])
     )
 
-    Term2::Text.strip_ansi(biscuits.view).should eq golden_alignment("No_border")
+    Term2::Text.strip_ansi(biscuits.view.content).should eq golden_alignment("No_border")
 
     # wrap in a simple border (replicating baseStyle border in Go test)
-    lines = biscuits.view.split("\n")
+    lines = biscuits.view.content.split("\n")
     sep_width = lines.first? ? Term2::Text.width(lines.first) : 0
     sep = "─" * sep_width
     view_with_sep = ([lines[0], sep] + lines[1..]).join("\n")
@@ -289,7 +289,7 @@ describe Term2::Components::Table do
 
     tests.each do |name, build|
       table = build.call
-      table_view = Term2::Text.strip_ansi(table.view)
+      table_view = Term2::Text.strip_ansi(table.view.content)
       if table_view != golden(name)
         puts "Mismatch for #{name}"
       end

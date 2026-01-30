@@ -45,7 +45,7 @@ class TableModel
 
   def view : String
     "Employee Directory:\n\n" +
-      @table.view +
+      @table.view.content +
       "\n(q to quit)"
   end
 end

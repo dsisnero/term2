@@ -60,13 +60,13 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(items, width: 20, height: 10)
 
     view = list.view
-    view.should contain "Item 1"
-    view.should contain "Desc 1"
-    view.should contain "Item 2"
+    view.content.should contain "Item 1"
+    view.content.should contain "Desc 1"
+    view.content.should contain "Item 2"
 
     # Selected item should have cursor
-    view.should contain "│ "
-    view.should contain "  Item 2"
+    view.content.should contain "│ "
+    view.content.should contain "  Item 2"
   end
 
   it "supports mouse-style cursor movement and selection helpers" do

@@ -247,7 +247,7 @@ module Term2
         @selected_index = 0
       end
 
-      def view : String
+      def view : View
         content = if @error
                     @error_style.render("Error: #{@error}")
                   else
@@ -292,8 +292,10 @@ module Term2
                     end
                   end
 
-        return content if @id.empty?
-        Zone.mark(@id, content)
+        unless @id.empty?
+          Zone.mark(@id, content)
+        end
+        View.new(content: content)
       end
     end
   end

@@ -9,10 +9,11 @@
 #   type Model interface {       module Model
 #     Init() Cmd                   def init : Cmd
 #     Update(Msg) (Model, Cmd)     def update(msg) : {Model, Cmd}
-#     View() string                def view : String
+#     View() View                  def view : String | View  # v2: View, v1: String
 #   }                            end
 #
 require "cml"
+require "./view"
 
 module Term2
   # Msg is any message that can be sent to the update function.
@@ -76,9 +77,9 @@ module Term2
     # message and, in response, update the model and/or send a command.
     abstract def update(msg : Msg) : {Model, Cmd}
 
-    # View renders the program's UI, which is just a string. The view is
-    # rendered after every Update.
-    abstract def view : String
+    # View renders the program's UI, which can be a string or a View struct.
+    # The view is rendered after every Update.
+    abstract def view : String | View
 
     # Zone ID for this model (used by BubbleZone for focus/click tracking).
     # Override this to provide a custom zone ID.

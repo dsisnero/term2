@@ -28,7 +28,7 @@ private class TimerTestModel
   end
 
   def view : String
-    @timer.view
+    @timer.view.content
   end
 end
 

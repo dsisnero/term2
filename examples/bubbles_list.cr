@@ -40,7 +40,7 @@ class ListModel
 
   def view : String
     "Select a board:\n\n" +
-      @list.view +
+      @list.view.content +
       "\n(q to quit)"
   end
 end

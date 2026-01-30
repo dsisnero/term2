@@ -1,4 +1,5 @@
 require "../term2"
+require "../term2"
 require "./paginator"
 require "./help"
 require "./key"
@@ -845,14 +846,14 @@ module Term2
         end
       end
 
-      def view : String
-        return "" if @width == 0
+      def view : View
+        return View.new(content: "") if @width == 0
 
         sections = [] of String
 
         if @show_title || (@show_filter && @filtering_enabled)
           if @filter_state == FilterState::Filtering || (@show_filter && !@filter_input.value.empty?)
-            sections << @styles.title_bar.render(@filter_input.view)
+            sections << @styles.title_bar.render(@filter_input.view.content)
           else
             sections << @styles.title_bar.render(@styles.title.render(@title))
           end
@@ -870,7 +871,7 @@ module Term2
             else
               "#{count} #{name}"
             end
-          spinner_str = @spinner_enabled ? @spinner.view : ""
+          spinner_str = @spinner_enabled ? @spinner.view.content : ""
           status_out = spinner_str.empty? ? status : "#{spinner_str} #{status}"
           style = count == 0 ? @styles.status_empty : @styles.status_bar
           sections << style.render(status_out)
@@ -895,16 +896,16 @@ module Term2
         sections << content
 
         if @show_pagination
-          sections << @styles.pagination_style.render(@paginator.view)
+          sections << @styles.pagination_style.render(@paginator.view.content)
         end
 
         if @show_help
           help_map = HelpMap.new(@key_map, @filter_state, @additional_full_help_keys.call)
           help_keys = @help.view(help_map)
-          sections << @styles.help_style.render(help_keys)
+          sections << @styles.help_style.render(help_keys.content)
         end
 
-        Style.join_vertical(Position::Left, sections)
+        View.new(content: Style.join_vertical(Position::Left, sections))
       end
     end
   end

@@ -80,7 +80,7 @@ describe Term2::Components::Table do
     table = Term2::Components::Table.new(cols, rows)
     table.focus
 
-    view = table.view
+    view = table.view.content
 
     plain = Term2::Text.strip_ansi(view)
 
@@ -117,8 +117,8 @@ describe Term2::Components::Table do
 
     table.visible_rows.size.should eq 2
     table.visible_rows[0][1].should contain "Ali"
-    Term2::Text.strip_ansi(table.view).should contain "Alice"
-    Term2::Text.strip_ansi(table.view).should contain "Alicia"
-    Term2::Text.strip_ansi(table.view).should_not contain "Bob"
+    Term2::Text.strip_ansi(table.view.content).should contain "Alice"
+    Term2::Text.strip_ansi(table.view.content).should contain "Alicia"
+    Term2::Text.strip_ansi(table.view.content).should_not contain "Bob"
   end
 end

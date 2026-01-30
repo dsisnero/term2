@@ -132,7 +132,7 @@ class ListSimpleModel
       return QUIT_TEXT_STYLE.render("Not hungry? That’s cool.")
     end
 
-    "\n" + @list.view
+    "\n" + @list.view.content
   end
 end
 

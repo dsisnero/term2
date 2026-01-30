@@ -88,8 +88,8 @@ module Term2
         Cmds.message(StartStopMsg.new(@id, !@running))
       end
 
-      def view : String
-        @timeout.to_s
+      def view : View
+        View.new(content: @timeout.to_s)
       end
     end
   end

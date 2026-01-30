@@ -201,9 +201,9 @@ module Term2
   #
   # Example:
   # ```
-  # io << Cursor.move_to(1, 1) << "Hello" << Cursor.move_to(2, 1) << "World"
+  # io << CursorControl.move_to(1, 1) << "Hello" << CursorControl.move_to(2, 1) << "World"
   # ```
-  module Cursor
+  module CursorControl
     # Move cursor to specific position (row, col are 1-based)
     def self.move_to(row : Int32, col : Int32) : String
       "\e[#{row};#{col}H"

@@ -355,7 +355,7 @@ module Term2
             # Cursor at end of logical line: append it to the end of the last wrapped line.
             if i == @cursor_line && focused? && @cursor_col >= line.size && wl_idx == wrapped.size - 1
               @cursor.char = " "
-              rendered += @cursor.view
+              rendered += @cursor.view.content
             end
 
             rendered_lines << rendered
@@ -451,14 +451,17 @@ module Term2
         end
       end
 
-      def view : String
+      def view : View
         # Force an update if value changed externally?
         # Usually update_viewport happens in update loop, but for simple tests:
         update_viewport if @viewport.content.empty? && !@value.empty?
 
-        content = @viewport.view
-        return content if @id.empty?
-        Zone.mark(@id, content)
+        inner_view = @viewport.view
+        if @id.empty?
+          inner_view
+        else
+          View.new(content: Zone.mark(@id, inner_view.content))
+        end
       end
 
       private def split_lines(s : String) : Array(String)

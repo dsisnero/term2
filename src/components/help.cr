@@ -41,11 +41,11 @@ module Term2
         {self, Cmds.none}
       end
 
-      def view : String
-        ""
+      def view : View
+        View.new(content: "")
       end
 
-      def view(key_map : KeyMap) : String
+      def view(key_map : KeyMap) : View
         if @show_all
           view_full(key_map)
         else
@@ -53,9 +53,9 @@ module Term2
         end
       end
 
-      def view_short(key_map : KeyMap) : String
+      def view_short(key_map : KeyMap) : View
         bindings = key_map.short_help
-        return "" if bindings.empty?
+        return View.new(content: "") if bindings.empty?
 
         sep = separator_style.inline(true).render(" • ")
         total_width = 0
@@ -78,12 +78,12 @@ module Term2
           parts << item
         end
 
-        parts.join("")
+        View.new(content: parts.join(""))
       end
 
-      def view_full(key_map : KeyMap) : String
+      def view_full(key_map : KeyMap) : View
         groups = key_map.full_help
-        return "" if groups.empty?
+        return View.new(content: "") if groups.empty?
 
         blocks = [] of String
         total_width = 0
@@ -124,7 +124,7 @@ module Term2
           blocks << col
         end
 
-        Style.join_horizontal(Position::Top, blocks)
+        View.new(content: Style.join_horizontal(Position::Top, blocks))
       end
 
       private def should_add_item(total_width : Int32, width : Int32) : {String, Bool}
