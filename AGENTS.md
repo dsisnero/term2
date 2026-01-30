@@ -114,6 +114,9 @@ Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for a
 - `bd create "Title" --type task --priority 2` - Create issue
 - `bd close <id>` - Complete work
 - `bd sync` - Sync with git (run at session end)
+- `bd types` - Show available issue types
+
+**Do not use internal tools to track progress** - We use beads (bd) for all issues, tasks, and todos. Never use AI assistant's internal todo tracking tools.
 
 For full workflow details: `bd prime`
 

@@ -35,7 +35,7 @@ describe Term2::Components::TextArea do
     input = "Testing Testing Testing Testing Testing Testing Testing Testing"
     input.each_char do |ch|
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
-      textarea.view
+      textarea.view.content
     end
 
     textarea.cursor_line = 0
@@ -43,7 +43,7 @@ describe Term2::Components::TextArea do
 
     "Testing".each_char do |ch|
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
-      textarea.view
+      textarea.view.content
     end
 
     textarea.view
@@ -60,7 +60,7 @@ describe Term2::Components::TextArea do
     input = "Testing Testing Testing Testing Testing Testing Testing Testing"
     input.each_char do |ch|
       textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
-      textarea.view
+      textarea.view.content
     end
 
     textarea.value.should eq input

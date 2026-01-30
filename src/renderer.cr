@@ -35,6 +35,12 @@ module Term2
 
     # Print text to the output, handling screen clearing/restoring if necessary
     abstract def print(text : String) : Nil
+
+    # Get the color profile
+    abstract def color_profile : ColorProfile
+
+    # Set the color profile
+    abstract def color_profile=(profile : ColorProfile) : Nil
   end
 
   # StandardRenderer provides ANSI-based terminal rendering
@@ -50,6 +56,7 @@ module Term2
     @current_keyboard_enhancements : KeyboardEnhancements = KeyboardEnhancements.new
     @current_background : Color? = nil
     @current_foreground : Color? = nil
+    @color_profile : ColorProfile = ColorProfile::TrueColor
 
     def initialize(@output : IO = STDOUT)
       update_frame_duration
@@ -310,6 +317,14 @@ module Term2
       @fps
     end
 
+    def color_profile : ColorProfile
+      @color_profile
+    end
+
+    def color_profile=(profile : ColorProfile) : Nil
+      @color_profile = profile
+    end
+
     private def update_frame_duration
       @frame_duration = Time::Span.new(nanoseconds: (1_000_000_000 / @fps).to_i64)
     end
@@ -420,6 +435,14 @@ module Term2
       @fps
     end
 
+    def color_profile : ColorProfile
+      ColorProfile::TrueColor
+    end
+
+    def color_profile=(profile : ColorProfile) : Nil
+      # No-op
+    end
+
     def reset_lines_rendered : Nil
       # No-op
     end
@@ -468,7 +491,15 @@ module Term2
   # Lightweight renderer to satisfy lipgloss renderer API expectations.
   class LipglossRenderer < NilRenderer
     property has_dark_background : Bool = true
-    property color_profile : ColorProfile = ColorProfile::TrueColor
+    @color_profile : ColorProfile = ColorProfile::TrueColor
+
+    def color_profile : ColorProfile
+      @color_profile
+    end
+
+    def color_profile=(profile : ColorProfile) : Nil
+      @color_profile = profile
+    end
 
     def has_dark_background? : Bool
       @has_dark_background

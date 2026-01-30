@@ -29,8 +29,8 @@ class TestExecModel
     end
   end
 
-  def view : String
-    "\n"
+  def view : Term2::View
+    Term2.new_view("\n")
   end
 end
 
@@ -63,8 +63,8 @@ class TestExecErrorModel
     end
   end
 
-  def view : String
-    "\n"
+  def view : Term2::View
+    Term2.new_view("\n")
   end
 end
 

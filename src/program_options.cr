@@ -51,13 +51,7 @@ module Term2
     end
   end
 
-  # Disables the renderer, writing directly to output.
-  # Useful for testing or simple CLI apps.
-  struct WithoutRenderer < ProgramOption
-    def apply(program : Program) : Nil
-      program.disable_renderer
-    end
-  end
+
 
   # Disables signal handling (SIGINT, SIGTERM, etc.).
   struct WithoutSignalHandler < ProgramOption
@@ -104,11 +98,32 @@ module Term2
   end
 
   # Configures environment variables for the program.
+  #
+  # Accepts either a Hash or an array of "KEY=VALUE" strings (Bubble Tea API).
   struct WithEnvironment < ProgramOption
     def initialize(@env : Hash(String, String)); end
 
+    # Array constructor for Bubble Tea compatibility.
+    def initialize(@env : Array(String)); end
+
     def apply(program : Program) : Nil
-      program.environment = @env
+      case env = @env
+      when Hash(String, String)
+        program.environment = env
+      when Array(String)
+        env_hash = Hash(String, String).new
+        env.each do |pair|
+          if eq_index = pair.index('=')
+            key = pair[0...eq_index]
+            value = pair[eq_index + 1..]
+            env_hash[key] = value
+          end
+        end
+        program.environment = env_hash
+      else
+        # Should never happen due to overloads
+        program.environment = Hash(String, String).new
+      end
     end
   end
 
@@ -199,6 +214,31 @@ module Term2
       program.add_startup_option(:ansi_compressor)
     end
   end
+
+  # Configures a fixed window size for the program.
+  #
+  # Use this for testing or when you want to simulate a specific terminal size.
+  struct WithWindowSize < ProgramOption
+    def initialize(@width : Int32, @height : Int32); end
+
+    def apply(program : Program) : Nil
+      program.window_size = {@width, @height}
+    end
+  end
+
+  # Configures the terminal's color profile.
+  #
+  # This affects how colors are rendered and can be used to simulate
+  # different terminal capabilities (e.g., ANSI256 for 256-color terminals).
+  struct WithColorProfile < ProgramOption
+    def initialize(@profile : ColorProfile); end
+
+    def apply(program : Program) : Nil
+      program.color_profile = @profile
+    end
+  end
+
+
 
   # Container for multiple program options.
   #

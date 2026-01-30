@@ -588,6 +588,30 @@ module Term2
   class RequestWindowSizeMsg < Message
   end
 
+  # ReadClipboardMsg signals a request to read the clipboard
+  class ReadClipboardMsg < Message
+  end
+
+  # SetClipboardMsg signals a request to set the clipboard
+  class SetClipboardMsg < Message
+    getter text : String
+
+    def initialize(@text : String)
+    end
+  end
+
+  # RequestForegroundColorMsg signals a request for the terminal's foreground color
+  class RequestForegroundColorMsg < Message
+  end
+
+  # RequestBackgroundColorMsg signals a request for the terminal's background color
+  class RequestBackgroundColorMsg < Message
+  end
+
+  # RequestCursorColorMsg signals a request for the terminal's cursor color
+  class RequestCursorColorMsg < Message
+  end
+
   # EnableMouseCellMotionMsg signals enabling mouse cell motion tracking
   class EnableMouseCellMotionMsg < Message
   end
@@ -883,6 +907,26 @@ module Term2
 
     def self.window_size : ::Term2::Cmd
       message(RequestWindowSizeMsg.new)
+    end
+
+    def self.read_clipboard : ::Term2::Cmd
+      message(ReadClipboardMsg.new)
+    end
+
+    def self.set_clipboard(text : String) : ::Term2::Cmd
+      message(SetClipboardMsg.new(text))
+    end
+
+    def self.request_foreground_color : ::Term2::Cmd
+      message(RequestForegroundColorMsg.new)
+    end
+
+    def self.request_background_color : ::Term2::Cmd
+      message(RequestBackgroundColorMsg.new)
+    end
+
+    def self.request_cursor_color : ::Term2::Cmd
+      message(RequestCursorColorMsg.new)
     end
 
     def self.println(text : String) : ::Term2::Cmd

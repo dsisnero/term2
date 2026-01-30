@@ -16,7 +16,7 @@ class TeaFilterModel
     end
   end
 
-  def view : String
+  def view : Term2::View
     ""
   end
 end

@@ -19,8 +19,8 @@ class SimpleExampleModel
     end
   end
 
-  def view : String
-    "Counter: #{@count}"
+  def view : Term2::View
+    Term2.new_view("Counter: #{@count}")
   end
 end
 

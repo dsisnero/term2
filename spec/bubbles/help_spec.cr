@@ -69,7 +69,7 @@ describe Term2::Components::Help do
 
     expected.each do |width, output|
       help.width = width
-      help.view_full(km).should eq output
+      help.view_full(km).content.should eq output
     end
   end
 end

@@ -270,6 +270,9 @@ module Term2
     @needs_render : Bool = false
     @profile : Bool = false
     @killed : Atomic(Bool) = Atomic(Bool).new(false)
+    @window_size : {Int32, Int32}? = nil
+    @color_profile : ColorProfile? = nil
+    @environment : Hash(String, String) = Hash(String, String).new
 
     alias RenderOp = String | PrintMsg
     alias FilterProc = Proc(Msg, Msg?) | Proc(Model, Msg, Msg?) | Proc(Msg, Msg) | Proc(Model, Msg, Msg)
@@ -454,9 +457,22 @@ module Term2
       @input_type = type
     end
 
-    def environment=(env : Hash(String, String)); end
+    def environment=(env : Hash(String, String))
+      @environment = env
+    end
 
-    def fps=(fps : Float64); end
+    def fps=(fps : Float64)
+      # TODO: Implement FPS setting
+    end
+
+    def window_size=(size : {Int32, Int32})
+      @window_size = size
+    end
+
+    def color_profile=(profile : ColorProfile)
+      @color_profile = profile
+      @renderer.color_profile = profile
+    end
 
     def filter=(filter : Proc(Message, Message?)) : Nil
       @filter = filter
@@ -518,6 +534,14 @@ module Term2
       @startup_options.reject! { |opt| opt == option }
     end
 
+    private def window_size : {Int32, Int32}
+      if custom = @window_size
+        custom
+      else
+        Terminal.size
+      end
+    end
+
     private def bootstrap
       @running.set(true)
       @profile = ENV["TERM2_PROFILE"]? == "1"
@@ -536,7 +560,7 @@ module Term2
       setup_terminal
       # Bubble Tea parity: send an initial window size message before the first render.
       if Terminal.tty?(@output_io)
-        width, height = Terminal.size
+        width, height = window_size
         new_model, cmd = @model.update(WindowSizeMsg.new(width, height))
         @model = new_model.as(M)
         run_cmd(cmd)
@@ -728,8 +752,23 @@ module Term2
         Terminal.set_window_title(@output_io, filtered_msg.title)
         return
       when RequestWindowSizeMsg
-        width, height = Terminal.size
+        width, height = window_size
         dispatch(WindowSizeMsg.new(width, height))
+        return
+      when ReadClipboardMsg
+        # TODO: Implement clipboard reading
+        return
+      when SetClipboardMsg
+        # TODO: Implement clipboard writing
+        return
+      when RequestForegroundColorMsg
+        # TODO: Implement color request
+        return
+      when RequestBackgroundColorMsg
+        # TODO: Implement color request
+        return
+      when RequestCursorColorMsg
+        # TODO: Implement color request
         return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
@@ -1088,7 +1127,7 @@ module Term2
       Process.on_terminate { dispatch(QuitMsg.new) }
       Process.on_terminate { dispatch(QuitMsg.new) }
       Signal::WINCH.trap do
-        width, height = Terminal.size
+        width, height = window_size
         dispatch(WindowSizeMsg.new(width, height))
       end
     end

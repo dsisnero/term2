@@ -35,7 +35,7 @@ describe Term2::Components::TextInput do
     ti.value.should eq "test1"
 
     ti.blur
-    ti.view.should_not contain "test2"
+    ti.view.content.should_not contain "test2"
   end
 
   it "handles slicing outside cap (no crash)" do
@@ -43,7 +43,7 @@ describe Term2::Components::TextInput do
     ti.placeholder = "作業ディレクトリを指定してください"
     ti.width = 32
     # Ensure view doesn't raise
-    ti.view.should be_a(String)
+    ti.view.should be_a(Term2::View)
   end
 
   it "matches suggestions with fuzzy input" do
@@ -71,7 +71,7 @@ describe Term2::Components::TextInput do
 
     # Note: Crystal's string width calculation might differ slightly from Go's runewidth
     # depending on the libraries used, but assuming standard wide-char handling:
-    ti.view.should eq "> 输入消息...       "
+    ti.view.content.should eq "> 输入消息...       "
   end
 
   it "truncates long placeholder" do
@@ -82,7 +82,7 @@ describe Term2::Components::TextInput do
     ti.width = 10
 
     # Note: Term2 uses "…" (ellipsis) for truncation
-    ti.view.should eq "> A very …"
+    ti.view.content.should eq "> A very …"
   end
 
   it "limits input with char_limit" do

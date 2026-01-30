@@ -21,8 +21,8 @@ class SendModel
     end
   end
 
-  def view : String
-    ""
+  def view : Term2::View
+    Term2.new_view("")
   end
 end
 

@@ -7,8 +7,8 @@ class ScreenOutputModel
     {self, nil}
   end
 
-  def view : String
-    "success"
+  def view : Term2::View
+    Term2.new_view("success")
   end
 end
 

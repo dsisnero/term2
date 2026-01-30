@@ -30,9 +30,9 @@ class TeaTestModel
     end
   end
 
-  def view : String
+  def view : Term2::View
     @executed.set(true)
-    "success\n"
+    Term2.new_view("success\n")
   end
 end
 
