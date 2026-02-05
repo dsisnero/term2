@@ -35,3 +35,6 @@ lib/nucleoc
 lib/cml
 lib
 lib
+!lib/
+!lib/lipgloss/
+!lib/lipgloss/**

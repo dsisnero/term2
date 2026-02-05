@@ -103,6 +103,16 @@ module Term2
       io.flush
     end
 
+    # Read primary clipboard (OSC 52)
+    def self.read_primary_clipboard(io : IO)
+      read_clipboard(io, 'p')
+    end
+
+    # Set primary clipboard (OSC 52)
+    def self.set_primary_clipboard(io : IO, content : String)
+      set_clipboard(io, content, 'p')
+    end
+
     # Move cursor to specific position (1-based row, col)
     def self.move_to(row : Int32, col : Int32, io : IO = STDOUT)
       io.print "\e[#{row};#{col}H"

@@ -8,13 +8,13 @@ require "../src/term2"
 include Term2::Prelude
 
 # Define styles
-TITLE_STYLE = Term2::Style.new
+TITLE_STYLE = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::CYAN)
+  .foreground(Lipgloss::Color::CYAN)
 
-LABEL_STYLE = Term2::Style.new.bold(true)
-VALUE_STYLE = Term2::Style.new.foreground(Term2::Color::BRIGHT_BLACK) # gray
-KEY_STYLE   = Term2::Style.new.foreground(Term2::Color::CYAN)
+LABEL_STYLE = Lipgloss::Style.new.bold(true)
+VALUE_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color::BRIGHT_BLACK) # gray
+KEY_STYLE   = Lipgloss::Style.new.foreground(Lipgloss::Color::CYAN)
 
 class InputModel
   include Model

@@ -5,12 +5,12 @@ include Term2::Prelude
 class TextinputsModel
   include Term2::Model
 
-  FOCUSED_STYLE          = Term2::Style.new.foreground(Term2::Color.indexed(205))
-  BLURRED_STYLE          = Term2::Style.new.foreground(Term2::Color.indexed(240))
+  FOCUSED_STYLE          = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(205))
+  BLURRED_STYLE          = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
   CURSOR_STYLE           = FOCUSED_STYLE
-  NO_STYLE               = Term2::Style.new
+  NO_STYLE               = Lipgloss::Style.new
   HELP_STYLE             = BLURRED_STYLE
-  CURSOR_MODE_HELP_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(244))
+  CURSOR_MODE_HELP_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(244))
 
   FOCUSED_BUTTON = FOCUSED_STYLE.render("[ Submit ]")
   BLURRED_BUTTON = "[ #{BLURRED_STYLE.render("Submit")} ]"

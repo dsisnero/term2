@@ -1,37 +1,37 @@
 module BubblezoneFullLipgloss
   # Ported from bubblezone/examples/full-lipgloss/main.go
-  SUBTLE = Term2::AdaptiveColor.new(
-    light: Term2::Color.hex("#D9DCCF"),
-    dark: Term2::Color.hex("#383838"),
+  SUBTLE = Lipgloss::AdaptiveColor.new(
+    light: Lipgloss::Color.hex("#D9DCCF"),
+    dark: Lipgloss::Color.hex("#383838"),
   )
-  HIGHLIGHT = Term2::AdaptiveColor.new(
-    light: Term2::Color.hex("#874BFD"),
-    dark: Term2::Color.hex("#7D56F4"),
+  HIGHLIGHT = Lipgloss::AdaptiveColor.new(
+    light: Lipgloss::Color.hex("#874BFD"),
+    dark: Lipgloss::Color.hex("#7D56F4"),
   )
-  SPECIAL = Term2::AdaptiveColor.new(
-    light: Term2::Color.hex("#43BF6D"),
-    dark: Term2::Color.hex("#73F59F"),
+  SPECIAL = Lipgloss::AdaptiveColor.new(
+    light: Lipgloss::Color.hex("#43BF6D"),
+    dark: Lipgloss::Color.hex("#73F59F"),
   )
 
-  TAB_BORDER        = Term2::Border.new("─", "─", "│", "│", "╭", "╮", "┴", "┴", "", "", "", "", "")
-  ACTIVE_TAB_BORDER = Term2::Border.new("─", " ", "│", "│", "╭", "╮", "┘", "└", "", "", "", "", "")
+  TAB_BORDER        = Lipgloss::Border.new("─", "─", "│", "│", "╭", "╮", "┴", "┴", "", "", "", "", "")
+  ACTIVE_TAB_BORDER = Lipgloss::Border.new("─", " ", "│", "│", "╭", "╮", "┘", "└", "", "", "", "", "")
 
   def self.tab_block(zone_id : String, label : String, active : Bool) : String
     style = active ? active_tab_style : tab_style
     Term2::Zone.mark(zone_id, style.render(label))
   end
 
-  def self.list_style(width : Int32) : Term2::Style
+  def self.list_style(width : Int32) : Lipgloss::Style
     # listStyle in Go uses only a right border and right margin.
-    Term2::Style.new
-      .border(Term2::Border.normal, false, true, false, false)
+    Lipgloss::Style.new
+      .border(Lipgloss::Border.normal, false, true, false, false)
       .border_foreground(SUBTLE)
       .margin_right(2)
   end
 
   def self.list_header(text : String) : String
-    Term2::Style.new
-      .border_style(Term2::Border.normal)
+    Lipgloss::Style.new
+      .border_style(Lipgloss::Border.normal)
       .border_bottom(true)
       .border_foreground(SUBTLE)
       .margin_right(2)
@@ -40,32 +40,32 @@ module BubblezoneFullLipgloss
 
   def self.list_text(text : String, done : Bool) : String
     if done
-      done_color = Term2::AdaptiveColor.new(
-        light: Term2::Color.hex("#969B86"),
-        dark: Term2::Color.hex("#696969"),
+      done_color = Lipgloss::AdaptiveColor.new(
+        light: Lipgloss::Color.hex("#969B86"),
+        dark: Lipgloss::Color.hex("#696969"),
       )
 
-      "#{check_mark}#{Term2::Style.new
+      "#{check_mark}#{Lipgloss::Style.new
                         .strikethrough(true)
                         .foreground(done_color)
                         .render(text)}"
     else
-      Term2::Style.new.padding_left(2).render(text)
+      Lipgloss::Style.new.padding_left(2).render(text)
     end
   end
 
   def self.dialog_box(content : String, width : Int32) : String
-    Term2::Style.new
-      .border(Term2::Border.rounded)
-      .border_foreground(Term2::Color.hex("#874BFD"))
+    Lipgloss::Style.new
+      .border(Lipgloss::Border.rounded)
+      .border_foreground(Lipgloss::Color.hex("#874BFD"))
       .padding(1, 0)
       .render(content)
   end
 
   def self.dialog_question(text : String) : String
-    Term2::Style.new
+    Lipgloss::Style.new
       .width(27)
-      .align(Term2::Position::Center)
+      .align(Lipgloss::Position::Center)
       .render(text)
   end
 
@@ -78,9 +78,9 @@ module BubblezoneFullLipgloss
     normalized_width = [width, 0].max
     normalized_height = [height, 0].max
 
-    style = Term2::Style.new
-      .align(Term2::Position::Left)
-      .foreground(Term2::Color.hex("#FAFAFA"))
+    style = Lipgloss::Style.new
+      .align(Lipgloss::Position::Left)
+      .foreground(Lipgloss::Color.hex("#FAFAFA"))
       .background(active ? HIGHLIGHT : SUBTLE)
       .margin(1)
       .padding(1, 2)
@@ -92,39 +92,39 @@ module BubblezoneFullLipgloss
   end
 
   def self.list_description(text : String) : String
-    Term2::Style.new.faint(true).render(text)
+    Lipgloss::Style.new.faint(true).render(text)
   end
 
-  private def self.tab_style : Term2::Style
-    Term2::Style.new
+  private def self.tab_style : Lipgloss::Style
+    Lipgloss::Style.new
       .border(TAB_BORDER, true)
       .border_foreground(HIGHLIGHT)
       .padding(0, 1)
   end
 
-  private def self.active_tab_style : Term2::Style
+  private def self.active_tab_style : Lipgloss::Style
     tab_style.copy.border(ACTIVE_TAB_BORDER, true)
   end
 
-  private def self.button_style : Term2::Style
-    Term2::Style.new
-      .foreground(Term2::Color.hex("#FFF7DB"))
-      .background(Term2::Color.hex("#888B7E"))
+  private def self.button_style : Lipgloss::Style
+    Lipgloss::Style.new
+      .foreground(Lipgloss::Color.hex("#FFF7DB"))
+      .background(Lipgloss::Color.hex("#888B7E"))
       .padding(0, 3)
       .margin_top(1)
       .margin_right(2)
   end
 
-  private def self.active_button : Term2::Style
-    Term2::Style.new
-      .foreground(Term2::Color.hex("#FFF7DB"))
-      .background(Term2::Color.hex("#F25D94"))
+  private def self.active_button : Lipgloss::Style
+    Lipgloss::Style.new
+      .foreground(Lipgloss::Color.hex("#FFF7DB"))
+      .background(Lipgloss::Color.hex("#F25D94"))
       .margin_right(2)
       .underline(true)
   end
 
   private def self.check_mark : String
-    Term2::Style.new
+    Lipgloss::Style.new
       .foreground(SPECIAL)
       .padding_right(1)
       .render("✓")

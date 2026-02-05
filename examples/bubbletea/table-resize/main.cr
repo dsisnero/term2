@@ -2,30 +2,30 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-TABLE_RESIZE_BASE_STYLE     = Term2::Style.new.padding(0, 1)
+TABLE_RESIZE_BASE_STYLE     = Lipgloss::Style.new.padding(0, 1)
 HEADER_STYLE                = TABLE_RESIZE_BASE_STYLE.fg_indexed(252).bold(true)
 TABLE_RESIZE_SELECTED_STYLE = TABLE_RESIZE_BASE_STYLE.fg_hex("#01BE85").bg_hex("#00432F")
 TYPE_COLORS                 = {
-  "Bug"      => Term2::Color.hex("#D7FF87"),
-  "Electric" => Term2::Color.hex("#FDFF90"),
-  "Fire"     => Term2::Color.hex("#FF7698"),
-  "Flying"   => Term2::Color.hex("#FF87D7"),
-  "Grass"    => Term2::Color.hex("#75FBAB"),
-  "Ground"   => Term2::Color.hex("#FF875F"),
-  "Normal"   => Term2::Color.hex("#929292"),
-  "Poison"   => Term2::Color.hex("#7D5AFC"),
-  "Water"    => Term2::Color.hex("#00E2C7"),
+  "Bug"      => Lipgloss::Color.hex("#D7FF87"),
+  "Electric" => Lipgloss::Color.hex("#FDFF90"),
+  "Fire"     => Lipgloss::Color.hex("#FF7698"),
+  "Flying"   => Lipgloss::Color.hex("#FF87D7"),
+  "Grass"    => Lipgloss::Color.hex("#75FBAB"),
+  "Ground"   => Lipgloss::Color.hex("#FF875F"),
+  "Normal"   => Lipgloss::Color.hex("#929292"),
+  "Poison"   => Lipgloss::Color.hex("#7D5AFC"),
+  "Water"    => Lipgloss::Color.hex("#00E2C7"),
 }
 DIM_TYPE_COLORS = {
-  "Bug"      => Term2::Color.hex("#97AD64"),
-  "Electric" => Term2::Color.hex("#FCFF5F"),
-  "Fire"     => Term2::Color.hex("#BA5F75"),
-  "Flying"   => Term2::Color.hex("#C97AB2"),
-  "Grass"    => Term2::Color.hex("#59B980"),
-  "Ground"   => Term2::Color.hex("#C77252"),
-  "Normal"   => Term2::Color.hex("#727272"),
-  "Poison"   => Term2::Color.hex("#634BD0"),
-  "Water"    => Term2::Color.hex("#439F8E"),
+  "Bug"      => Lipgloss::Color.hex("#97AD64"),
+  "Electric" => Lipgloss::Color.hex("#FCFF5F"),
+  "Fire"     => Lipgloss::Color.hex("#BA5F75"),
+  "Flying"   => Lipgloss::Color.hex("#C97AB2"),
+  "Grass"    => Lipgloss::Color.hex("#59B980"),
+  "Ground"   => Lipgloss::Color.hex("#C77252"),
+  "Normal"   => Lipgloss::Color.hex("#727272"),
+  "Poison"   => Lipgloss::Color.hex("#634BD0"),
+  "Water"    => Lipgloss::Color.hex("#439F8E"),
 }
 
 HEADERS = ["#", "NAME", "TYPE 1", "TYPE 2", "JAPANESE", "OFFICIAL ROM."]
@@ -69,8 +69,8 @@ class TableResizeModel
     cols = HEADERS.map { |h| TC::Table::Column.new(h, 12) }
     table_rows = ROWS.map(&.to_a)
     t = TC::Table.new(columns: cols, rows: table_rows, height: ROWS.size + 2)
-    t.border = Term2::Border.thick
-    t.border_style = Term2::Style.new.fg_indexed(238)
+    t.border = Lipgloss::Border.thick
+    t.border_style = Lipgloss::Style.new.fg_indexed(238)
     t.style_func = ->(row : Int32, col : Int32) do
       # header row
       return HEADER_STYLE if row == -1
@@ -91,6 +91,10 @@ class TableResizeModel
       else
         TABLE_RESIZE_BASE_STYLE.fg_indexed(253)
       end
+    end
+    t.selected_style = Lipgloss::Style.new
+    if idx = ROWS.index { |row| row[1] == "Pikachu" }
+      t.cursor = idx
     end
     @table = t
   end

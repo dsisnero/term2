@@ -55,7 +55,7 @@ describe "Term2::Zone in-bounds messaging" do
 
   it "sends ZoneInBoundsMsg via any_in_bounds" do
     model = ZoneTestModel.new
-    Term2::Zone.scan(model.view)
+    Term2::Zone.scan(Term2::SpecView.content(model.view))
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
     zone.zero?.should be_false
@@ -68,7 +68,7 @@ describe "Term2::Zone in-bounds messaging" do
 
   it "returns updated model via any_in_bounds_and_update" do
     model = ZoneTestModelValue.new
-    Term2::Zone.scan(model.view)
+    Term2::Zone.scan(Term2::SpecView.content(model.view))
     sleep 50.milliseconds
     zone = Term2::Zone.get("foo")
     zone.zero?.should be_false

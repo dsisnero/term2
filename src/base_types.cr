@@ -14,7 +14,7 @@
 #
 require "cml"
 require "./view"
-require "./style"
+require "lipgloss"
 
 module Term2
   # Msg is any message that can be sent to the update function.
@@ -593,8 +593,20 @@ module Term2
   class ReadClipboardMsg < Message
   end
 
+  # ReadPrimaryClipboardMsg signals a request to read the primary clipboard
+  class ReadPrimaryClipboardMsg < Message
+  end
+
   # SetClipboardMsg signals a request to set the clipboard
   class SetClipboardMsg < Message
+    getter text : String
+
+    def initialize(@text : String)
+    end
+  end
+
+  # SetPrimaryClipboardMsg signals a request to set the primary clipboard
+  class SetPrimaryClipboardMsg < Message
     getter text : String
 
     def initialize(@text : String)
@@ -615,25 +627,25 @@ module Term2
 
   # ForegroundColorMsg signals the terminal's foreground color response
   class ForegroundColorMsg < Message
-    getter color : Color
+    getter color : Lipgloss::Color
 
-    def initialize(@color : Color)
+    def initialize(@color : Lipgloss::Color)
     end
   end
 
   # BackgroundColorMsg signals the terminal's background color response
   class BackgroundColorMsg < Message
-    getter color : Color
+    getter color : Lipgloss::Color
 
-    def initialize(@color : Color)
+    def initialize(@color : Lipgloss::Color)
     end
   end
 
   # CursorColorMsg signals the terminal's cursor color response
   class CursorColorMsg < Message
-    getter color : Color
+    getter color : Lipgloss::Color
 
-    def initialize(@color : Color)
+    def initialize(@color : Lipgloss::Color)
     end
   end
 
@@ -947,8 +959,16 @@ module Term2
       message(ReadClipboardMsg.new)
     end
 
+    def self.read_primary_clipboard : ::Term2::Cmd
+      message(ReadPrimaryClipboardMsg.new)
+    end
+
     def self.set_clipboard(text : String) : ::Term2::Cmd
       message(SetClipboardMsg.new(text))
+    end
+
+    def self.set_primary_clipboard(text : String) : ::Term2::Cmd
+      message(SetPrimaryClipboardMsg.new(text))
     end
 
     def self.request_foreground_color : ::Term2::Cmd

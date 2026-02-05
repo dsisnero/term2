@@ -52,7 +52,7 @@ module Term2
       ]
 
       property type : Type
-      property style : Style = Style.new
+      property style : Lipgloss::Style = Lipgloss::Style.new
       property frame_index : Int32 = 0
 
       getter id : Int32

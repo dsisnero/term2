@@ -142,6 +142,16 @@ describe Term2::Components::List do
 
   it "renders fuzzy scores in debug mode" do
     previous = ENV["TERM2_DEBUG"]?
+    orig_stderr = STDERR.dup
+    stderr_read, stderr_write = IO.pipe
+    drain = spawn do
+      begin
+        stderr_read.each_line { }
+      rescue
+      end
+    end
+    STDERR.reopen(stderr_write)
+    STDERR.sync = true
     ENV["TERM2_DEBUG"] = "1"
 
     begin
@@ -149,11 +159,14 @@ describe Term2::Components::List do
       list = Term2::Components::List.new(items, 40, 10)
       list.filter_text = "alp"
 
-      output = Term2::Text.strip_ansi(list.view.content)
+      output = Lipgloss::Text.strip_ansi(list.view.content)
       score = list.score_for_item(0)
       score.should_not be_nil
       output.should contain("score=#{score}")
     ensure
+      STDERR.reopen(orig_stderr)
+      stderr_write.close rescue nil
+      stderr_read.close rescue nil
       if previous
         ENV["TERM2_DEBUG"] = previous
       else
@@ -167,17 +180,17 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(items, 10, 10)
 
     list.filter_state = Term2::Components::List::FilterState::Unfiltered
-    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
+    footer = Lipgloss::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("up")
     footer.should_not contain("clear filter")
 
     list.filter_state = Term2::Components::List::FilterState::Filtering
-    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
+    footer = Lipgloss::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("filter")
     footer.should_not contain("more")
 
     list.filter_state = Term2::Components::List::FilterState::FilterApplied
-    footer = Term2::Text.strip_ansi(list.view.content).split("\n").last
+    footer = Lipgloss::Text.strip_ansi(list.view.content).split("\n").last
     footer.should contain("clear")
   end
 

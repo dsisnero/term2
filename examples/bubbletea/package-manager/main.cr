@@ -2,9 +2,9 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-INSTALLED_STYLE   = Term2::Style.new.margin(1, 2)
-CHECK_MARK        = Term2::Style.new.fg_indexed(42).render("✓")
-CURRENT_PKG_STYLE = Term2::Style.new.fg_indexed(211)
+INSTALLED_STYLE   = Lipgloss::Style.new.margin(1, 2)
+CHECK_MARK        = Lipgloss::Style.new.fg_indexed(42).render("✓")
+CURRENT_PKG_STYLE = Lipgloss::Style.new.fg_indexed(211)
 
 PACKAGES = [
   "himalayan-translucency@1.2.3",
@@ -40,7 +40,7 @@ class PackageManagerModel
     @width = 0
     @height = 0
     @spinner = TC::Spinner.new
-    @spinner.style = Term2::Style.new.fg_indexed(63)
+    @spinner.style = Lipgloss::Style.new.fg_indexed(63)
     @progress = TC::Progress.new
     @progress.use_gradient = true
     @progress.width = 40
@@ -100,12 +100,12 @@ class PackageManagerModel
 
     spin = "#{@spinner.view.content} "
     prog = @progress.view.content
-    cells_avail = Math.max(0, @width - Term2::Text.width(spin + prog + pkg_count))
+    cells_avail = Math.max(0, @width - Lipgloss::Text.width(spin + prog + pkg_count))
 
     pkg_name = CURRENT_PKG_STYLE.render(@packages[@index])
-    info = Term2::Style.new.max_width(cells_avail).render("Installing #{pkg_name}")
+    info = Lipgloss::Style.new.max_width(cells_avail).render("Installing #{pkg_name}")
 
-    cells_remaining = Math.max(0, @width - Term2::Text.width(spin + info + prog + pkg_count))
+    cells_remaining = Math.max(0, @width - Lipgloss::Text.width(spin + info + prog + pkg_count))
     gap = " " * cells_remaining
 
     "#{spin}#{info}#{gap}#{prog}#{pkg_count}"

@@ -385,25 +385,25 @@ rendered strings and using layout helpers:
 header = header_style.render("Title")
 footer = footer_style.render("Help")
 body_height = height - Term2.height(header) - Term2.height(footer)
-body_style = Term2::Style.new.height(body_height)
+body_style = Lipgloss::Style.new.height(body_height)
 
 Term2.join_vertical(
-  Term2::Position::Top,
+  Lipgloss::Position::Top,
   header,
   body_style.render(content),
   footer
 )
 ```
 
-Use `Term2::Style.width`, `Term2::Style.height`, `Term2.width`, and `Term2.height`
+Use `Lipgloss::Style.width`, `Lipgloss::Style.height`, `Term2.width`, and `Term2.height`
 to keep layout changes localized.
 
 Counterexample: fixed math that drifts over time (bad):
 
 ```crystal
-content = Term2::Style.new.height(@height - 5).render(body)
+content = Lipgloss::Style.new.height(@height - 5).render(body)
 footer = footer_style.render("help")
-Term2.join_vertical(Term2::Position::Top, header, content, footer)
+Term2.join_vertical(Lipgloss::Position::Top, header, content, footer)
 ```
 
 If header/footer sizes change, the content height becomes wrong. Always measure

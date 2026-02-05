@@ -6,10 +6,10 @@ module Term2
       alias Sanitizer = Proc(String, String)
 
       # Returns the display width of the string.
-      # Currently wraps Term2::Style.width (naive implementation).
+      # Currently wraps Lipgloss::Style.width (naive implementation).
       # TODO: Implement proper East Asian Width calculation.
       def self.term_width(s : String) : Int32
-        Term2::Text.width(s)
+        Lipgloss::Text.width(s)
       end
 
       # Sanitize string (replace tabs, newlines, etc. if needed)

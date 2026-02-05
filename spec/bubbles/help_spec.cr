@@ -55,10 +55,10 @@ describe Term2::Components::Help do
   it "renders full help with width-aware ellipsis like bubbles" do
     help = Term2::Components::Help.new
     help.full_separator = " | "
-    help.key_style = Term2::Style.new
-    help.desc_style = Term2::Style.new
-    help.separator_style = Term2::Style.new
-    help.ellipsis_style = Term2::Style.new
+    help.key_style = Lipgloss::Style.new
+    help.desc_style = Lipgloss::Style.new
+    help.separator_style = Lipgloss::Style.new
+    help.ellipsis_style = Lipgloss::Style.new
     km = BubblesHelpKeyMap.new
 
     expected = {

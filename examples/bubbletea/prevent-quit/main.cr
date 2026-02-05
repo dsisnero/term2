@@ -2,9 +2,9 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-CHOICE_STYLE    = Term2::Style.new.padding(0, 0, 0, 1).fg_indexed(241)
-SAVE_TEXT_STYLE = Term2::Style.new.fg_indexed(170)
-QUIT_VIEW_STYLE = Term2::Style.new.padding(1).border(Term2::Border.rounded).border_foreground(Term2::Color.indexed(170))
+CHOICE_STYLE    = Lipgloss::Style.new.padding(0, 0, 0, 1).fg_indexed(241)
+SAVE_TEXT_STYLE = Lipgloss::Style.new.fg_indexed(170)
+QUIT_VIEW_STYLE = Lipgloss::Style.new.padding(1).border(Lipgloss::Border.rounded).border_foreground(Lipgloss::Color.indexed(170))
 
 class PreventKeymap
   TC::Key.key_bindings(
@@ -58,8 +58,8 @@ class PreventQuitModel
   def view : String
     if @quitting
       if @has_changes
-        text = Term2.join_horizontal(
-          Term2::Position::Left,
+        text = Lipgloss.join_horizontal(
+          Lipgloss::Position::Left,
           [
             "You have unsaved changes. Quit without saving?",
             CHOICE_STYLE.render("[yn]"),

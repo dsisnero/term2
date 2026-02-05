@@ -8,11 +8,8 @@ require "./program_options"
 require "./key_sequences"
 require "./mouse"
 require "./osc"
-require "./style"
-require "./join"
-require "./style_table"
 require "./renderer"
-require "./range"
+require "lipgloss"
 require "./components/*"
 
 # Term2 is a Crystal port of the Bubble Tea terminal UI library.
@@ -151,6 +148,7 @@ module Term2
       end
 
       @last_mouse_event = nil
+      @last_osc_event = nil
 
       # Check for OSC events
       if @buffer.starts_with?("\e]") || (@buffer.bytesize > 0 && @buffer.to_slice[0] == 0x9D_u8)
@@ -292,8 +290,13 @@ module Term2
     @profile : Bool = false
     @killed : Atomic(Bool) = Atomic(Bool).new(false)
     @window_size : {Int32, Int32}? = nil
-    @color_profile : ColorProfile? = nil
+    @color_profile : Lipgloss::ColorProfile? = nil
     @environment : Hash(String, String) = Hash(String, String).new
+    @last_view : View? = nil
+    @cleaned_up : Bool = false
+    @bootstrapping : Bool = true
+    @view_mouse_mode : MouseMode = MouseMode::None
+    @deferred_outputs : Array(String) = [] of String
 
     alias RenderOp = String | PrintMsg
     alias FilterProc = Proc(Msg, Msg?) | Proc(Model, Msg, Msg?) | Proc(Msg, Msg) | Proc(Model, Msg, Msg)
@@ -315,7 +318,7 @@ module Term2
       @panic_recovery_enabled = true
       @signal_handling_enabled = true
       @focus_reporting_enabled = false
-      @bracketed_paste_enabled = false
+      @bracketed_paste_enabled = true
       @mouse_cell_motion_enabled = false
       @mouse_all_motion_enabled = false
       @filter = nil
@@ -460,6 +463,9 @@ module Term2
 
     def output=(output : IO)
       @output_io = output
+      if @renderer.is_a?(StandardRenderer)
+        @renderer.as(StandardRenderer).output = output
+      end
     end
 
     def input=(input : IO)
@@ -489,14 +495,14 @@ module Term2
     end
 
     def fps=(fps : Float64)
-      # TODO: Implement FPS setting
+      @renderer.fps = fps
     end
 
     def window_size=(size : {Int32, Int32})
       @window_size = size
     end
 
-    def color_profile=(profile : ColorProfile)
+    def color_profile=(profile : Lipgloss::ColorProfile)
       @color_profile = profile
       @renderer.color_profile = profile
     end
@@ -533,23 +539,37 @@ module Term2
     def enable_mouse_cell_motion
       @mouse_cell_motion_enabled = true
       @mouse_all_motion_enabled = false
-      Mouse.enable_tracking(@output_io)
       remove_startup_option(:mouse_all_motion)
       record_startup_option(:mouse_cell_motion)
+      Mouse.enable_tracking(@output_io)
     end
 
     def enable_mouse_all_motion
       @mouse_all_motion_enabled = true
       @mouse_cell_motion_enabled = false
-      Mouse.enable_move_reporting(@output_io)
       remove_startup_option(:mouse_cell_motion)
       record_startup_option(:mouse_all_motion)
+      Mouse.enable_move_reporting(@output_io)
     end
 
     def disable_mouse_tracking
       @mouse_cell_motion_enabled = false
       @mouse_all_motion_enabled = false
       Mouse.disable_tracking(@output_io)
+    end
+
+    def set_mouse_cell_motion
+      @mouse_cell_motion_enabled = true
+      @mouse_all_motion_enabled = false
+      remove_startup_option(:mouse_all_motion)
+      record_startup_option(:mouse_cell_motion)
+    end
+
+    def set_mouse_all_motion
+      @mouse_all_motion_enabled = true
+      @mouse_cell_motion_enabled = false
+      remove_startup_option(:mouse_cell_motion)
+      record_startup_option(:mouse_all_motion)
     end
 
     private def record_startup_option(option : Symbol)
@@ -602,6 +622,12 @@ module Term2
       run_cmd(init_cmd)
     end
 
+    private def drain_startup_messages
+      while msg = @mailbox.recv_poll
+        handle_message(msg)
+      end
+    end
+
     private def setup_terminal
       if @alt_screen_enabled
         Terminal.enter_alt_screen(@output_io)
@@ -609,16 +635,11 @@ module Term2
       if @focus_reporting_enabled
         Terminal.enable_focus_reporting(@output_io)
       end
-      unless @bracketed_paste_enabled
-        Terminal.disable_bracketed_paste(@output_io)
-      end
       if @mouse_cell_motion_enabled
         Mouse.enable_tracking(@output_io)
       elsif @mouse_all_motion_enabled
         Mouse.enable_move_reporting(@output_io)
       end
-      Terminal.hide_cursor(@output_io)
-      Terminal.clear(@output_io)
     end
 
     private def start_input_reader
@@ -682,6 +703,11 @@ module Term2
 
     private def listen_loop
       loop do
+        if @bootstrapping
+          Fiber.yield
+          drain_startup_messages
+          @bootstrapping = false
+        end
         drain_render_queue
         event = CML.sync(next_event)
         CML.trace "listen_loop.event", event.class.to_s, tag: "term2" if ENV["TERM2_TRACE"]?
@@ -761,10 +787,14 @@ module Term2
         execute_process(filtered_msg)
         return
       when BatchMsg
-        spawn { exec_batch(filtered_msg) }
+        if @bootstrapping
+          exec_batch(filtered_msg)
+        else
+          spawn { exec_batch(filtered_msg) }
+        end
         return
       when SequenceMsg
-        spawn { exec_sequence(filtered_msg) }
+        exec_sequence(filtered_msg, spawn_async: !@bootstrapping)
         return
       when QuitMsg
         CML.trace "handle_message.QuitMsg", tag: "term2" if ENV["TERM2_TRACE"]?
@@ -790,7 +820,11 @@ module Term2
         Terminal.hide_cursor(@output_io)
         return
       when ClearScreenMsg
-        Terminal.clear(@output_io)
+        if @renderer_enabled && @renderer.running?
+          @renderer.request_clear
+        else
+          Terminal.clear(@output_io)
+        end
         return
       when SetWindowTitleMsg
         Terminal.set_window_title(@output_io, filtered_msg.title)
@@ -800,19 +834,67 @@ module Term2
         dispatch(WindowSizeMsg.new(width, height))
         return
       when ReadClipboardMsg
-        Terminal.read_clipboard(@output_io)
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.read_clipboard(buffer)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.read_clipboard(@output_io)
+        end
+        return
+      when ReadPrimaryClipboardMsg
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.read_primary_clipboard(buffer)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.read_primary_clipboard(@output_io)
+        end
         return
       when SetClipboardMsg
-        Terminal.set_clipboard(@output_io, filtered_msg.text, 'c')
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.set_clipboard(buffer, filtered_msg.text, 'c')
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.set_clipboard(@output_io, filtered_msg.text, 'c')
+        end
+        return
+      when SetPrimaryClipboardMsg
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.set_primary_clipboard(buffer, filtered_msg.text)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.set_primary_clipboard(@output_io, filtered_msg.text)
+        end
         return
       when RequestForegroundColorMsg
-        Terminal.request_foreground_color(@output_io)
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.request_foreground_color(buffer)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.request_foreground_color(@output_io)
+        end
         return
       when RequestBackgroundColorMsg
-        Terminal.request_background_color(@output_io)
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.request_background_color(buffer)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.request_background_color(@output_io)
+        end
         return
       when RequestCursorColorMsg
-        Terminal.request_cursor_color(@output_io)
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.request_cursor_color(buffer)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.request_cursor_color(@output_io)
+        end
         return
       when PrintMsg
         @render_mailbox.send(filtered_msg)
@@ -846,17 +928,22 @@ module Term2
       end
 
       begin
-        t0 = Time.monotonic if @profile
+        t0 = Time.instant if @profile
 
         # Bubble Tea parity: a single mouse report is one logical input event.
         # We still surface both `MouseEvent` and derived `ZoneClickMsg` to the
         # model, but we apply both updates in one pass so we only render once.
         if filtered_msg.is_a?(MouseEvent)
           mouse_event = filtered_msg
-          t_update0 = Time.monotonic if @profile
+          if last_view = @last_view
+            if handler = last_view.on_mouse
+              run_cmd(handler.call(mouse_event))
+            end
+          end
+          t_update0 = Time.instant if @profile
           updated_model, cmd1 = @model.update(mouse_event)
           current = updated_model.as(M)
-          t_update1 = Time.monotonic if @profile
+          t_update1 = Time.instant if @profile
           cmds = [] of Cmd?
           cmds << cmd1
 
@@ -866,10 +953,10 @@ module Term2
             end
             @log_file.try { |f| f.puts("in zone_click id=#{zone_click.id} x=#{zone_click.x} y=#{zone_click.y} button=#{zone_click.button} action=#{zone_click.action}") }
 
-            t_update2a = Time.monotonic if @profile
+            t_update2a = Time.instant if @profile
             updated_model2, cmd2 = current.update(zone_click)
             current = updated_model2.as(M)
-            t_update2b = Time.monotonic if @profile
+            t_update2b = Time.instant if @profile
             cmds << cmd2
           end
 
@@ -877,7 +964,7 @@ module Term2
           schedule_render
           cmd = Cmds.batch(cmds)
           if @profile
-            t1 = Time.monotonic
+            t1 = Time.instant
             update_ms = ((t_update1.not_nil! - t_update0.not_nil!).total_milliseconds)
             zone_update_ms = 0.0
             if t_update2a && t_update2b
@@ -891,13 +978,13 @@ module Term2
           return
         end
 
-        t_update0 = Time.monotonic if @profile
+        t_update0 = Time.instant if @profile
         new_model, cmd = @model.update(filtered_msg)
-        t_update1 = Time.monotonic if @profile
+        t_update1 = Time.instant if @profile
         @model = new_model.as(M)
         schedule_render
         if @profile
-          t1 = Time.monotonic
+          t1 = Time.instant
           update_ms = ((t_update1.not_nil! - t_update0.not_nil!).total_milliseconds)
           total_ms = ((t1 - t0.not_nil!).total_milliseconds)
           @log_file.try { |f| f.puts("profile handle #{filtered_msg.class} update_ms=#{update_ms} total_ms=#{total_ms}") }
@@ -939,9 +1026,9 @@ module Term2
       elsif @needs_render
         @needs_render = false
         if @profile
-          t0 = Time.monotonic
+          t0 = Time.instant
           view = @model.view
-          t1 = Time.monotonic
+          t1 = Time.instant
           @log_file.try { |f| f.puts("profile view_ms=#{(t1 - t0).total_milliseconds}") }
           render_frame(view)
         else
@@ -951,21 +1038,22 @@ module Term2
     end
 
     private def render_frame(frame : String)
-      t0 = Time.monotonic if @profile
+      @last_view = nil
+      t0 = Time.instant if @profile
       Zone.clear_zones
-      t_scan0 = Time.monotonic if @profile
+      t_scan0 = Time.instant if @profile
       stripped = Zone.scan(frame)
-      t_scan1 = Time.monotonic if @profile
+      t_scan1 = Time.instant if @profile
       if @renderer_enabled
-        t_render0 = Time.monotonic if @profile
+        t_render0 = Time.instant if @profile
         @renderer.render(stripped)
-        t_render1 = Time.monotonic if @profile
+        t_render1 = Time.instant if @profile
       else
         @output_io.print(stripped)
         @output_io.flush
       end
       if @profile
-        t1 = Time.monotonic
+        t1 = Time.instant
         scan_ms = ((t_scan1.not_nil! - t_scan0.not_nil!).total_milliseconds)
         render_ms = 0.0
         if t_render0 && t_render1
@@ -978,6 +1066,11 @@ module Term2
     end
 
     private def render_frame(frame : View)
+      Zone.clear_zones
+      stripped = Zone.scan(frame.content)
+      frame.content = stripped
+      @view_mouse_mode = frame.mouse_mode
+      @last_view = frame
       @renderer.render(frame)
     end
 
@@ -1014,7 +1107,7 @@ module Term2
       when BatchMsg
         exec_batch(msg)
       when SequenceMsg
-        exec_sequence(msg)
+        exec_sequence(msg, spawn_async: !@bootstrapping)
       else
         dispatch(msg)
       end
@@ -1115,10 +1208,10 @@ module Term2
       schedule_render
     end
 
-    private def exec_sequence(seq : SequenceMsg)
+    private def exec_sequence(seq : SequenceMsg, spawn_async : Bool = true)
       return if @shutdown_ch.closed?
 
-      spawn do
+      runner = ->{
         seq.cmds.each do |cmd|
           # Loop control: break stops the sequence logic inside the fiber
           break if @shutdown_ch.closed?
@@ -1132,6 +1225,12 @@ module Term2
             handle_cmd_error(ex)
           end
         end
+      }
+
+      if spawn_async
+        spawn { runner.call }
+      else
+        runner.call
       end
     end
 
@@ -1145,6 +1244,8 @@ module Term2
     end
 
     private def cleanup
+      return if @cleaned_up
+      @cleaned_up = true
       if @renderer_enabled
         @renderer.stop
       end
@@ -1155,19 +1256,37 @@ module Term2
     end
 
     private def restore_terminal
-      Terminal.show_cursor(@output_io)
-      if @alt_screen_enabled
-        Terminal.exit_alt_screen(@output_io)
-      end
+      show_cursor = !@renderer_enabled || @last_view.nil? || @last_view.not_nil!.cursor.nil?
       if @focus_reporting_enabled
         Terminal.disable_focus_reporting(@output_io)
       end
-      unless @bracketed_paste_enabled
-        Terminal.enable_bracketed_paste(@output_io)
+      @output_io.print("\e[=0;1u")
+      alt_screen_active = @alt_screen_enabled || (@last_view && @last_view.not_nil!.alt_screen)
+      if alt_screen_active
+        Terminal.exit_alt_screen(@output_io)
+      else
+        if @last_view.nil? || @last_view.not_nil!.cursor.nil?
+          @output_io.print("\r")
+        end
+        @output_io.print("\e[J")
       end
-      if @mouse_cell_motion_enabled || @mouse_all_motion_enabled
+      Terminal.show_cursor(@output_io) if show_cursor
+      Terminal.disable_bracketed_paste(@output_io) if @bracketed_paste_enabled
+      if @mouse_cell_motion_enabled || @mouse_all_motion_enabled || @view_mouse_mode != MouseMode::None
         Mouse.disable_tracking(@output_io)
       end
+      if last_view = @last_view
+        if last_view.background_color
+          @output_io.print("\e]111\a")
+        end
+        if last_view.foreground_color
+          @output_io.print("\e]110\a")
+        end
+      end
+      @output_io.print("\e[?2026$p")
+      @deferred_outputs.each { |payload| @output_io.print(payload) }
+      @deferred_outputs.clear
+      @output_io.flush
     end
 
     private def setup_signal_handlers
@@ -1231,10 +1350,5 @@ module Term2
     alias KeyMsg = Term2::KeyMsg
     alias Key = Term2::Key
     alias KeyType = Term2::KeyType
-    alias Style = Term2::Style
-    alias Color = Term2::Color
-    alias Text = Term2::Text
-    alias Position = Term2::Position
-    alias Border = Term2::Border
   end
 end

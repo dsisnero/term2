@@ -4,23 +4,23 @@
 require "../spec_helper"
 
 # Styled test helpers to mirror bubblezone/manager_test.go
-TEST_STYLE = Term2::Style.new_style
-  .foreground(Term2::Color.from_hex("#FFFFFF"))
-  .background(Term2::Color.from_hex("#383838"))
+TEST_STYLE = Lipgloss::Style.new_style
+  .foreground(Lipgloss::Color.from_hex("#FFFFFF"))
+  .background(Lipgloss::Color.from_hex("#383838"))
   .bold
   .italic
   .blink
 
-LONG_STYLE = Term2::Style.new_style
-  .foreground(Term2::Color.from_hex("#FFFFFF"))
-  .background(Term2::Color.from_hex("#383838"))
+LONG_STYLE = Lipgloss::Style.new_style
+  .foreground(Lipgloss::Color.from_hex("#FFFFFF"))
+  .background(Lipgloss::Color.from_hex("#383838"))
   .bold
   .italic
   .blink
   .underline
-  .border(Term2::Border.rounded, true)
-  .border_foreground(Term2::Color.from_hex("#F12356"))
-  .border_background(Term2::Color.from_hex("#459082"))
+  .border(Lipgloss::Border.rounded, true)
+  .border_foreground(Lipgloss::Color.from_hex("#F12356"))
+  .border_background(Lipgloss::Color.from_hex("#459082"))
   .padding(5, 4)
 
 # Test cases from Go tests

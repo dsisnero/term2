@@ -11,7 +11,7 @@ class SpinnerModel
 
   def initialize
     s = TC::Spinner.new(TC::Spinner::DOT)
-    s.style = Term2::Style.new.fg_indexed(205)
+    s.style = Lipgloss::Style.new.fg_indexed(205)
     @spinner = s
     @quitting = false
     @err = nil

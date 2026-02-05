@@ -62,11 +62,11 @@ module Term2
       property cursor : Cursor = Cursor.new
 
       # Styles
-      property prompt_style : Style = Style.new
-      property text_style : Style = Style.new
-      property placeholder_style : Style = Style.new.foreground(Term2::Color.indexed(240))
-      property completion_style : Style = Style.new.foreground(Term2::Color.indexed(240))
-      property cursor_style : Style = Style.new
+      property prompt_style : Lipgloss::Style = Lipgloss::Style.new
+      property text_style : Lipgloss::Style = Lipgloss::Style.new
+      property placeholder_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+      property completion_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+      property cursor_style : Lipgloss::Style = Lipgloss::Style.new
 
       # Limits
       property char_limit : Int32 = 0
@@ -309,7 +309,7 @@ module Term2
         char_under_str = echo_transform(char_under.to_s)
         post_cursor = echo_transform(post_cursor)
 
-        # Style text
+        # Lipgloss::Style text
         v = @text_style.render(pre_cursor)
 
         # Render Cursor
@@ -333,7 +333,7 @@ module Term2
         v += @cursor.view.content
         v += @text_style.render(post_cursor)
 
-        visible_width = Term2::Text.width(echo_transform(visible_value))
+        visible_width = Lipgloss::Text.width(echo_transform(visible_value))
         if @width > 0 && visible_width <= @width
           padding = (@width - visible_width).clamp(0, Int32::MAX)
           if visible_width + padding <= @width && cursor_pos < visible_value.size
@@ -368,10 +368,10 @@ module Term2
         v += @cursor.view.content
 
         if @width > 0
-          available = @width - Term2::Text.width(p) - Term2::Text.width(v)
+          available = @width - Lipgloss::Text.width(p) - Lipgloss::Text.width(v)
           available = [available, 0].max
-          placeholder_rest = Term2::StyleTable.truncate(rest, available, "…")
-          pad = [available - Term2::Text.width(placeholder_rest), 0].max
+          placeholder_rest = Lipgloss::StyleTable.truncate(rest, available, "…")
+          pad = [available - Lipgloss::Text.width(placeholder_rest), 0].max
           v += @placeholder_style.render(placeholder_rest) + (" " * pad)
         else
           v += @placeholder_style.render(rest)

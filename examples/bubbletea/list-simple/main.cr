@@ -2,12 +2,12 @@ require "../../../src/term2"
 require "../../../src/components/list"
 
 # Define global styles to match Go example
-TITLE_STYLE         = Term2::Style.new.margin_left(2)
-ITEM_STYLE          = Term2::Style.new.padding_left(4)
-SELECTED_ITEM_STYLE = Term2::Style.new.padding_left(2).foreground(Term2::Color.indexed(170))
+TITLE_STYLE         = Lipgloss::Style.new.margin_left(2)
+ITEM_STYLE          = Lipgloss::Style.new.padding_left(4)
+SELECTED_ITEM_STYLE = Lipgloss::Style.new.padding_left(2).foreground(Lipgloss::Color.indexed(170))
 PAGINATION_STYLE    = Term2::Components::List::Styles.new.pagination_style.padding_left(4)
 HELP_STYLE          = Term2::Components::List::Styles.new.help_style.padding_left(4).padding_bottom(1)
-QUIT_TEXT_STYLE     = Term2::Style.new.margin(1, 0, 2, 4)
+QUIT_TEXT_STYLE     = Lipgloss::Style.new.margin(1, 0, 2, 4)
 
 # 1. Define the concrete Item struct
 struct MenuItem

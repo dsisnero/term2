@@ -18,6 +18,16 @@ describe "Example: list-default", tags: "interactive" do
 
   it "filters with fuzzy match and shows scores in debug mode" do
     previous = ENV["TERM2_DEBUG"]?
+    orig_stderr = STDERR.dup
+    stderr_read, stderr_write = IO.pipe
+    drain = spawn do
+      begin
+        stderr_read.each_line { }
+      rescue
+      end
+    end
+    STDERR.reopen(stderr_write)
+    STDERR.sync = true
     ENV["TERM2_DEBUG"] = "1"
 
     begin
@@ -31,10 +41,13 @@ describe "Example: list-default", tags: "interactive" do
       tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
       tm.send(Term2::KeyMsg.new(Term2::Key.new("ctrl+c")))
 
-      output = Term2::Text.strip_ansi(tm.final_output)
+      output = Lipgloss::Text.strip_ansi(tm.final_output)
       output.should contain("Raspberry Pi")
       output.should contain("score=")
     ensure
+      STDERR.reopen(orig_stderr)
+      stderr_write.close rescue nil
+      stderr_read.close rescue nil
       if previous
         ENV["TERM2_DEBUG"] = previous
       else

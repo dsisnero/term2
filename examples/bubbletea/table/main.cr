@@ -5,7 +5,7 @@ include Term2::Prelude
 class TableModel
   include Term2::Model
 
-  BASE_STYLE = Term2::Style.new.border(Term2::Border.normal).border_foreground(Term2::Color.indexed(240))
+  BASE_STYLE = Lipgloss::Style.new.border(Lipgloss::Border.normal).border_foreground(Lipgloss::Color.indexed(240))
 
   getter table : TC::Table
 
@@ -125,7 +125,7 @@ class TableModel
     t.focus
 
     styles = TC::Table.default_styles
-    t.header_style = styles.header.border(Term2::Border.normal, true).border_foreground(Term2::Color.indexed(240)).border_bottom(true).bold(false)
+    t.header_style = styles.header.border(Lipgloss::Border.normal, true).border_foreground(Lipgloss::Color.indexed(240)).border_bottom(true).bold(false)
     t.cell_style = styles.cell
     t.selected_style = styles.selected.fg_indexed(229).bg_indexed(57).bold(false)
 

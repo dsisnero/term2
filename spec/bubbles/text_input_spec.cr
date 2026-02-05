@@ -66,8 +66,8 @@ describe Term2::Components::TextInput do
     ti.placeholder = "输入消息..."
     ti.width = 20
     # Reset styles to defaults for strict string comparison
-    ti.prompt_style = Term2::Style.new
-    ti.placeholder_style = Term2::Style.new
+    ti.prompt_style = Lipgloss::Style.new
+    ti.placeholder_style = Lipgloss::Style.new
 
     # Note: Crystal's string width calculation might differ slightly from Go's runewidth
     # depending on the libraries used, but assuming standard wide-char handling:
@@ -77,8 +77,8 @@ describe Term2::Components::TextInput do
   it "truncates long placeholder" do
     ti = Term2::Components::TextInput.new
     ti.placeholder = "A very long placeholder, or maybe not so much"
-    ti.prompt_style = Term2::Style.new
-    ti.placeholder_style = Term2::Style.new
+    ti.prompt_style = Lipgloss::Style.new
+    ti.placeholder_style = Lipgloss::Style.new
     ti.width = 10
 
     # Note: Term2 uses "…" (ellipsis) for truncation

@@ -182,9 +182,9 @@ describe "Term2::Zone disabled functionality" do
       end
 
       # Scan in normal mode
-      start_time = Time.monotonic
+      start_time = Time.instant
       result = Term2::Zone.scan(content)
-      end_time = Time.monotonic
+      end_time = Time.instant
 
       normal_duration = end_time - start_time
 
@@ -205,9 +205,9 @@ describe "Term2::Zone disabled functionality" do
       content2.should_not contain("\x1B[")
 
       # Scan in disabled mode
-      start_time2 = Time.monotonic
+      start_time2 = Time.instant
       result2 = Term2::Zone.scan(content2)
-      end_time2 = Time.monotonic
+      end_time2 = Time.instant
 
       disabled_duration = end_time2 - start_time2
 
@@ -226,7 +226,7 @@ describe "Term2::Zone disabled functionality" do
       model = DisabledTestModels::DisabledTestModel.new
 
       # First test normal behavior
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 50.milliseconds
 
       # Mouse event in zone
@@ -241,7 +241,7 @@ describe "Term2::Zone disabled functionality" do
 
       # Now test disabled behavior
       Term2::Zone.enabled = false
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 50.milliseconds
 
       # Mouse event in zone

@@ -59,7 +59,7 @@ module Term2
       alias Indenter = Proc(Array(Node), Int32, String)
 
       # StyleFunc determines the style of a node based on its siblings and index
-      alias StyleFunc = Proc(Array(Node), Int32, Style)
+      alias StyleFunc = Proc(Array(Node), Int32, Lipgloss::Style)
 
       # Predefined enumerators
       module Enumerators
@@ -110,10 +110,10 @@ module Term2
         # Rendering options
         property enumerator : Enumerator = Enumerators::Default
         property indenter : Indenter = Indenters::Default
-        property root_style : Style = Style.new
-        property item_style : Style = Style.new
+        property root_style : Lipgloss::Style = Lipgloss::Style.new
+        property item_style : Lipgloss::Style = Lipgloss::Style.new
         property item_style_func : StyleFunc? = nil
-        property enumerator_style : Style = Style.new
+        property enumerator_style : Lipgloss::Style = Lipgloss::Style.new
         property enumerator_style_func : StyleFunc? = nil
 
         def initialize(@value : String = "")
@@ -192,13 +192,13 @@ module Term2
         end
 
         # Set root style
-        def root_style(style : Style) : self
+        def root_style(style : Lipgloss::Style) : self
           @root_style = style
           self
         end
 
         # Set item style (applies to all items)
-        def item_style(style : Style) : self
+        def item_style(style : Lipgloss::Style) : self
           @item_style = style
           @item_style_func = nil
           self
@@ -211,7 +211,7 @@ module Term2
         end
 
         # Set enumerator style (applies to all enumerators)
-        def enumerator_style(style : Style) : self
+        def enumerator_style(style : Lipgloss::Style) : self
           @enumerator_style = style
           @enumerator_style_func = nil
           self
@@ -224,7 +224,7 @@ module Term2
         end
 
         # Get item style for a node
-        private def get_item_style(nodes : Array(Node), index : Int32) : Style
+        private def get_item_style(nodes : Array(Node), index : Int32) : Lipgloss::Style
           if func = @item_style_func
             func.call(nodes, index)
           else
@@ -233,7 +233,7 @@ module Term2
         end
 
         # Get enumerator style for a node
-        private def get_enumerator_style(nodes : Array(Node), index : Int32) : Style
+        private def get_enumerator_style(nodes : Array(Node), index : Int32) : Lipgloss::Style
           if func = @enumerator_style_func
             func.call(nodes, index)
           else

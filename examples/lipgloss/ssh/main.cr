@@ -15,7 +15,7 @@ class LibglossSshModel
   end
 
   def view : String
-    header = Term2::Style.new
+    header = Lipgloss::Style.new
       .bold(true)
       .foreground(LibglossStyles::SPECIAL)
       .render("SSH Connection")

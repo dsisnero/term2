@@ -1,7 +1,5 @@
 require "../spec_helper"
 
-require "../spec_helper"
-
 class TeaTestModel
   include Term2::Model
   getter executed = Atomic(Bool).new(false)
@@ -32,7 +30,7 @@ class TeaTestModel
 
   def view : Term2::View
     @executed.set(true)
-    Term2.new_view("success\n")
+    Term2.new_view("success")
   end
 end
 

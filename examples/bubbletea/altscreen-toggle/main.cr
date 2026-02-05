@@ -6,12 +6,12 @@ include Term2::Prelude
 class AltScreenModel
   include Model
 
-  KEYWORD_STYLE = Term2::Style.new
-    .foreground(Term2::Color.indexed(204))
-    .background(Term2::Color.indexed(235))
+  KEYWORD_STYLE = Lipgloss::Style.new
+    .foreground(Lipgloss::Color.indexed(204))
+    .background(Lipgloss::Color.indexed(235))
 
-  HELP_STYLE = Term2::Style.new
-    .foreground(Term2::Color.indexed(241))
+  HELP_STYLE = Lipgloss::Style.new
+    .foreground(Lipgloss::Color.indexed(241))
 
   property? altscreen : Bool = false
   property? quitting : Bool = false

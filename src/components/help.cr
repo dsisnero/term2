@@ -27,10 +27,10 @@ module Term2
       property width : Int32 = 80
 
       # Styles
-      property key_style : Style = Style.new.faint(true)
-      property desc_style : Style = Style.new.faint(true)
-      property separator_style : Style = Style.new.faint(true)
-      property ellipsis_style : Style = Style.new
+      property key_style : Lipgloss::Style = Lipgloss::Style.new.faint(true)
+      property desc_style : Lipgloss::Style = Lipgloss::Style.new.faint(true)
+      property separator_style : Lipgloss::Style = Lipgloss::Style.new.faint(true)
+      property ellipsis_style : Lipgloss::Style = Lipgloss::Style.new
       property full_separator : String = "  "
       property ellipsis : String = "…"
 
@@ -67,7 +67,7 @@ module Term2
           item = "#{key_style.inline(true).render(binding.help_key)} #{desc_style.inline(true).render(binding.help_desc)}"
           item = sep + item if total_width > 0 && idx < bindings.size
 
-          w = Term2::Text.width(item)
+          w = Lipgloss::Text.width(item)
           tail, ok = should_add_item(total_width, w)
           unless ok
             parts << tail unless tail.empty?
@@ -103,8 +103,8 @@ module Term2
             descs << binding.help_desc
           end
 
-          col = Style.join_horizontal(
-            Position::Top,
+          col = Lipgloss::Style.join_horizontal(
+            Lipgloss::Position::Top,
             [
               sep,
               key_style.render(keys.join("\n")),
@@ -113,7 +113,7 @@ module Term2
             ]
           )
 
-          w = Term2::Text.width(col)
+          w = Lipgloss::Text.width(col)
           tail, ok = should_add_item(total_width, w)
           unless ok
             blocks << tail unless tail.empty?
@@ -124,13 +124,13 @@ module Term2
           blocks << col
         end
 
-        View.new(content: Style.join_horizontal(Position::Top, blocks))
+        View.new(content: Lipgloss::Style.join_horizontal(Lipgloss::Position::Top, blocks))
       end
 
       private def should_add_item(total_width : Int32, width : Int32) : {String, Bool}
         if @width > 0 && total_width + width > @width
           tail = " " + ellipsis_style.inline(true).render(@ellipsis)
-          return {tail, false} if total_width + Term2::Text.width(tail) < @width
+          return {tail, false} if total_width + Lipgloss::Text.width(tail) < @width
         end
         {"", true}
       end

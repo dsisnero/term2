@@ -43,7 +43,7 @@ class LayoutModel
       LibglossStyles.tab(label, idx == @selected_tab)
     end
     tab_row = tab_blocks.reduce("") do |acc, block|
-      acc.empty? ? block : Term2.join_horizontal(Term2::Position::Top, acc, block)
+      acc.empty? ? block : Lipgloss.join_horizontal(Lipgloss::Position::Top, acc, block)
     end
 
     stats = [
@@ -55,7 +55,7 @@ class LayoutModel
 
     stats_block = stats.map { |line| LibglossStyles.panel(24, "Metrics", line) }.join("\n")
 
-    timeline = Term2.join_vertical(Term2::Position::Left,
+    timeline = Lipgloss.join_vertical(Lipgloss::Position::Left,
       LibglossStyles.panel(58, "Activity", "Live deployments streaming"),
       LibglossStyles.panel(58, "Notes", "Deploy early, ship with confidence.")
     )
@@ -63,7 +63,7 @@ class LayoutModel
     layout = [
       tab_row,
       "",
-      Term2.join_horizontal(Term2::Position::Top, stats_block, timeline),
+      Lipgloss.join_horizontal(Lipgloss::Position::Top, stats_block, timeline),
       "",
       LibglossStyles.panel(86, "Status", "All systems operational, no incidents reported."),
       "",

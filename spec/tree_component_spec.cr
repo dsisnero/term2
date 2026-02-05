@@ -35,8 +35,8 @@ describe Term2::Components::Tree do
   it "respects styles" do
     tree = Term2::Components::Tree.new("Root")
       .child("Child")
-      .item_style(Term2::Style.new.bold(true))
-      .enumerator_style(Term2::Style.new.foreground(Term2::Color::RED))
+      .item_style(Lipgloss::Style.new.bold(true))
+      .enumerator_style(Lipgloss::Style.new.foreground(Lipgloss::Color::RED))
 
     output = tree.render
     output.should_not be_empty

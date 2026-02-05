@@ -7,7 +7,7 @@ module BubblezoneListDefaultExample
 
   alias Zone = Term2::Zone
 
-  DOC_STYLE = Term2::Style.new.margin(top: 1, right: 2, bottom: 1, left: 2)
+  DOC_STYLE = Lipgloss::Style.new.margin(top: 1, right: 2, bottom: 1, left: 2)
 
   struct Item
     include TC::List::Item

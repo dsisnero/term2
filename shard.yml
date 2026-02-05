@@ -7,12 +7,16 @@ authors:
 dependencies:
   cml:
     github: dsisnero/cml
+  lipgloss:
+    github: dsisnero/lipgloss
   cellwrap:
     github: dsisnero/cellwrap
   nucleoc:
     github: dsisnero/nucleoc
   uniwidth:
     github: naqvis/uni_char_width
+  golden:
+    github: dsisnero/golden
 
 development_dependencies:
   ameba:

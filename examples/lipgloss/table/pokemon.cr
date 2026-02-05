@@ -58,28 +58,28 @@ module Term2
 
         # Type colors (similar to original lipgloss example)
         type_colors = {
-          "Bug"      => Color.new(Color::Type::RGB, 0xD7FF87),
-          "Electric" => Color.new(Color::Type::RGB, 0xFDFF90),
-          "Fire"     => Color.new(Color::Type::RGB, 0xFF7698),
-          "Flying"   => Color.new(Color::Type::RGB, 0xFF87D7),
-          "Grass"    => Color.new(Color::Type::RGB, 0x75FBAB),
-          "Ground"   => Color.new(Color::Type::RGB, 0xFF875F),
-          "Normal"   => Color.new(Color::Type::RGB, 0x929292),
-          "Poison"   => Color.new(Color::Type::RGB, 0x7D5AFC),
-          "Water"    => Color.new(Color::Type::RGB, 0x00E2C7),
+          "Bug"      => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xD7FF87),
+          "Electric" => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xFDFF90),
+          "Fire"     => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xFF7698),
+          "Flying"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xFF87D7),
+          "Grass"    => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x75FBAB),
+          "Ground"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xFF875F),
+          "Normal"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x929292),
+          "Poison"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x7D5AFC),
+          "Water"    => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x00E2C7),
         }
 
         # Dim type colors for even rows
         dim_type_colors = {
-          "Bug"      => Color.new(Color::Type::RGB, 0x97AD64),
-          "Electric" => Color.new(Color::Type::RGB, 0xFCFF5F),
-          "Fire"     => Color.new(Color::Type::RGB, 0xBA5F75),
-          "Flying"   => Color.new(Color::Type::RGB, 0xC97AB2),
-          "Grass"    => Color.new(Color::Type::RGB, 0x59B980),
-          "Ground"   => Color.new(Color::Type::RGB, 0xC77252),
-          "Normal"   => Color.new(Color::Type::RGB, 0x727272),
-          "Poison"   => Color.new(Color::Type::RGB, 0x634BD0),
-          "Water"    => Color.new(Color::Type::RGB, 0x439F8E),
+          "Bug"      => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x97AD64),
+          "Electric" => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xFCFF5F),
+          "Fire"     => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xBA5F75),
+          "Flying"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xC97AB2),
+          "Grass"    => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x59B980),
+          "Ground"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0xC77252),
+          "Normal"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x727272),
+          "Poison"   => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x634BD0),
+          "Water"    => Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x439F8E),
         }
 
         # Custom style function
@@ -87,16 +87,16 @@ module Term2
           case row
           when -1
             # Header style
-            Style.new.bold(true).foreground(Color.new(Color::Type::Indexed, 252))
+            Lipgloss::Style.new.bold(true).foreground(Lipgloss::Color.new(Lipgloss::Color::Type::Indexed, 252))
           else
             # Data rows
             even_row = row.even?
 
             # Special style for Pikachu (selected row)
             if rows[row][1] == "Pikachu"
-              return Style.new
-                .foreground(Color.new(Color::Type::RGB, 0x01BE85))
-                .background(Color.new(Color::Type::RGB, 0x00432F))
+              return Lipgloss::Style.new
+                .foreground(Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x01BE85))
+                .background(Lipgloss::Color.new(Lipgloss::Color::Type::RGB, 0x00432F))
             end
 
             # Type columns (2 and 3)
@@ -104,22 +104,22 @@ module Term2
               type_name = rows[row][col]
               if !type_name.empty? && type_colors.has_key?(type_name)
                 color_map = even_row ? dim_type_colors : type_colors
-                return Style.new.foreground(color_map[type_name])
+                return Lipgloss::Style.new.foreground(color_map[type_name])
               end
             end
 
             # Default row colors
             if even_row
-              Style.new.foreground(Color.new(Color::Type::Indexed, 245))
+              Lipgloss::Style.new.foreground(Lipgloss::Color.new(Lipgloss::Color::Type::Indexed, 245))
             else
-              Style.new.foreground(Color.new(Color::Type::Indexed, 252))
+              Lipgloss::Style.new.foreground(Lipgloss::Color.new(Lipgloss::Color::Type::Indexed, 252))
             end
           end
         end
 
         # Set border style
-        @table.border = Border.new
-        @table.border_style = Style.new.foreground(Color.new(Color::Type::Indexed, 238))
+        @table.border = Lipgloss::Border.new
+        @table.border_style = Lipgloss::Style.new.foreground(Lipgloss::Color.new(Lipgloss::Color::Type::Indexed, 238))
       end
 
       def view : String

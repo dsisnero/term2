@@ -1,6 +1,5 @@
 # Renderer interface and implementations for Term2
-require "./color_profile"
-require "./style"
+require "lipgloss"
 require "./view"
 require "./mouse"
 require "./terminal"
@@ -16,7 +15,14 @@ module Term2
 
     # Render a frame
     abstract def render(view : String) : Nil
-    abstract def render(view : View) : Nil
+    def render(view : View) : Nil
+      render_view(view)
+    end
+
+    abstract def render_view(view : View) : Nil
+
+    # Request a clear on the next render
+    abstract def request_clear : Nil
 
     # Flush any pending output
     abstract def flush : Nil
@@ -37,10 +43,10 @@ module Term2
     abstract def print(text : String) : Nil
 
     # Get the color profile
-    abstract def color_profile : ColorProfile
+    abstract def color_profile : Lipgloss::ColorProfile
 
     # Set the color profile
-    abstract def color_profile=(profile : ColorProfile) : Nil
+    abstract def color_profile=(profile : Lipgloss::ColorProfile) : Nil
   end
 
   # StandardRenderer provides ANSI-based terminal rendering
@@ -54,12 +60,21 @@ module Term2
     @frame_duration : Time::Span = Time::Span.new(nanoseconds: 16_666_667) # ~60 fps
     @current_mouse_mode : MouseMode = MouseMode::None
     @current_keyboard_enhancements : KeyboardEnhancements = KeyboardEnhancements.new
-    @current_background : Color? = nil
-    @current_foreground : Color? = nil
-    @color_profile : ColorProfile = ColorProfile::TrueColor
+    @current_background : Lipgloss::Color? = nil
+    @current_foreground : Lipgloss::Color? = nil
+    @color_profile : Lipgloss::ColorProfile = Lipgloss::ColorProfile::TrueColor
+    @current_bracketed_paste_disabled : Bool? = nil
+    @current_alt_screen : Bool? = nil
+    @last_view : View? = nil
+    @cursor_visible : Bool? = nil
+    @clear_requested : Bool = false
 
     def initialize(@output : IO = STDOUT)
       update_frame_duration
+    end
+
+    def output=(io : IO) : Nil
+      @output = io
     end
 
     def start : Nil
@@ -68,13 +83,17 @@ module Term2
       @last_render = ""
       @last_lines.clear
       @last_frame_time = Time::UNIX_EPOCH # Reset to allow immediate first render
-      Terminal.hide_cursor(@output)
+      @current_bracketed_paste_disabled = nil
+      @current_alt_screen = nil
+      @last_view = nil
+      @cursor_visible = nil
+      @clear_requested = false
     end
 
     def stop : Nil
       return unless @running
       @running = false
-      Terminal.show_cursor(@output)
+      @current_alt_screen = nil
       @output.flush
     end
 
@@ -92,124 +111,111 @@ module Term2
       # Only render if the view has changed
       return if view == @last_render
 
-      # Bubble Tea parity: avoid full-screen clears when possible. Updating only
-      # changed lines dramatically reduces output, which is crucial for large
-      # views like the bubblezone full-lipgloss example.
-      new_lines = view.split('\n', remove_empty: false)
-      max_lines = {new_lines.size, @last_lines.size}.max
-
-      (0...max_lines).each do |i|
-        prev = @last_lines[i]?
-        curr = new_lines[i]?
-        next if prev == curr
-
-        Terminal.move_to(i + 1, 1, @output)
-        # Reset attributes before writing a line. Unlike full-screen rendering,
-        # line-diff updates are non-linear, so terminal SGR state must not leak
-        # from whatever was last written.
-        @output.print("\e[0m")
-        apply_current_colors
-        if curr
-          @output.print(curr)
-        end
-        Terminal.clear_line(@output)
-      end
-
-      # If the new view has fewer lines, clear the remaining old lines.
-      if new_lines.size < @last_lines.size
-        (new_lines.size...@last_lines.size).each do |i|
-          Terminal.move_to(i + 1, 1, @output)
-          @output.print("\e[0m")
-          apply_current_colors
-          Terminal.clear_entire_line(@output)
-        end
-      end
-
+      @output.print("\r\e[J")
+      @output.print(view)
       @output.flush
 
       @last_render = view
-      @last_lines = new_lines
     end
 
-    def render(view : View) : Nil
-      # Apply background/foreground colors if set
+    def render_view(view : View) : Nil
+      if @current_alt_screen.nil?
+        if view.alt_screen
+          @output.print("\e[=0;1u")
+          Terminal.enter_alt_screen(@output)
+        end
+        @current_alt_screen = view.alt_screen
+      elsif @current_alt_screen != view.alt_screen
+        @output.print("\e[=0;1u")
+        if view.alt_screen
+          Terminal.enter_alt_screen(@output)
+        else
+          Terminal.exit_alt_screen(@output)
+        end
+        @current_alt_screen = view.alt_screen
+      end
+
+      if view.cursor.nil?
+        apply_cursor_visibility(false)
+      end
+
+      clear_requested = false
+      if @clear_requested
+        @output.print("\r")
+        @clear_requested = false
+        clear_requested = true
+      end
+
+      apply_bracketed_paste(view.disable_bracketed_paste_mode)
+      apply_mouse_mode(view.mouse_mode)
+      apply_keyboard_enhancements(view.keyboard_enhancements)
       apply_colors(view.background_color, view.foreground_color)
 
-      # Render content (this will also handle line diff updates)
-      render(view.content)
-
-      # Set cursor position if provided
       if cursor = view.cursor
-        Terminal.move_to(cursor.position.y + 1, cursor.position.x + 1, @output)
-        # Set cursor shape and blink
         apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
       end
 
-      # Set window title if provided
+      content_changed = view.content != @last_render
+      if content_changed
+        if view.alt_screen
+          @output.print("\e[H\e[2J")
+        else
+          if clear_requested
+            @output.print("\e[J")
+          else
+            @output.print("\r\e[J")
+          end
+        end
+        @output.print(view.content)
+        @output.flush
+        @last_render = view.content
+      end
+
+      if view.cursor
+        @output.print("\r")
+        apply_cursor_visibility(true)
+      end
+
       if title = view.window_title
         Terminal.set_window_title(@output, title)
       end
 
-      # Handle mouse mode
-      apply_mouse_mode(view.mouse_mode)
-
-      # Handle keyboard enhancements
-      apply_keyboard_enhancements(view.keyboard_enhancements)
-
-      # Handle progress bar if provided
       if progress = view.progress_bar
         apply_progress_bar(progress)
       end
 
-      # Reset colors after rendering? Colors persist, but we reset at start of each render
-      # via apply_colors (which resets if nil). The content render resets attributes per line.
+      @last_view = view
     end
 
-    private def apply_colors(background : Color?, foreground : Color?)
-      # Store old colors for comparison
+    def request_clear : Nil
+      @clear_requested = true
+    end
+
+    private def apply_colors(background : Lipgloss::Color?, foreground : Lipgloss::Color?)
       old_bg = @current_background
       old_fg = @current_foreground
 
-      # Update stored colors
       @current_background = background
       @current_foreground = foreground
 
-      # Handle background change
       if background != old_bg
         if background
-          codes = background.background_codes
-          @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+          @output.print("\e]11;#{color_hex(background)}\a")
         else
-          # Reset to default background
-          @output.print("\e[49m")
+          @output.print("\e]111\a")
         end
       end
 
-      # Handle foreground change
       if foreground != old_fg
         if foreground
-          codes = foreground.foreground_codes
-          @output.print("\e[#{codes.join(";")}m") unless codes.empty?
+          @output.print("\e]10;#{color_hex(foreground)}\a")
         else
-          # Reset to default foreground
-          @output.print("\e[39m")
+          @output.print("\e]110\a")
         end
       end
     end
 
-    private def apply_current_colors
-      # Apply stored background and foreground colors
-      if bg = @current_background
-        codes = bg.background_codes
-        @output.print("\e[#{codes.join(";")}m") unless codes.empty?
-      end
-      if fg = @current_foreground
-        codes = fg.foreground_codes
-        @output.print("\e[#{codes.join(";")}m") unless codes.empty?
-      end
-    end
-
-    private def apply_cursor_shape(shape : CursorShape, blink : Bool, color : Color?)
+    private def apply_cursor_shape(shape : CursorShape, blink : Bool, color : Lipgloss::Color?)
       # DECSCUSR sequences for cursor shape
       code = case {shape, blink}
              when {CursorShape::Block, true}      then 1
@@ -222,15 +228,30 @@ module Term2
              end
       @output.print("\e[#{code} q")
 
-      # Cursor color via OSC 12 (not widely supported)
+      # Cursor color via OSC 12 when explicitly set
       if color
-        codes = color.foreground_codes
-        unless codes.empty?
-          # OSC 12 ; rgb:RR/GG/BB ST
-          r, g, b = color.to_rgb
-          @output.print("\e]12;rgb:#{r.to_s(16).rjust(2, '0')}/#{g.to_s(16).rjust(2, '0')}/#{b.to_s(16).rjust(2, '0')}\e\\")
-        end
+        @output.print("\e]12;#{color_hex(color)}\a")
       end
+    end
+
+    private def apply_cursor_visibility(show : Bool)
+      return if @cursor_visible == show
+      if show
+        Terminal.show_cursor(@output)
+      else
+        Terminal.hide_cursor(@output)
+      end
+      @cursor_visible = show
+    end
+
+    private def apply_bracketed_paste(disable : Bool)
+      return if @current_bracketed_paste_disabled == disable
+      if disable
+        Terminal.disable_bracketed_paste(@output)
+      else
+        Terminal.enable_bracketed_paste(@output)
+      end
+      @current_bracketed_paste_disabled = disable
     end
 
     private def apply_mouse_mode(mode : MouseMode)
@@ -260,23 +281,33 @@ module Term2
     end
 
     private def apply_keyboard_enhancements(ke : KeyboardEnhancements)
-      return if ke == @current_keyboard_enhancements
+      return if ke == @current_keyboard_enhancements && @last_view
 
-      # Handle report_event_types flag
-      if ke.report_event_types != @current_keyboard_enhancements.report_event_types
-        if ke.report_event_types
-          enable_keyboard_enhancements
-        else
-          disable_keyboard_enhancements
-        end
-      end
-
+      flags = 1
+      flags |= 2 if ke.report_event_types
+      @output.print("\e[=#{flags};1u")
       @current_keyboard_enhancements = ke
     end
 
     private def apply_progress_bar(progress : ProgressBar)
-      # TODO: implement progress bar display
-      # OSC 9 ; 0 ; <percent> ST ?
+      case progress.state
+      when ProgressBarState::None
+        @output.print("\e]9;4;0\a")
+      when ProgressBarState::Default
+        @output.print("\e]9;4;1;#{progress.value}\a")
+      when ProgressBarState::Error
+        @output.print("\e]9;4;2;#{progress.value}\a")
+      when ProgressBarState::Indeterminate
+        @output.print("\e]9;4;3\a")
+      when ProgressBarState::Warning
+        @output.print("\e]9;4;4;#{progress.value}\a")
+      end
+      @output.flush
+    end
+
+    private def color_hex(color : Lipgloss::Color) : String
+      r, g, b = color.to_rgb
+      "##{r.to_s(16).rjust(2, '0')}#{g.to_s(16).rjust(2, '0')}#{b.to_s(16).rjust(2, '0')}"
     end
 
     def flush : Nil
@@ -317,11 +348,11 @@ module Term2
       @fps
     end
 
-    def color_profile : ColorProfile
+    def color_profile : Lipgloss::ColorProfile
       @color_profile
     end
 
-    def color_profile=(profile : ColorProfile) : Nil
+    def color_profile=(profile : Lipgloss::ColorProfile) : Nil
       @color_profile = profile
     end
 
@@ -407,7 +438,11 @@ module Term2
       # No-op
     end
 
-    def render(view : View) : Nil
+    def render_view(view : View) : Nil
+      # No-op
+    end
+
+    def request_clear : Nil
       # No-op
     end
 
@@ -435,11 +470,11 @@ module Term2
       @fps
     end
 
-    def color_profile : ColorProfile
-      ColorProfile::TrueColor
+    def color_profile : Lipgloss::ColorProfile
+      Lipgloss::ColorProfile::TrueColor
     end
 
-    def color_profile=(profile : ColorProfile) : Nil
+    def color_profile=(profile : Lipgloss::ColorProfile) : Nil
       # No-op
     end
 
@@ -491,13 +526,13 @@ module Term2
   # Lightweight renderer to satisfy lipgloss renderer API expectations.
   class LipglossRenderer < NilRenderer
     property has_dark_background : Bool = true
-    @color_profile : ColorProfile = ColorProfile::TrueColor
+    @color_profile : Lipgloss::ColorProfile = Lipgloss::ColorProfile::TrueColor
 
-    def color_profile : ColorProfile
+    def color_profile : Lipgloss::ColorProfile
       @color_profile
     end
 
-    def color_profile=(profile : ColorProfile) : Nil
+    def color_profile=(profile : Lipgloss::ColorProfile) : Nil
       @color_profile = profile
     end
 

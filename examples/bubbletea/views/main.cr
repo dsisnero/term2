@@ -9,25 +9,25 @@ PROGRESS_FULL_CHAR  = "█"
 PROGRESS_EMPTY_CHAR = "░"
 DOT_CHAR            = " • "
 
-VIEWS_KEYWORD_STYLE = Style.new.foreground(Color.indexed(211))
-SUBTLE_STYLE        = Style.new.foreground(Color.indexed(241))
-TICKS_STYLE         = Style.new.foreground(Color.indexed(79))
-CHECKBOX_STYLE      = Style.new.foreground(Color.indexed(212))
+VIEWS_KEYWORD_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(211))
+SUBTLE_STYLE        = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(241))
+TICKS_STYLE         = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(79))
+CHECKBOX_STYLE      = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(212))
 PROGRESS_EMPTY      = SUBTLE_STYLE.render(PROGRESS_EMPTY_CHAR)
-VIEWS_DOT_STYLE     = Style.new.foreground(Color.indexed(236)).render(DOT_CHAR)
-VIEWS_MAIN_STYLE    = Style.new.margin(0, 0, 0, 2)
+VIEWS_DOT_STYLE     = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(236)).render(DOT_CHAR)
+VIEWS_MAIN_STYLE    = Lipgloss::Style.new.margin(0, 0, 0, 2)
 
 # Simple gradient ramp for progress bar
-def make_ramp_styles(a_hex : String, b_hex : String, width : Int32) : Array(Style)
-  a = Color.hex(a_hex).to_rgb
-  b = Color.hex(b_hex).to_rgb
-  styles = Array(Style).new(width)
+def make_ramp_styles(a_hex : String, b_hex : String, width : Int32) : Array(Lipgloss::Style)
+  a = Lipgloss::Color.hex(a_hex).to_rgb
+  b = Lipgloss::Color.hex(b_hex).to_rgb
+  styles = Array(Lipgloss::Style).new(width)
   width.times do |i|
     t = width == 1 ? 0.0 : i / (width - 1).to_f
     r = (a[0] + (b[0] - a[0]) * t).to_i
     g = (a[1] + (b[1] - a[1]) * t).to_i
     bl = (a[2] + (b[2] - a[2]) * t).to_i
-    styles << Style.new.foreground(Color.rgb(r, g, bl))
+    styles << Lipgloss::Style.new.foreground(Lipgloss::Color.rgb(r, g, bl))
   end
   styles
 end

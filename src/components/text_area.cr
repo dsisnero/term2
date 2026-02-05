@@ -45,7 +45,7 @@ module Term2
       property placeholder : String = ""
 
       # End-of-buffer marker, rendered on otherwise blank lines.
-      # Allows ANSI styling like the Go textarea's `Style.EndOfBuffer`.
+      # Allows ANSI styling like the Go textarea's `Lipgloss::Style.EndOfBuffer`.
       property end_of_buffer_char : String = "~"
 
       property char_limit : Int32 = 0
@@ -57,7 +57,7 @@ module Term2
       property key_map : KeyMap
 
       # Styles (Placeholder for future expansion)
-      property style : Style = Style.new
+      property style : Lipgloss::Style = Lipgloss::Style.new
 
       # Internal state
       @width : Int32 = 40
@@ -342,10 +342,10 @@ module Term2
             base_prefix = sprintf("%3d ", i + 1)
           end
           base_prefix += @prompt
-          available = [@width - Text.width(base_prefix), 1].max
+          available = [@width - Lipgloss::Text.width(base_prefix), 1].max
           wrapped =
             if @value.empty? && i == 0 && !@placeholder.empty? && line.empty?
-              [Text.truncate(@placeholder, available)]
+              [Lipgloss::Text.truncate(@placeholder, available)]
             else
               wrap_line(line, available)
             end
@@ -487,7 +487,7 @@ module Term2
         prefix = ""
         prefix = sprintf("%3d ", @cursor_line + 1) if @show_line_numbers
         prefix += @prompt
-        Text.width(prefix)
+        Lipgloss::Text.width(prefix)
       end
 
       def value=(text : String)

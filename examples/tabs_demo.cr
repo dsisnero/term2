@@ -36,8 +36,8 @@ class TabsModel
     end
   end
 
-  def tab_border_with_bottom(left : String, middle : String, right : String) : Term2::Border
-    border = Term2::Border.rounded
+  def tab_border_with_bottom(left : String, middle : String, right : String) : Lipgloss::Border
+    border = Lipgloss::Border.rounded
     border.bottom_left = left
     border.bottom = middle
     border.bottom_right = right
@@ -48,13 +48,13 @@ class TabsModel
     inactive_tab_border = tab_border_with_bottom("┴", "─", "┴")
     active_tab_border = tab_border_with_bottom("┘", " ", "└")
 
-    doc_style = Term2::Style.new.padding(1, 2, 1, 2)
-    highlight_color = Term2::AdaptiveColor.new(
-      light: Term2::Color.rgb(135, 75, 253), # #874BFD
-      dark: Term2::Color.rgb(125, 86, 244)   # #7D56F4
+    doc_style = Lipgloss::Style.new.padding(1, 2, 1, 2)
+    highlight_color = Lipgloss::AdaptiveColor.new(
+      light: Lipgloss::Color.rgb(135, 75, 253), # #874BFD
+      dark: Lipgloss::Color.rgb(125, 86, 244)   # #7D56F4
     )
 
-    inactive_tab_style = Term2::Style.new
+    inactive_tab_style = Lipgloss::Style.new
       .border(inactive_tab_border, true)
       .border_foreground(highlight_color)
       .padding(0, 1)
@@ -62,11 +62,11 @@ class TabsModel
     active_tab_style = inactive_tab_style.copy
       .border(active_tab_border, true)
 
-    window_style = Term2::Style.new
+    window_style = Lipgloss::Style.new
       .border_foreground(highlight_color)
       .padding(2, 0)
-      .align(Term2::Position::Center)
-      .border(Term2::Border.normal, true)
+      .align(Lipgloss::Position::Center)
+      .border(Lipgloss::Border.normal, true)
       .border_top(false)
 
     rendered_tabs = [] of String
@@ -100,7 +100,7 @@ class TabsModel
       rendered_tabs << style.render(t)
     end
 
-    row = Term2.join_horizontal(Term2::Position::Top, rendered_tabs)
+    row = Lipgloss.join_horizontal(Lipgloss::Position::Top, rendered_tabs)
 
     content = window_style
       .width(Term2.width(row) - window_style.get_horizontal_frame_size)

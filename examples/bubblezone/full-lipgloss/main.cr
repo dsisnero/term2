@@ -75,20 +75,20 @@ module BubblezoneFullLipglossExample
       history_height = inner_height - (tabs_height + list_height)
       history_height = [history_height, 0].max
 
-      lists = Term2.join_horizontal(Term2::Position::Top,
+      lists = Lipgloss.join_horizontal(Lipgloss::Position::Top,
         @list1.view(inner_width, list_height),
         @list2.view(inner_width, list_height),
         @dialog.view(inner_width, list_height)
       )
 
-      content = Term2.join_vertical(Term2::Position::Top,
+      content = Lipgloss.join_vertical(Lipgloss::Position::Top,
         @tabs.view(inner_width),
         "",
-        Term2.place_horizontal(inner_width, Term2::Position::Center, lists),
+        Lipgloss.place_horizontal(inner_width, Lipgloss::Position::Center, lists),
         @history.view(inner_width, history_height)
       )
 
-      Term2::Style.new
+      Lipgloss::Style.new
         .max_height(@height)
         .max_width(@width)
         .padding(1, 2, 1, 2)

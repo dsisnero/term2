@@ -2,7 +2,7 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-PINK = Term2::Color.rgb(255, 117, 183)
+PINK = Lipgloss::Color.rgb(255, 117, 183)
 
 class HelpKeys
   include TC::Help::KeyMap
@@ -33,14 +33,14 @@ class HelpModel
 
   getter keys : HelpKeys
   getter help : TC::Help
-  getter input_style : Term2::Style
+  getter input_style : Lipgloss::Style
   getter last_key : String
   getter? quitting : Bool
 
   def initialize
     @keys = HelpKeys.new
     @help = TC::Help.new
-    @input_style = Term2::Style.new.foreground(PINK)
+    @input_style = Lipgloss::Style.new.foreground(PINK)
     @last_key = ""
     @quitting = false
   end

@@ -7,13 +7,13 @@ MAX_INPUTS     = 6
 MIN_INPUTS     = 1
 HELP_HEIGHT    = 5
 
-SPLIT_EDITORS_CURSOR_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(212))
-CURSOR_LINE_STYLE          = Term2::Style.new.background(Term2::Color.indexed(57)).foreground(Term2::Color.indexed(230))
-PLACEHOLDER_STYLE          = Term2::Style.new.foreground(Term2::Color.indexed(238))
-END_OF_BUFFER_STYLE        = Term2::Style.new.foreground(Term2::Color.indexed(235))
-FOCUSED_PLACEHOLDER_STYLE  = Term2::Style.new.foreground(Term2::Color.indexed(99))
-FOCUSED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.rounded).border_foreground(Term2::Color.indexed(238))
-BLURRED_BORDER_STYLE       = Term2::Style.new.border(Term2::Border.hidden)
+SPLIT_EDITORS_CURSOR_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(212))
+CURSOR_LINE_STYLE          = Lipgloss::Style.new.background(Lipgloss::Color.indexed(57)).foreground(Lipgloss::Color.indexed(230))
+PLACEHOLDER_STYLE          = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(238))
+END_OF_BUFFER_STYLE        = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(235))
+FOCUSED_PLACEHOLDER_STYLE  = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(99))
+FOCUSED_BORDER_STYLE       = Lipgloss::Style.new.border(Lipgloss::Border.rounded).border_foreground(Lipgloss::Color.indexed(238))
+BLURRED_BORDER_STYLE       = Lipgloss::Style.new.border(Lipgloss::Border.hidden)
 
 class SplitEditorsKeymap
   TC::Key.key_bindings(
@@ -134,7 +134,7 @@ class SplitEditorsModel
   def view : String
     help_view = @help.view_short(self)
     views = @inputs.map(&.view.content)
-    Term2.join_horizontal(Term2::Position::Top, views) + "\n\n" + help_view.content
+    Lipgloss.join_horizontal(Lipgloss::Position::Top, views) + "\n\n" + help_view.content
   end
 end
 

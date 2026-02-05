@@ -1,7 +1,7 @@
 # View struct and related types for Term2 v2 API compatibility
 # Mirrors Bubble Tea v2 View struct and associated types
 
-require "./style"
+require "lipgloss"
 
 module Term2
   # MouseMode represents the mouse mode of a view.
@@ -49,8 +49,8 @@ module Term2
     # the top left corner of the frame.
     property position : Point
 
-    # Color determines the cursor's color.
-    property color : Color?
+    # Lipgloss::Color determines the cursor's color.
+    property color : Lipgloss::Color?
 
     # Shape determines the cursor's shape.
     property shape : CursorShape = CursorShape::Block
@@ -65,7 +65,7 @@ module Term2
       @blink = true
     end
 
-    def initialize(@position : Point, @color : Color? = nil, @shape : CursorShape = CursorShape::Block, @blink : Bool = true)
+    def initialize(@position : Point, @color : Lipgloss::Color? = nil, @shape : CursorShape = CursorShape::Block, @blink : Bool = true)
     end
   end
 
@@ -84,13 +84,34 @@ module Term2
     end
   end
 
-  # ProgressBar represents a terminal progress bar (placeholder for future implementation).
-  struct ProgressBar
-    # TODO: Implement progress bar fields
-    property value : Float64 = 0.0
-    property max : Float64 = 100.0
+  # ProgressBarState represents the state of the progress bar.
+  enum ProgressBarState
+    None
+    Default
+    Error
+    Indeterminate
+    Warning
+  end
 
-    def initialize(@value = 0.0, @max = 100.0)
+  # ProgressBar represents the terminal progress bar.
+  struct ProgressBar
+    # State is the current state of the progress bar.
+    property state : ProgressBarState
+
+    # Value is the current value of the progress bar (0-100).
+    property value : Int32
+
+    def initialize(@state : ProgressBarState, value : Int32)
+      @value = normalized_value(value)
+    end
+
+    private def normalized_value(value : Int32) : Int32
+      case @state
+      when ProgressBarState::None, ProgressBarState::Indeterminate
+        0
+      else
+        value.clamp(0, 100)
+      end
     end
   end
 
@@ -111,11 +132,11 @@ module Term2
 
     # BackgroundColor when not nil, sets the terminal background color. Use
     # nil to reset to the terminal's default background color.
-    property background_color : Color?
+    property background_color : Lipgloss::Color?
 
     # ForegroundColor when not nil, sets the terminal foreground color. Use
     # nil to reset to the terminal's default foreground color.
-    property foreground_color : Color?
+    property foreground_color : Lipgloss::Color?
 
     # WindowTitle sets the terminal window title. Support depends on the
     # terminal.
@@ -153,15 +174,13 @@ module Term2
     # intercept mouse messages that depends on view content from last render.
     # It can be useful for implementing view-specific behavior without
     # breaking the unidirectional data flow of Bubble Tea.
-    #
-    # TODO: Implement proper Proc type for mouse handling
-    # property on_mouse : Proc(MouseMsg, Cmd)?
+    property on_mouse : Proc(MouseMsg, Cmd)?
 
     def initialize(
       @content : String = "",
       @cursor : Cursor? = nil,
-      @background_color : Color? = nil,
-      @foreground_color : Color? = nil,
+      @background_color : Lipgloss::Color? = nil,
+      @foreground_color : Lipgloss::Color? = nil,
       @window_title : String? = nil,
       @progress_bar : ProgressBar? = nil,
       @alt_screen : Bool = false,
@@ -169,7 +188,13 @@ module Term2
       @disable_bracketed_paste_mode : Bool = false,
       @mouse_mode : MouseMode = MouseMode::None,
       @keyboard_enhancements : KeyboardEnhancements = KeyboardEnhancements.new,
+      @on_mouse : Proc(MouseMsg, Cmd)? = nil,
     )
+    end
+
+    # SetContent is a helper method to set the content of a View.
+    def set_content(content : String) : Nil
+      @content = content
     end
   end
 
@@ -183,5 +208,10 @@ module Term2
   # ```
   def self.new_view(content : String) : View
     View.new(content: content)
+  end
+
+  # Helper function to create a new progress bar.
+  def self.new_progress_bar(state : ProgressBarState, value : Int32) : ProgressBar
+    ProgressBar.new(state, value)
   end
 end

@@ -4,8 +4,9 @@ module Term2
   describe Terminal do
     it "enters and exits alternate screen" do
       # These should not raise
-      Terminal.enter_alt_screen
-      Terminal.exit_alt_screen
+      io = IO::Memory.new
+      Terminal.enter_alt_screen(io)
+      Terminal.exit_alt_screen(io)
     end
 
     it "shows and hides cursor" do
@@ -17,26 +18,30 @@ module Term2
 
     it "enables and disables bracketed paste" do
       # These should not raise
-      Terminal.enable_bracketed_paste
-      Terminal.disable_bracketed_paste
+      io = IO::Memory.new
+      Terminal.enable_bracketed_paste(io)
+      Terminal.disable_bracketed_paste(io)
     end
 
     it "enables and disables focus reporting" do
       # These should not raise
-      Terminal.enable_focus_reporting
-      Terminal.disable_focus_reporting
+      io = IO::Memory.new
+      Terminal.enable_focus_reporting(io)
+      Terminal.disable_focus_reporting(io)
     end
 
     it "saves and restores terminal state" do
       # These should not raise
-      Terminal.save_state
-      Terminal.restore_state
+      io = IO::Memory.new
+      Terminal.save_state(io)
+      Terminal.restore_state(io)
     end
 
     it "releases and restores terminal" do
       # These should not raise
-      Terminal.release_terminal
-      Terminal.restore_terminal
+      io = IO::Memory.new
+      Terminal.release_terminal(io)
+      Terminal.restore_terminal(io)
     end
 
     it "clears the screen" do

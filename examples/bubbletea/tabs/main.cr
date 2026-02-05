@@ -5,8 +5,8 @@ include Term2::Prelude
 class TabsModel
   include Term2::Model
 
-  private def self.tab_border_with_bottom(left : String, middle : String, right : String) : Term2::Border
-    border = Term2::Border.rounded
+  private def self.tab_border_with_bottom(left : String, middle : String, right : String) : Lipgloss::Border
+    border = Lipgloss::Border.rounded
     border.bottom_left = left
     border.bottom = middle
     border.bottom_right = right
@@ -15,11 +15,11 @@ class TabsModel
 
   INACTIVE_TAB_BORDER = tab_border_with_bottom("┴", "─", "┴")
   ACTIVE_TAB_BORDER   = tab_border_with_bottom("┘", " ", "└")
-  DOC_STYLE           = Term2::Style.new.padding(1, 2, 1, 2)
-  HIGHLIGHT_COLOR     = Term2::AdaptiveColor.new(light: Term2::Color.hex("#874BFD"), dark: Term2::Color.hex("#7D56F4"))
-  INACTIVE_TAB_STYLE  = Term2::Style.new.border(INACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
-  ACTIVE_TAB_STYLE    = Term2::Style.new.border(ACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
-  WINDOW_STYLE        = Term2::Style.new.border_foreground(HIGHLIGHT_COLOR).padding(2, 0).align(:center).border(Term2::Border.normal).unset_border_top
+  DOC_STYLE           = Lipgloss::Style.new.padding(1, 2, 1, 2)
+  HIGHLIGHT_COLOR     = Lipgloss::AdaptiveColor.new(light: Lipgloss::Color.hex("#874BFD"), dark: Lipgloss::Color.hex("#7D56F4"))
+  INACTIVE_TAB_STYLE  = Lipgloss::Style.new.border(INACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
+  ACTIVE_TAB_STYLE    = Lipgloss::Style.new.border(ACTIVE_TAB_BORDER, true).border_foreground(HIGHLIGHT_COLOR).padding(0, 1)
+  WINDOW_STYLE        = Lipgloss::Style.new.border_foreground(HIGHLIGHT_COLOR).padding(2, 0).align(:center).border(Lipgloss::Border.normal).unset_border_top
 
   getter tabs : Array(String)
   getter tab_content : Array(String)
@@ -71,8 +71,8 @@ class TabsModel
       style.render(tab)
     end
 
-    row = Term2.join_horizontal(Term2::Position::Top, rendered_tabs)
-    window = WINDOW_STYLE.width(Term2::Text.width(row) - WINDOW_STYLE.get_horizontal_frame_size).render(@tab_content[@active_tab])
+    row = Lipgloss.join_horizontal(Lipgloss::Position::Top, rendered_tabs)
+    window = WINDOW_STYLE.width(Lipgloss::Text.width(row) - WINDOW_STYLE.get_horizontal_frame_size).render(@tab_content[@active_tab])
 
     DOC_STYLE.render("#{row}\n#{window}")
   end

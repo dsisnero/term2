@@ -8,7 +8,7 @@ describe "Bubblezone example: list-default", tags: "interactive" do
     model, _ = model.update(Term2::WindowSizeMsg.new(60, 18))
     model = model.as(BubblezoneListDefaultExample::Model)
 
-    frame = model.view
+    frame = Term2::SpecView.content(model.view)
     Term2::Zone.scan(frame)
 
     zone = Term2::Zone.get("item_2")

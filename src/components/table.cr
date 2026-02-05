@@ -13,7 +13,7 @@ module Term2
       HEADER_ROW = -1
 
       # StyleFunc determines the style of a cell based on row and column position.
-      alias StyleFunc = Proc(Int32, Int32, Style)
+      alias StyleFunc = Proc(Int32, Int32, Lipgloss::Style)
 
       # Option type for functional configuration (Go-style)
       alias Option = Proc(Table, Nil)
@@ -28,13 +28,13 @@ module Term2
 
       # Styles container for matching Go API
       class Styles
-        property header : Style
-        property cell : Style
-        property selected : Style
+        property header : Lipgloss::Style
+        property cell : Lipgloss::Style
+        property selected : Lipgloss::Style
 
-        def initialize(@header = Style.new.bold(true).padding(0, 1),
-                       @cell = Style.new.padding(0, 1),
-                       @selected = Style.new.bold(true).foreground(Color.indexed(212)))
+        def initialize(@header = Lipgloss::Style.new.bold(true).padding(0, 1),
+                       @cell = Lipgloss::Style.new.padding(0, 1),
+                       @selected = Lipgloss::Style.new.bold(true).foreground(Lipgloss::Color.indexed(212)))
         end
       end
 
@@ -57,35 +57,35 @@ module Term2
       property styles : Styles = Styles.new
 
       # Legacy style properties mapped to styles object
-      def header_style : Style
+      def header_style : Lipgloss::Style
         @styles.header
       end
 
-      def header_style=(s : Style)
+      def header_style=(s : Lipgloss::Style)
         @styles.header = s
       end
 
-      def cell_style : Style
+      def cell_style : Lipgloss::Style
         @styles.cell
       end
 
-      def cell_style=(s : Style)
+      def cell_style=(s : Lipgloss::Style)
         @styles.cell = s
       end
 
-      def selected_style : Style
+      def selected_style : Lipgloss::Style
         @styles.selected
       end
 
-      def selected_style=(s : Style)
+      def selected_style=(s : Lipgloss::Style)
         @styles.selected = s
       end
 
       property style_func : StyleFunc? = nil
 
-      # Border configuration
-      property border : Border = Border.new
-      property border_style : Style = Style.new
+      # Lipgloss::Border configuration
+      property border : Lipgloss::Border = Lipgloss::Border.new
+      property border_style : Lipgloss::Style = Lipgloss::Style.new
       property border_top : Bool = false
       property border_bottom : Bool = false
       property border_left : Bool = false
@@ -155,7 +155,7 @@ module Term2
       def height=(h : Int32)
         @height = h
         header = render_header
-        header_height = header.empty? ? 1 : Term2::Text.height(header)
+        header_height = header.empty? ? 1 : Lipgloss::Text.height(header)
         @viewport.height = [h - header_height, 1].max
         update_viewport
       end
@@ -181,7 +181,7 @@ module Term2
         ->(t : Table) {
           t.height = h
           header = t.render_header
-          header_height = header.empty? ? 1 : Term2::Text.height(header)
+          header_height = header.empty? ? 1 : Lipgloss::Text.height(header)
           t.viewport.height = [h - header_height, 1].max
           nil
         }
@@ -368,7 +368,7 @@ module Term2
         end
       end
 
-      private def get_cell_style(row_idx : Int32, col_idx : Int32, selected : Bool) : Style
+      private def get_cell_style(row_idx : Int32, col_idx : Int32, selected : Bool) : Lipgloss::Style
         if func = @style_func
           func.call(row_idx, col_idx)
         elsif row_idx == HEADER_ROW
@@ -387,10 +387,10 @@ module Term2
           next unless col
           next if col.width <= 0
 
-          inner = Style.new.width(col.width).max_width(col.width).inline(true)
+          inner = Lipgloss::Style.new.width(col.width).max_width(col.width).inline(true)
           content =
-            if Term2::Text.width(cell) > col.width && col.width > 1
-              Term2::Text.truncate(cell, col.width - 1) + "…"
+            if Lipgloss::Text.width(cell) > col.width && col.width > 1
+              Lipgloss::Text.truncate(cell, col.width - 1) + "…"
             else
               cell
             end
@@ -400,7 +400,7 @@ module Term2
           cells << style.render(rendered_cell)
         end
 
-        row_content = Style.join_horizontal(Position::Top, cells)
+        row_content = Lipgloss::Style.join_horizontal(Lipgloss::Position::Top, cells)
 
         if selected
           row_content = @styles.selected.render(row_content)
@@ -421,10 +421,10 @@ module Term2
 
         @columns.each_with_index do |col, col_idx|
           next if col.width <= 0
-          inner = Style.new.width(col.width).max_width(col.width).inline(true)
+          inner = Lipgloss::Style.new.width(col.width).max_width(col.width).inline(true)
           content =
-            if Term2::Text.width(col.title) > col.width && col.width > 1
-              Term2::Text.truncate(col.title, col.width - 1) + "…"
+            if Lipgloss::Text.width(col.title) > col.width && col.width > 1
+              Lipgloss::Text.truncate(col.title, col.width - 1) + "…"
             else
               col.title
             end
@@ -434,7 +434,7 @@ module Term2
           cells << style.render(rendered_cell)
         end
 
-        row_content = Style.join_horizontal(Position::Top, cells)
+        row_content = Lipgloss::Style.join_horizontal(Lipgloss::Position::Top, cells)
 
         if @border_left
           row_content = @border_style.render(@border.left) + row_content

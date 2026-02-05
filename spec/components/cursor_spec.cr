@@ -73,7 +73,7 @@ describe Term2::Components::Cursor do
     # Focused and visible -> renders cursor style (reverse A)
     cursor.focus_cmd
     # Default style is reverse.
-    # Term2::Style.new.reverse(true).render("A") produces "\e[7mA\e[0m"
+    # Lipgloss::Style.new.reverse(true).render("A") produces "\e[7mA\e[0m"
     cursor.view.content.should eq "\e[7mA\e[0m"
 
     # Focused and hidden (blink off)

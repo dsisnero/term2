@@ -30,8 +30,8 @@ module BubblezoneFullLipgloss
         BubblezoneFullLipgloss.tab_block(zone_id, item, item == @active)
       end
 
-      tab = Term2::Style.new
-        .border(Term2::Border.new("─", "─", "│", "│", "╭", "╮", "┴", "┴", "", "", "", "", ""), true)
+      tab = Lipgloss::Style.new
+        .border(Lipgloss::Border.new("─", "─", "│", "│", "╭", "╮", "┴", "┴", "", "", "", "", ""), true)
         .border_foreground(BubblezoneFullLipgloss::HIGHLIGHT)
         .padding(0, 1)
 
@@ -40,11 +40,11 @@ module BubblezoneFullLipgloss
         .border_left(false)
         .border_right(false)
 
-      row = Term2.join_horizontal(Term2::Position::Top, blocks)
-      gap_width = [width - Term2::Text.width(row) - 2, 0].max
+      row = Lipgloss.join_horizontal(Lipgloss::Position::Top, blocks)
+      gap_width = [width - Lipgloss::Text.width(row) - 2, 0].max
       gap = tab_gap.render(" " * gap_width)
 
-      Term2.join_horizontal(Term2::Position::Bottom, row, gap)
+      Lipgloss.join_horizontal(Lipgloss::Position::Bottom, row, gap)
     end
   end
 end

@@ -12,23 +12,23 @@ module ZuseApp
   alias ServerId = Int32
   alias DispatchProc = Proc(Term2::Message, Nil)
 
-  PINK            = Term2::Color.from_hex("#DB2777")
-  DARK_PINK       = Term2::Color.from_hex("#ac215f")
-  STYLE_PINK      = Term2::Style.new.foreground(PINK)
+  PINK            = Lipgloss::Color.from_hex("#DB2777")
+  DARK_PINK       = Lipgloss::Color.from_hex("#ac215f")
+  STYLE_PINK      = Lipgloss::Style.new.foreground(PINK)
   STYLE_PINK_B    = STYLE_PINK.copy.bold(true)
-  STYLE_DIM       = Term2::Style.new.foreground(Term2::Color.from_hex("#6B7280"))
-  STYLE_SEL       = Term2::Style.new.foreground(Term2::Color.from_hex("#000000")).background(PINK)
-  STYLE_DARK_SEL  = Term2::Style.new.foreground(Term2::Color.from_hex("#000000")).background(DARK_PINK)
-  STYLE_DARK_PINK = Term2::Style.new.foreground(DARK_PINK)
+  STYLE_DIM       = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#6B7280"))
+  STYLE_SEL       = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#000000")).background(PINK)
+  STYLE_DARK_SEL  = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#000000")).background(DARK_PINK)
+  STYLE_DARK_PINK = Lipgloss::Style.new.foreground(DARK_PINK)
 
-  TITLE_STYLE = Term2::Style.new
+  TITLE_STYLE = Lipgloss::Style.new
     .background(DARK_PINK)
-    .foreground(Term2::Color.from_hex("#000000"))
+    .foreground(Lipgloss::Color.from_hex("#000000"))
     .bold(true)
     .padding(0, 1)
 
-  BOX_STYLE = Term2::Style.new
-    .border(Term2::Border.rounded)
+  BOX_STYLE = Lipgloss::Style.new
+    .border(Lipgloss::Border.rounded)
     .border_foreground(PINK)
 
   enum Pane
@@ -106,10 +106,10 @@ module ZuseApp
   end
 
   struct ServerListStyles
-    property normal_title : Term2::Style
-    property normal_desc : Term2::Style
-    property selected_title : Term2::Style
-    property selected_desc : Term2::Style
+    property normal_title : Lipgloss::Style
+    property normal_desc : Lipgloss::Style
+    property selected_title : Lipgloss::Style
+    property selected_desc : Lipgloss::Style
 
     def initialize
       @normal_title = STYLE_PINK
@@ -631,10 +631,10 @@ module ZuseApp
       top_padding = 2
       servers_title = STYLE_DIM.render("Servers List")
 
-      left_inner = Term2.join_vertical(
-        Term2::Position::Left,
+      left_inner = Lipgloss.join_vertical(
+        Lipgloss::Position::Left,
         TITLE_STYLE.render("zuse irc beta"),
-        Term2::Style.new.margin_top(1).margin_bottom(1).render(servers_title),
+        Lipgloss::Style.new.margin_top(1).margin_bottom(1).render(servers_title),
         @server_list.view
       )
 
@@ -642,12 +642,12 @@ module ZuseApp
       right_inner = @mode == RightMode::Form ? view_form : view_chat
       right_box = BOX_STYLE.width(@width - @left_width - 4).height(@height - top_padding).render(right_inner)
 
-      spacer = Term2::Style.new.width(2).height(@height - top_padding).render(" ")
-      joined = Term2.join_horizontal(Term2::Position::Top, left_box, right_box, spacer)
-      top_spacer = Term2::Style.new.width(@width).height(top_padding).render(" ")
-      final_view = Term2.join_vertical(Term2::Position::Left, top_spacer, joined)
+      spacer = Lipgloss::Style.new.width(2).height(@height - top_padding).render(" ")
+      joined = Lipgloss.join_horizontal(Lipgloss::Position::Top, left_box, right_box, spacer)
+      top_spacer = Lipgloss::Style.new.width(@width).height(top_padding).render(" ")
+      final_view = Lipgloss.join_vertical(Lipgloss::Position::Left, top_spacer, joined)
 
-      Term2.place(@width, @height, Term2::Position::Left, Term2::Position::Top, final_view)
+      Lipgloss.place(@width, @height, Lipgloss::Position::Left, Lipgloss::Position::Top, final_view)
     end
 
     private def build_form_inputs : Nil
@@ -896,8 +896,8 @@ module ZuseApp
       header << TITLE_STYLE.render("up/down scroll | left/right panes") << "\n"
       divider = STYLE_PINK.render("-" * @chat_vp.width)
 
-      Term2.join_vertical(
-        Term2::Position::Left,
+      Lipgloss.join_vertical(
+        Lipgloss::Position::Left,
         header.to_s + @chat_vp.view,
         divider,
         @chat_input.view
@@ -1157,7 +1157,7 @@ ART
       width = @chat_vp.width
       width = 80 if width <= 0
 
-      wrapper = Term2::Style.new.width(width)
+      wrapper = Lipgloss::Style.new.width(width)
       wrapped = logs.map { |line| wrapper.render(line) }.join("\n")
       @chat_vp.content = wrapped
       @chat_vp.goto_bottom

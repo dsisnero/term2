@@ -58,39 +58,39 @@ module Term2
         include ItemDelegate
 
         property styles : DefaultItemStyles = DefaultItemStyles.new
-        @enumerator_style : Style = Style.new
+        @enumerator_style : Lipgloss::Style = Lipgloss::Style.new
 
         # Compatibility with ports that expose delegate styles directly.
-        def selected_style : Style
+        def selected_style : Lipgloss::Style
           @styles.selected_title
         end
 
-        def selected_style=(s : Style)
+        def selected_style=(s : Lipgloss::Style)
           @styles.selected_title = s
         end
 
-        def desc_style : Style
+        def desc_style : Lipgloss::Style
           @styles.normal_desc
         end
 
-        def desc_style=(s : Style)
+        def desc_style=(s : Lipgloss::Style)
           @styles.normal_desc = s
           @styles.selected_desc = s
         end
 
-        def enumerator_style : Style
+        def enumerator_style : Lipgloss::Style
           @enumerator_style
         end
 
-        def enumerator_style=(s : Style)
+        def enumerator_style=(s : Lipgloss::Style)
           @enumerator_style = s
         end
 
         struct DefaultItemStyles
-          property selected_title : Style = Style.new.border(Border.new(left: "│ "), false, false, false, true).border_foreground(Color::MAGENTA).foreground(Color::MAGENTA).bold(true)
-          property selected_desc : Style = Style.new.border(Border.new(left: "│ "), false, false, false, true).border_foreground(Color::MAGENTA).foreground(Color::MAGENTA).faint(true)
-          property normal_title : Style = Style.new.padding_left(2)
-          property normal_desc : Style = Style.new.padding_left(2).faint(true)
+          property selected_title : Lipgloss::Style = Lipgloss::Style.new.border(Lipgloss::Border.new(left: "│ "), false, false, false, true).border_foreground(Lipgloss::Color::MAGENTA).foreground(Lipgloss::Color::MAGENTA).bold(true)
+          property selected_desc : Lipgloss::Style = Lipgloss::Style.new.border(Lipgloss::Border.new(left: "│ "), false, false, false, true).border_foreground(Lipgloss::Color::MAGENTA).foreground(Lipgloss::Color::MAGENTA).faint(true)
+          property normal_title : Lipgloss::Style = Lipgloss::Style.new.padding_left(2)
+          property normal_desc : Lipgloss::Style = Lipgloss::Style.new.padding_left(2).faint(true)
         end
 
         def height : Int32
@@ -182,19 +182,19 @@ module Term2
 
       # Styles for the list component
       class Styles
-        property title : Style = Style.new.background(Color::MAGENTA).foreground(Color::WHITE).padding(0, 1)
-        property title_bar : Style = Style.new.padding(0, 0, 1, 2)
-        property status_bar : Style = Style.new.foreground(Color.indexed(240))
-        property status_empty : Style = Style.new.foreground(Color.indexed(240))
-        property status_bar_filter_count : Style = Style.new.foreground(Color.indexed(240))
-        property pagination_style : Style = Style.new.padding_left(2)
-        property help_style : Style = Style.new.padding(1, 0, 0, 2)
-        property no_items : Style = Style.new.foreground(Color.indexed(240)).padding_left(2)
+        property title : Lipgloss::Style = Lipgloss::Style.new.background(Lipgloss::Color::MAGENTA).foreground(Lipgloss::Color::WHITE).padding(0, 1)
+        property title_bar : Lipgloss::Style = Lipgloss::Style.new.padding(0, 0, 1, 2)
+        property status_bar : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property status_empty : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property status_bar_filter_count : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property pagination_style : Lipgloss::Style = Lipgloss::Style.new.padding_left(2)
+        property help_style : Lipgloss::Style = Lipgloss::Style.new.padding(1, 0, 0, 2)
+        property no_items : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)).padding_left(2)
 
         # Filter input styles
-        property filter_prompt : Style = Style.new.bold(true)
-        property filter_cursor : Style = Style.new
-        property default_filter_character_match : Style = Style.new.underline(true)
+        property filter_prompt : Lipgloss::Style = Lipgloss::Style.new.bold(true)
+        property filter_cursor : Lipgloss::Style = Lipgloss::Style.new
+        property default_filter_character_match : Lipgloss::Style = Lipgloss::Style.new.underline(true)
       end
 
       # KeyMap for the list
@@ -905,7 +905,7 @@ module Term2
           sections << @styles.help_style.render(help_keys.content)
         end
 
-        View.new(content: Style.join_vertical(Position::Left, sections))
+        View.new(content: Lipgloss::Style.join_vertical(Lipgloss::Position::Left, sections))
       end
     end
   end

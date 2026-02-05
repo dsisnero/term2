@@ -27,7 +27,7 @@ module BubblezoneFullLipgloss
       question = BubblezoneFullLipgloss.dialog_question(@question)
       confirm = BubblezoneFullLipgloss.dialog_button("#{@id}confirm", "Yes", @active == "confirm")
       cancel = BubblezoneFullLipgloss.dialog_button("#{@id}cancel", "Maybe", @active == "cancel")
-      buttons = Term2.join_horizontal(Term2::Position::Top, confirm, cancel)
+      buttons = Lipgloss.join_horizontal(Lipgloss::Position::Top, confirm, cancel)
       BubblezoneFullLipgloss.dialog_box([question, buttons].join("\n"), width)
     end
   end

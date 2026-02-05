@@ -38,11 +38,11 @@ module Term2
         @table.style_func = ->(row : Int32, _col : Int32) do
           case row
           when -1
-            Style.new.bold(true).foreground(Color::CYAN)
+            Lipgloss::Style.new.bold(true).foreground(Lipgloss::Color::CYAN)
           when .even?
-            Style.new.background(Color.new(Color::Type::Indexed, 236)) # Dark gray
+            Lipgloss::Style.new.background(Lipgloss::Color.new(Lipgloss::Color::Type::Indexed, 236)) # Dark gray
           else
-            Style.new
+            Lipgloss::Style.new
           end
         end
       end

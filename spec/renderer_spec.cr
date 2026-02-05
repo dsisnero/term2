@@ -23,21 +23,6 @@ describe Term2::Renderer do
       renderer.running?.should be_false
     end
 
-    it "hides cursor on start" do
-      output = IO::Memory.new
-      renderer = Term2::StandardRenderer.new(output)
-      renderer.start
-      output.to_s.should contain("\e[?25l") # hide cursor
-    end
-
-    it "shows cursor on stop" do
-      output = IO::Memory.new
-      renderer = Term2::StandardRenderer.new(output)
-      renderer.start
-      renderer.stop
-      output.to_s.should contain("\e[?25h") # show cursor
-    end
-
     it "renders view to output" do
       output = IO::Memory.new
       renderer = Term2::StandardRenderer.new(output)
@@ -132,15 +117,14 @@ describe Term2::Renderer do
       output.to_s.scan("Hello").size.should be >= 2
     end
 
-    it "moves cursor and clears line before rendering" do
+    it "clears to end before rendering" do
       output = IO::Memory.new
       renderer = Term2::StandardRenderer.new(output)
       renderer.fps = 1000.0 # High FPS for testing
       renderer.start
       renderer.render("Test")
-      output.to_s.should contain("\e[1;1H")
+      output.to_s.should contain("\r\e[J")
       output.to_s.should contain("Test")
-      output.to_s.should contain("\e[K") # clear to end of line
     end
   end
 

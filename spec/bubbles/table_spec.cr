@@ -25,7 +25,7 @@ describe Term2::Components::Table do
           [["Foooooo", "Baaaaar", "Baaaaaz"]],
           0,
           0
-        ).tap(&.cell_style=(Term2::Style.new)),
+        ).tap(&.cell_style=(Lipgloss::Style.new)),
         expected: "Foooooo   Baaaaar   Baaaaaz   ",
       },
       {
@@ -35,7 +35,7 @@ describe Term2::Components::Table do
           [["Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"]],
           0,
           0
-        ).tap(&.cell_style=(Term2::Style.new)),
+        ).tap(&.cell_style=(Lipgloss::Style.new)),
         expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
       },
       {
@@ -45,7 +45,7 @@ describe Term2::Components::Table do
           [["Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"]],
           0,
           0
-        ).tap(&.cell_style=(Term2::Style.new)),
+        ).tap(&.cell_style=(Lipgloss::Style.new)),
         expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
       },
     ]
@@ -71,15 +71,15 @@ describe Term2::Components::Table do
       ])
     )
 
-    Term2::Text.strip_ansi(biscuits.view.content).should eq golden_alignment("No_border")
+    Lipgloss::Text.strip_ansi(biscuits.view.content).should eq golden_alignment("No_border")
 
     # wrap in a simple border (replicating baseStyle border in Go test)
     lines = biscuits.view.content.split("\n")
-    sep_width = lines.first? ? Term2::Text.width(lines.first) : 0
+    sep_width = lines.first? ? Lipgloss::Text.width(lines.first) : 0
     sep = "─" * sep_width
     view_with_sep = ([lines[0], sep] + lines[1..]).join("\n")
 
-    bordered = add_border(Term2::Text.strip_ansi(view_with_sep))
+    bordered = add_border(Lipgloss::Text.strip_ansi(view_with_sep))
     bordered.should eq golden_alignment("With_border")
   end
 
@@ -143,9 +143,9 @@ describe Term2::Components::Table do
       },
       "Extra_padding" => -> {
         styles = Term2::Components::Table::Styles.new(
-          header: Term2::Style.new.padding(2, 2),
-          cell: Term2::Style.new.padding(2, 2),
-          selected: Term2::Style.new
+          header: Lipgloss::Style.new.padding(2, 2),
+          cell: Lipgloss::Style.new.padding(2, 2),
+          selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
           Term2::Components::Table.with_height(10),
@@ -164,9 +164,9 @@ describe Term2::Components::Table do
       },
       "No_padding" => -> {
         styles = Term2::Components::Table::Styles.new(
-          header: Term2::Style.new,
-          cell: Term2::Style.new,
-          selected: Term2::Style.new
+          header: Lipgloss::Style.new,
+          cell: Lipgloss::Style.new,
+          selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
           Term2::Components::Table.with_height(10),
@@ -185,9 +185,9 @@ describe Term2::Components::Table do
       },
       "Bordered_headers" => -> {
         styles = Term2::Components::Table::Styles.new(
-          header: Term2::Style.new.border(Term2::Border.normal),
-          cell: Term2::Style.new,
-          selected: Term2::Style.new
+          header: Lipgloss::Style.new.border(Lipgloss::Border.normal),
+          cell: Lipgloss::Style.new,
+          selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
           Term2::Components::Table.with_columns([
@@ -205,9 +205,9 @@ describe Term2::Components::Table do
       },
       "Bordered_cells" => -> {
         styles = Term2::Components::Table::Styles.new(
-          header: Term2::Style.new,
-          cell: Term2::Style.new.border(Term2::Border.normal),
-          selected: Term2::Style.new
+          header: Lipgloss::Style.new,
+          cell: Lipgloss::Style.new.border(Lipgloss::Border.normal),
+          selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
           Term2::Components::Table.with_columns([
@@ -289,7 +289,7 @@ describe Term2::Components::Table do
 
     tests.each do |name, build|
       table = build.call
-      table_view = Term2::Text.strip_ansi(table.view.content)
+      table_view = Lipgloss::Text.strip_ansi(table.view.content)
       if table_view != golden(name)
         puts "Mismatch for #{name}"
       end

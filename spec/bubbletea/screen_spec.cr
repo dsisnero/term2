@@ -1,5 +1,5 @@
 require "../spec_helper"
-require "../../lib/golden/golden"
+require "golden"
 
 # Port of screen_test.go from bubbletea
 
@@ -10,7 +10,7 @@ class TestViewOpts < Term2::Message
   property show_cursor : Bool = false
   property disable_bracketed_paste : Bool = false
   property key_releases : Bool = false
-  property bg_color : Term2::Color? = nil
+  property bg_color : Lipgloss::Color? = nil
 
   def initialize(
     @alt_screen = false,
@@ -44,7 +44,7 @@ class ScreenTestModel
 
   def view : Term2::View
     @executed.set(true)
-    Term2.new_view("success\n")
+    Term2.new_view("success")
   end
 end
 
@@ -163,7 +163,7 @@ describe "Bubbletea parity: screen_test.go" do
       {
         name: "bg_set_color",
         opts: [
-          TestViewOpts.new(bg_color: Term2::Color.rgb(255, 255, 255)),
+          TestViewOpts.new(bg_color: Lipgloss::Color.rgb(255, 255, 255)),
         ],
       },
     ]
@@ -188,7 +188,7 @@ describe "Bubbletea parity: screen_test.go" do
           output: io,
           options: Term2::ProgramOptions.new(
             Term2::WithWindowSize.new(80, 24),
-            Term2::WithColorProfile.new(Term2::ColorProfile::ANSI256),
+            Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
             Term2::WithEnvironment.new(["TERM=xterm-256color"])
           )
         )
@@ -204,7 +204,7 @@ describe "Bubbletea parity: screen_test.go" do
 
         program.run
 
-        Golden.require_equal(io.to_s, tc[:name], base_dir: File.join(__DIR__, "..", "..", "bubbletea"))
+        Golden.require_equal("TestViewModel/#{tc[:name]}", io.to_s, File.join(__DIR__, "..", "..", "bubbletea", "testdata"))
       end
     end
   end
@@ -244,7 +244,7 @@ describe "Bubbletea parity: screen_test.go" do
           output: io,
           options: Term2::ProgramOptions.new(
             Term2::WithWindowSize.new(80, 24),
-            Term2::WithColorProfile.new(Term2::ColorProfile::ANSI256),
+            Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
             Term2::WithEnvironment.new(["TERM=xterm-256color"])
           )
         )
@@ -259,7 +259,7 @@ describe "Bubbletea parity: screen_test.go" do
 
         program.run
 
-        Golden.require_equal(io.to_s, tc[:name], base_dir: File.join(__DIR__, "..", "..", "bubbletea"))
+        Golden.require_equal("TestClearMsg/#{tc[:name]}", io.to_s, File.join(__DIR__, "..", "..", "bubbletea", "testdata"))
       end
     end
   end

@@ -3,11 +3,11 @@ require "random"
 
 include Term2::Prelude
 
-SEND_MSG_SPINNER_STYLE = Term2::Style.new.fg_indexed(63)
-SEND_MSG_HELP_STYLE    = Term2::Style.new.fg_indexed(241).margin(1, 0)
-SEND_MSG_DOT_STYLE     = Term2::Style.new.fg_indexed(241)
+SEND_MSG_SPINNER_STYLE = Lipgloss::Style.new.fg_indexed(63)
+SEND_MSG_HELP_STYLE    = Lipgloss::Style.new.fg_indexed(241).margin(1, 0)
+SEND_MSG_DOT_STYLE     = Lipgloss::Style.new.fg_indexed(241)
 DURATION_STYLE         = SEND_MSG_DOT_STYLE
-SEND_MSG_APP_STYLE     = Term2::Style.new.margin(1, 2, 0, 2)
+SEND_MSG_APP_STYLE     = Lipgloss::Style.new.margin(1, 2, 0, 2)
 
 class ResultMsg < Term2::Message
   getter duration : Time::Span

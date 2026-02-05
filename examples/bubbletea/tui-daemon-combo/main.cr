@@ -26,8 +26,8 @@ end
 class TuiDaemonModel
   include Term2::Model
 
-  HELP_STYLE = Term2::Style.new.foreground(Term2::Color.indexed(241))
-  MAIN_STYLE = Term2::Style.new.margin_left(1)
+  HELP_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(241))
+  MAIN_STYLE = Lipgloss::Style.new.margin_left(1)
 
   getter spinner : TC::Spinner
   getter results : Array({String, Time::Span})
@@ -35,7 +35,7 @@ class TuiDaemonModel
 
   def initialize
     @spinner = TC::Spinner.new
-    @spinner.style = Term2::Style.new.foreground(Term2::Color.indexed(206))
+    @spinner.style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(206))
     @results = Array.new(5, {"", 0.seconds})
     @quitting = false
   end

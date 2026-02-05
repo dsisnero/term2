@@ -192,7 +192,7 @@ module Term2
   # moves to a new cell (character position).
   struct WithMouseCellMotion < ProgramOption
     def apply(program : Program) : Nil
-      program.enable_mouse_cell_motion
+      program.set_mouse_cell_motion
     end
   end
 
@@ -202,7 +202,7 @@ module Term2
   # This enables hover detection but generates many events.
   struct WithMouseAllMotion < ProgramOption
     def apply(program : Program) : Nil
-      program.enable_mouse_all_motion
+      program.set_mouse_all_motion
     end
   end
 
@@ -229,7 +229,7 @@ module Term2
   # This affects how colors are rendered and can be used to simulate
   # different terminal capabilities (e.g., ANSI256 for 256-color terminals).
   struct WithColorProfile < ProgramOption
-    def initialize(@profile : ColorProfile); end
+    def initialize(@profile : Lipgloss::ColorProfile); end
 
     def apply(program : Program) : Nil
       program.color_profile = @profile

@@ -36,7 +36,7 @@ module AdvancedLayout
     remaining = blocks[1..-1]
     if remaining
       remaining.each do |blk|
-        result = Term2.join_horizontal(Term2::Position::Top, result, blk)
+        result = Lipgloss.join_horizontal(Lipgloss::Position::Top, result, blk)
       end
     end
     result
@@ -58,7 +58,7 @@ module AdvancedLayout
 
   def self.title_block
     stripes = ["Lipgloss Advanced Layout Examples", "=" * 64].join("\n")
-    Term2::Style.new.bold(true).fg_hex("#F25D94").render(stripes)
+    Lipgloss::Style.new.bold(true).fg_hex("#F25D94").render(stripes)
   end
 end
 

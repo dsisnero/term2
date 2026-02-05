@@ -18,7 +18,7 @@ end
 class ListDefaultModel
   include Term2::Model
 
-  DOC_STYLE = Term2::Style.new.margin(top: 1, right: 2, bottom: 1, left: 2)
+  DOC_STYLE = Lipgloss::Style.new.margin(top: 1, right: 2, bottom: 1, left: 2)
 
   getter list : TC::List
 
@@ -56,9 +56,9 @@ class ListDefaultModel
     @list.item_name_plural = "things"
     @list.paginator.per_page = 5
     @list.enumerator = TC::List::Enumerators::Bullet
-    @list.delegate.as(TC::List::DefaultDelegate).selected_style = Term2::Style.new.magenta
-    @list.delegate.as(TC::List::DefaultDelegate).desc_style = Term2::Style.new.faint(true)
-    @list.delegate.as(TC::List::DefaultDelegate).enumerator_style = Term2::Style.new
+    @list.delegate.as(TC::List::DefaultDelegate).selected_style = Lipgloss::Style.new.magenta
+    @list.delegate.as(TC::List::DefaultDelegate).desc_style = Lipgloss::Style.new.faint(true)
+    @list.delegate.as(TC::List::DefaultDelegate).enumerator_style = Lipgloss::Style.new
     @list_title = "My Fave Things"
   end
 

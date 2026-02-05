@@ -37,7 +37,7 @@ module BubblezoneFullLipgloss
       entries = @items.map do |item|
         item == @active ? @cache_active[item] : @cache_inactive[item]
       end
-      Term2.join_horizontal(Term2::Position::Top, entries)
+      Lipgloss.join_horizontal(Lipgloss::Position::Top, entries)
     end
 
     private def ensure_cache(column_width : Int32, height : Int32) : Nil

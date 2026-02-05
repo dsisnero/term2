@@ -1,6 +1,6 @@
 require "../src/term2"
 
-# Term2::Style List/Sublist Example
+# Lipgloss::Style List/Sublist Example
 # Demonstrates the List component with different enumerators and styles
 # Note: This List is an interactive component with pagination and selection
 
@@ -8,9 +8,9 @@ require "../src/term2"
 alias List = Term2::Components::List
 
 # Define styles for the list
-main_list_style = Term2::Style.new
+main_list_style = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::CYAN)
+  .foreground(Lipgloss::Color::CYAN)
 
 # Create lists with different enumerators
 puts "List Examples with Different Enumerators:"

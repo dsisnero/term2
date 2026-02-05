@@ -27,8 +27,8 @@ module Term2
       class BlinkCanceled < Message; end
 
       property blink_speed : Time::Span = 530.milliseconds
-      property style : Style = Style.new.reverse(true)
-      property text_style : Style = Style.new
+      property style : Lipgloss::Style = Lipgloss::Style.new.reverse(true)
+      property text_style : Lipgloss::Style = Lipgloss::Style.new
 
       # char is the character under the cursor
       property char : String = " "
@@ -141,12 +141,12 @@ module Term2
 
         # Actually, Go logic is: m.Blink = m.mode == CursorHide
         # Wait, if mode is Blink, m.Blink becomes false?
-        # Let's trace Go View(): if m.Blink { return TextStyle } else { return Style.Reverse }
-        # So m.Blink=true means "Hidden/Text Style", m.Blink=false means "Visible/Block Style"
+        # Let's trace Go View(): if m.Blink { return TextStyle } else { return Lipgloss::Style.Reverse }
+        # So m.Blink=true means "Hidden/Lipgloss::Text Lipgloss::Style", m.Blink=false means "Visible/Block Lipgloss::Style"
 
         # Go: m.Blink = m.mode == CursorHide
         # If mode=Blink, m.Blink = false -> Render Cursor Block (Visible)
-        # If mode=Hide, m.Blink = true -> Render Text Style (Hidden)
+        # If mode=Hide, m.Blink = true -> Render Lipgloss::Text Lipgloss::Style (Hidden)
 
         @blink = (@mode == Mode::Hide)
 
@@ -167,7 +167,7 @@ module Term2
       # Blur blurs the cursor.
       def blur
         @focus = false
-        @blink = true # True means "Hidden/Text Style" in Go logic
+        @blink = true # True means "Hidden/Lipgloss::Text Lipgloss::Style" in Go logic
       end
 
       # SetChar sets the character under the cursor.
@@ -177,7 +177,7 @@ module Term2
 
       # View displays the cursor.
       def view : View
-        # In Go: if m.Blink { return TextStyle } else { return Style...Reverse }
+        # In Go: if m.Blink { return TextStyle } else { return Lipgloss::Style...Reverse }
         content = if @blink
                     # Cursor Hidden (Blink phase off, or blurred)
                     @text_style.inline(true).render(@char)

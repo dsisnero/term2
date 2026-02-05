@@ -14,14 +14,14 @@ end
 class AiChatModel
   include Model
 
-  HEADER_STYLE = Term2::Style.new.bold(true).yellow
+  HEADER_STYLE = Lipgloss::Style.new.bold(true).yellow
   ROLE_STYLES  = {
-    "user"      => Term2::Style.new.cyan.bold(true),
-    "assistant" => Term2::Style.new.green,
-    "system"    => Term2::Style.new.faint(true),
+    "user"      => Lipgloss::Style.new.cyan.bold(true),
+    "assistant" => Lipgloss::Style.new.green,
+    "system"    => Lipgloss::Style.new.faint(true),
   }
-  BUBBLE_STYLE   = Term2::Style.new.padding(0, 1)
-  META_STYLE     = Term2::Style.new.faint(true)
+  BUBBLE_STYLE   = Lipgloss::Style.new.padding(0, 1)
+  META_STYLE     = Lipgloss::Style.new.faint(true)
   SLASH_COMMANDS = [
     {name: "/model", desc: "choose model and reasoning effort (not wired)"},
     {name: "/approvals", desc: "choose what Codex can do without approval (not wired)"},
@@ -190,10 +190,10 @@ class AiChatModel
   end
 
   private def format_message(msg : ChatMessage) : String
-    role_style = ROLE_STYLES[msg.role]? || Term2::Style.new
+    role_style = ROLE_STYLES[msg.role]? || Lipgloss::Style.new
     label_raw = msg.role.upcase.ljust(9)
     role_label = role_style.render(label_raw)
-    label_width = Term2::Text.width(label_raw)
+    label_width = Lipgloss::Text.width(label_raw)
     wrapped = wrap_text(msg.text, @viewport.width - label_width - 2)
     wrapped.lines.map_with_index do |line, idx|
       prefix = idx == 0 ? "#{role_label} " : " " * (label_width + 1)
@@ -209,7 +209,7 @@ class AiChatModel
     current_width = 0
 
     words.each do |word|
-      word_width = Term2::Text.width(word)
+      word_width = Lipgloss::Text.width(word)
       extra = current_width > 0 ? 1 : 0
       if current_width > 0 && (current_width + extra + word_width) > width
         lines << current_words.join(" ")

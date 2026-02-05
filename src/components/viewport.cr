@@ -154,7 +154,7 @@ module Term2
       def find_longest_line_width(lines : Array(String)) : Int32
         w = 0
         lines.each do |line|
-          line_width = Term2::Text.width(line)
+          line_width = Lipgloss::Text.width(line)
           w = line_width if line_width > w
         end
         w
@@ -223,7 +223,7 @@ module Term2
             next
           end
 
-          cw = Term2::Text.char_width(c)
+          cw = Lipgloss::Text.char_width(c)
 
           if visible_width + cw <= x_offset
             visible_width += cw
@@ -254,7 +254,7 @@ module Term2
         target_width = @width > 0 ? @width : @longest_line_width
         if target_width > 0
           lines = lines.map do |line|
-            pad = target_width - Term2::Text.width(line)
+            pad = target_width - Lipgloss::Text.width(line)
             pad > 0 ? (line + (" " * pad)) : line
           end
         end

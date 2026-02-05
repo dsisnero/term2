@@ -18,7 +18,7 @@ module Term2
       # Styles
       property full_color : String
       property empty_color : String
-      property percentage_style : Style
+      property percentage_style : Lipgloss::Style
 
       # Animation state
       # `percent` is the target percent (Go: targetPercent).
@@ -31,8 +31,8 @@ module Term2
 
       # Gradient settings
       property? use_ramp : Bool
-      property ramp_color_a : Color
-      property ramp_color_b : Color
+      property ramp_color_a : Lipgloss::Color
+      property ramp_color_b : Lipgloss::Color
       property? scale_ramp : Bool
 
       # Compatibility alias used by some example ports.
@@ -60,14 +60,14 @@ module Term2
         @percent_format = "%3.0f%%"
         @full_color = "#7571F9"
         @empty_color = "#606060"
-        @percentage_style = Style.new
+        @percentage_style = Lipgloss::Style.new
         @percent = 0.0
         @percent_shown = 0.0
         @target_percent = 0.0
         @velocity = 0.0
         @use_ramp = false
-        @ramp_color_a = Color.from_hex("#5A56E0")
-        @ramp_color_b = Color.from_hex("#EE6FF8")
+        @ramp_color_a = Lipgloss::Color.from_hex("#5A56E0")
+        @ramp_color_b = Lipgloss::Color.from_hex("#EE6FF8")
         @scale_ramp = false
 
         opts.each(&.call(self))
@@ -83,8 +83,8 @@ module Term2
         ->(p : Progress) {
           p.use_ramp = true
           p.scale_ramp = false
-          p.ramp_color_a = Color.from_hex(color_a)
-          p.ramp_color_b = Color.from_hex(color_b)
+          p.ramp_color_a = Lipgloss::Color.from_hex(color_a)
+          p.ramp_color_b = Lipgloss::Color.from_hex(color_b)
           nil
         }
       end
@@ -93,8 +93,8 @@ module Term2
         ->(p : Progress) {
           p.use_ramp = true
           p.scale_ramp = true
-          p.ramp_color_a = Color.from_hex(color_a)
-          p.ramp_color_b = Color.from_hex(color_b)
+          p.ramp_color_a = Lipgloss::Color.from_hex(color_a)
+          p.ramp_color_b = Lipgloss::Color.from_hex(color_b)
           nil
         }
       end
@@ -200,7 +200,7 @@ module Term2
 
       def view_as(percent : Float64) : String
         pct_str = percentage_view(percent)
-        text_width = Text.width(pct_str)
+        text_width = Lipgloss::Text.width(pct_str)
 
         # Crystal doesn't have Math.max, use tuple max or clamp
         bar_width = {0, @width - text_width}.max
@@ -221,15 +221,15 @@ module Term2
                   end
 
               color = blend_colors(@ramp_color_a, @ramp_color_b, p)
-              str << Style.new.foreground(color).render(@full_char.to_s)
+              str << Lipgloss::Style.new.foreground(color).render(@full_char.to_s)
             end
           else
-            fill_style = Style.new.foreground(Color.from_hex(@full_color))
+            fill_style = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex(@full_color))
             str << fill_style.render(@full_char.to_s * filled_width)
           end
 
           # Empty section
-          empty_style = Style.new.foreground(Color.from_hex(@empty_color))
+          empty_style = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex(@empty_color))
           str << empty_style.render(@empty_char.to_s * empty_width)
 
           # Percentage
@@ -265,8 +265,8 @@ module Term2
         next_frame
       end
 
-      private def blend_colors(c1 : Color, c2 : Color, t : Float64) : Color
-        if c1.type == Color::Type::RGB && c2.type == Color::Type::RGB
+      private def blend_colors(c1 : Lipgloss::Color, c2 : Lipgloss::Color, t : Float64) : Lipgloss::Color
+        if c1.type == Lipgloss::Color::Type::RGB && c2.type == Lipgloss::Color::Type::RGB
           # Access value from the color struct
           v1 = c1.value
           v2 = c2.value
@@ -279,7 +279,7 @@ module Term2
             g = (g1 + (g2 - g1) * t).to_i
             b = (b1 + (b2 - b1) * t).to_i
 
-            return Color.rgb(r, g, b)
+            return Lipgloss::Color.rgb(r, g, b)
           end
         end
         # Fallback

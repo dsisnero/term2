@@ -145,30 +145,30 @@ puts S.bg(30, 30, 30).white | "Dark background"
 
 ### Method 3: Fluent Style API (Recommended for Complex Styling)
 
-For advanced styling with borders, padding, margins, alignment, and complex layouts, use the `Term2::Style` class:
+For advanced styling with borders, padding, margins, alignment, and complex layouts, use the `Lipgloss::Style` class:
 
 ```crystal
 # Create a styled box with border and padding
-style = Term2::Style.new
+style = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::CYAN)
+  .foreground(Lipgloss::Color::CYAN)
   .padding(1, 2)
-  .border(Term2::Border.rounded)
+  .border(Lipgloss::Border.rounded)
   .width(30)
-  .align(Term2::Position::Center)
+  .align(Lipgloss::Position::Center)
 
 puts style.render("Styled Box")
 
 # Complex layout with multiple styles
-title_style = Term2::Style.new
+title_style = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::WHITE)
-  .background(Term2::Color.from_hex("#3366CC"))
+  .foreground(Lipgloss::Color::WHITE)
+  .background(Lipgloss::Color.from_hex("#3366CC"))
   .padding(0, 2)
 
-content_style = Term2::Style.new
+content_style = Lipgloss::Style.new
   .padding(1)
-  .border(Term2::Border.normal)
+  .border(Lipgloss::Border.normal)
   .width(40)
 
 puts title_style.render("Title")
@@ -200,7 +200,7 @@ puts content_style.render("Content goes here")
 
 **Style API Features:**
 
-The `Term2::Style` class provides a comprehensive fluent API:
+The `Lipgloss::Style` class provides a comprehensive fluent API:
 
 * **Text Formatting**: `.bold()`, `.italic()`, `.underline()`, `.strikethrough()`, `.reverse()`, `.blink()`, `.faint()`
 * **Colors**: `.foreground()`, `.background()` (accepts `Color`, hex strings, or `AdaptiveColor`)
@@ -374,27 +374,27 @@ Use layout join utilities to combine styled content:
 
 ```crystal
 # Join content horizontally
-Term2.join_horizontal(Term2::Position::Top, left_panel, right_panel)
+Term2.join_horizontal(Lipgloss::Position::Top, left_panel, right_panel)
 
 # Join content vertically
-Term2.join_vertical(Term2::Position::Left, header, content, footer)
+Term2.join_vertical(Lipgloss::Position::Left, header, content, footer)
 
 # Place content at specific position
-Term2.place(80, 24, Term2::Position::Center, Term2::Position::Center, content)
+Term2.place(80, 24, Lipgloss::Position::Center, Lipgloss::Position::Center, content)
 ```
 
 ## Fluent Style API
 
-Term2 provides a complete Lipgloss-style fluent API for advanced styling and layout in `Term2::Style`:
+Term2 provides a complete Lipgloss-style fluent API for advanced styling and layout in `Lipgloss::Style`:
 
 ```crystal
-style = Term2::Style.new
+style = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::RED)
+  .foreground(Lipgloss::Color::RED)
   .padding(1, 2)
-  .border(Term2::Border.rounded)
+  .border(Lipgloss::Border.rounded)
   .width(20)
-  .align(Term2::Position::Center)
+  .align(Lipgloss::Position::Center)
 
 puts style.render("Hello Styled Text!")
 ```

@@ -55,7 +55,7 @@ describe "Term2::Zone message functionality" do
   describe "any_in_bounds" do
     it "sends ZoneInBoundsMsg when mouse is in zone bounds" do
       model = TestModel.new
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 100.milliseconds
 
       zone = Term2::Zone.get("foo")
@@ -83,7 +83,7 @@ describe "Term2::Zone message functionality" do
   describe "any_in_bounds_and_update" do
     it "returns updated model with ZoneInBoundsMsg when mouse is in zone bounds" do
       model = TestModelValue.new
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 100.milliseconds
 
       zone = Term2::Zone.get("foo")
@@ -111,7 +111,7 @@ describe "Term2::Zone message functionality" do
   describe "mouse event handling" do
     it "does not send ZoneInBoundsMsg when mouse is outside zone" do
       model = TestModel.new
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 100.milliseconds
 
       zone = Term2::Zone.get("foo")
@@ -127,7 +127,7 @@ describe "Term2::Zone message functionality" do
 
     it "handles multiple mouse events correctly" do
       model = TestModel.new
-      Term2::Zone.scan(model.view)
+      Term2::Zone.scan(Term2::SpecView.content(model.view))
       sleep 100.milliseconds
 
       zone = Term2::Zone.get("foo")

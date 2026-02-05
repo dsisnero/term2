@@ -12,7 +12,7 @@
 # Based on charmbracelet/x/input/parse.go.
 
 require "./base_types"
-require "./style"
+require "lipgloss"
 require "base64"
 
 module Term2
@@ -101,7 +101,7 @@ module Term2
       {msg, consumed}
     end
 
-    private def parse_color(data : String) : Color?
+    private def parse_color(data : String) : Lipgloss::Color?
       # OSC color format: "rgb:RRRR/GGGG/BBBB" where each component is 4 hex digits (0-65535)
       # Also supports "#RRGGBB", "rgb:RR/GG/BB", "rgba:RR/GG/BB/AA", etc.
       # Simplified: assume rgb:RRRR/GGGG/BBBB
@@ -116,7 +116,7 @@ module Term2
         r = (r >> 8) & 0xFF
         g = (g >> 8) & 0xFF
         b = (b >> 8) & 0xFF
-        Color.new(Color::Type::RGB, {r, g, b})
+        Lipgloss::Color.new(Lipgloss::Color::Type::RGB, {r, g, b})
       rescue
         nil
       end

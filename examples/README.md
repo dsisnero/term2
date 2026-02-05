@@ -4,6 +4,12 @@ This directory contains example applications demonstrating the functionality of 
 
 ## Available Examples
 
+### V2 View API Examples (in `examples/v2`)
+
+- `simple.cr` - Minimal View-based example
+- `counter.cr` - Counter that returns a View
+- `spinner_example.cr` - Spinner with View rendering
+
 ### 1. `simple.cr` - Basic Counter
 
 A minimal example showing the core Term2 architecture:
@@ -15,9 +21,9 @@ A minimal example showing the core Term2 architecture:
 
 **Run with:** `crystal run examples/simple.cr`
 
-### 2. `lipgloss_demo.cr` - Term2::Style API
+### 2. `lipgloss_demo.cr` - Lipgloss::Style API
 
-Demonstrates advanced styling with the Term2::Style API:
+Demonstrates advanced styling with the Lipgloss::Style API:
 
 - Style composition
 - Borders and padding
@@ -148,14 +154,16 @@ class MyModel
     end
   end
 
-  def view : String
-    "Count: #{@count}"
+  def view : Term2::View
+    Term2::View.new(content: "Count: #{@count}")
   end
 end
 
 # Run the application
 Term2.run(MyModel.new)
 ```
+
+For View-based examples, see `examples/v2/`.
 
 ### Components
 

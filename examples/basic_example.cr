@@ -3,30 +3,30 @@
 # This example demonstrates:
 # - Custom message types for actions
 # - Key handling
-# - Styled output using Term2::Style
+# - Styled output using Lipgloss::Style
 #
 # Run with: crystal run examples/basic_example.cr
 require "../src/term2"
 include Term2::Prelude
 
 # Define styles
-TITLE_STYLE = Term2::Style.new
+TITLE_STYLE = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::CYAN)
+  .foreground(Lipgloss::Color::CYAN)
 
-COUNT_STYLE = Term2::Style.new
+COUNT_STYLE = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::BRIGHT_CYAN)
+  .foreground(Lipgloss::Color::BRIGHT_CYAN)
 
-LABEL_STYLE = Term2::Style.new
+LABEL_STYLE = Lipgloss::Style.new
   .bold(true)
 
-CONTROLS_STYLE = Term2::Style.new
+CONTROLS_STYLE = Lipgloss::Style.new
   .bold(true)
-  .foreground(Term2::Color::YELLOW)
+  .foreground(Lipgloss::Color::YELLOW)
 
-KEY_STYLE = Term2::Style.new
-  .foreground(Term2::Color::CYAN)
+KEY_STYLE = Lipgloss::Style.new
+  .foreground(Lipgloss::Color::CYAN)
 
 # Custom messages for explicit actions
 class Increment < Message

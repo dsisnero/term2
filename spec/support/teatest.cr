@@ -10,9 +10,9 @@ module Term2
 
     # Wait for the given condition to be true for the IO contents.
     def self.wait_for(io : IO, *, duration : Time::Span = 1.second, check_interval : Time::Span = 50.milliseconds, & : String -> Bool) : Nil
-      start = Time.monotonic
+      start = Time.instant
       last = ""
-      while Time.monotonic - start <= duration
+      while Time.instant - start <= duration
         last = io.to_s
         return if yield last
         sleep check_interval

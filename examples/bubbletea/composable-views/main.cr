@@ -15,10 +15,10 @@ class ComposableModel
 
   DEFAULT_TIME = 60.seconds
 
-  MODEL_STYLE         = Term2::Style.new.width(15).height(5).align(:center).border(Term2::Border.hidden)
-  FOCUSED_MODEL_STYLE = Term2::Style.new.width(15).height(5).align(:center).border(Term2::Border.normal).border_foreground(Term2::Color.rgb(69, 69, 69))
-  SPINNER_STYLE       = Term2::Style.new.foreground(Term2::Color.rgb(69, 69, 69))
-  HELP_STYLE          = Term2::Style.new.foreground(Term2::Color.rgb(241, 241, 241))
+  MODEL_STYLE         = Lipgloss::Style.new.width(15).height(5).align(:center).border(Lipgloss::Border.hidden)
+  FOCUSED_MODEL_STYLE = Lipgloss::Style.new.width(15).height(5).align(:center).border(Lipgloss::Border.normal).border_foreground(Lipgloss::Color.rgb(69, 69, 69))
+  SPINNER_STYLE       = Lipgloss::Style.new.foreground(Lipgloss::Color.rgb(69, 69, 69))
+  HELP_STYLE          = Lipgloss::Style.new.foreground(Lipgloss::Color.rgb(241, 241, 241))
 
   getter state : SessionState
   getter timer : TC::Timer
@@ -59,7 +59,7 @@ class ComposableModel
     right = (focused_timer ? MODEL_STYLE : FOCUSED_MODEL_STYLE).render(@spinner.view.content)
     model_name = focused_timer ? "timer" : "spinner"
     String.build do |str|
-      str << Term2.join_horizontal(Term2::Position::Top, left, right)
+      str << Lipgloss.join_horizontal(Lipgloss::Position::Top, left, right)
       str << HELP_STYLE.render("\ntab: focus next • n: new #{model_name} • q: exit\n")
     end
   end

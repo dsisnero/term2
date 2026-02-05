@@ -82,7 +82,7 @@ describe Term2::Components::Table do
 
     view = table.view.content
 
-    plain = Term2::Text.strip_ansi(view)
+    plain = Lipgloss::Text.strip_ansi(view)
 
     # Header
     plain.should contain "ID"
@@ -117,8 +117,8 @@ describe Term2::Components::Table do
 
     table.visible_rows.size.should eq 2
     table.visible_rows[0][1].should contain "Ali"
-    Term2::Text.strip_ansi(table.view.content).should contain "Alice"
-    Term2::Text.strip_ansi(table.view.content).should contain "Alicia"
-    Term2::Text.strip_ansi(table.view.content).should_not contain "Bob"
+    Lipgloss::Text.strip_ansi(table.view.content).should contain "Alice"
+    Lipgloss::Text.strip_ansi(table.view.content).should contain "Alicia"
+    Lipgloss::Text.strip_ansi(table.view.content).should_not contain "Bob"
   end
 end

@@ -17,9 +17,9 @@ class SpinnersModel
     TC::Spinner::MONKEY,
   ]
 
-  TEXT_STYLE    = Term2::Style.new.fg_indexed(252)
-  SPINNER_STYLE = Term2::Style.new.fg_indexed(69)
-  HELP_STYLE    = Term2::Style.new.fg_indexed(241)
+  TEXT_STYLE    = Lipgloss::Style.new.fg_indexed(252)
+  SPINNER_STYLE = Lipgloss::Style.new.fg_indexed(69)
+  HELP_STYLE    = Lipgloss::Style.new.fg_indexed(241)
 
   getter index : Int32
   getter spinner : TC::Spinner

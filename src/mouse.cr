@@ -2,6 +2,12 @@ require "./base_types"
 
 # Mouse event handling for terminal applications
 module Term2
+  # MouseMsg represents any mouse-related message type.
+  # It mirrors Bubble Tea's MouseMsg interface.
+  module MouseMsg
+    abstract def mouse : MouseEvent
+  end
+
   # MouseEvent represents a mouse action in the terminal.
   #
   # Mouse events are sent when mouse tracking is enabled via
@@ -19,6 +25,7 @@ module Term2
   # end
   # ```
   class MouseEvent < Message
+    include MouseMsg
     # Mouse button types
     enum Button
       Left       # Primary mouse button
@@ -112,6 +119,10 @@ module Term2
 
       return base if mods.empty?
       "#{mods.join("+")}+#{base}"
+    end
+
+    def mouse : MouseEvent
+      self
     end
   end
 

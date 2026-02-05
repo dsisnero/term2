@@ -5,10 +5,10 @@ require "../src/term2"
 include Term2::Prelude
 
 # Define styles
-LABEL_STYLE  = Term2::Style.new.bold(true)
-VALUE_STYLE  = Term2::Style.new.foreground(Term2::Color::CYAN)
-HEADER_STYLE = Term2::Style.new.bold(true).foreground(Term2::Color::YELLOW)
-KEY_STYLE    = Term2::Style.new.foreground(Term2::Color::CYAN)
+LABEL_STYLE  = Lipgloss::Style.new.bold(true)
+VALUE_STYLE  = Lipgloss::Style.new.foreground(Lipgloss::Color::CYAN)
+HEADER_STYLE = Lipgloss::Style.new.bold(true).foreground(Lipgloss::Color::YELLOW)
+KEY_STYLE    = Lipgloss::Style.new.foreground(Lipgloss::Color::CYAN)
 
 class CounterModel
   include Model

@@ -3,9 +3,9 @@ require "./random_items"
 
 include Term2::Prelude
 
-STATUS_COLOR = Term2::AdaptiveColor.new(
-  light: Term2::Color.hex("#04B575"),
-  dark: Term2::Color.hex("#04B575"),
+STATUS_COLOR = Lipgloss::AdaptiveColor.new(
+  light: Lipgloss::Color.hex("#04B575"),
+  dark: Lipgloss::Color.hex("#04B575"),
 )
 
 class FancyItem
@@ -35,15 +35,15 @@ class FancyDelegate
   getter remove_enabled : Bool
   getter update_status : Proc(String, Term2::Cmd)
   getter on_remove : Proc(Int32, TC::List::Item, Nil)
-  getter match_style : Term2::Style
+  getter match_style : Lipgloss::Style
 
-  def initialize(@key_map = DelegateKeys.new, @match_style = Term2::Style.new.underline(true))
+  def initialize(@key_map = DelegateKeys.new, @match_style = Lipgloss::Style.new.underline(true))
     @remove_enabled = true
     @update_status = ->(_s : String) : Term2::Cmd { -> { nil.as(Term2::Message?) } }
     @on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
   end
 
-  def match_style=(style : Term2::Style)
+  def match_style=(style : Lipgloss::Style)
     @match_style = style
   end
 
@@ -68,12 +68,12 @@ class FancyDelegate
     title = fi.title
     desc = fi.description
 
-    title_style = selected ? Term2::Style.new.green : Term2::Style.new
+    title_style = selected ? Lipgloss::Style.new.green : Lipgloss::Style.new
     cursor = selected ? "> " : "  "
     enum_str = enumerator.empty? ? "" : "#{enumerator} "
 
     io << title_style.render("#{cursor}#{enum_str}#{highlight(title, matches)}") << "\n"
-    io << Term2::Style.new.faint(true).render("    #{desc}")
+    io << Lipgloss::Style.new.faint(true).render("    #{desc}")
   end
 
   def render(io : IO, model : TC::List, index : Int32, item : TC::List::Item)
@@ -133,8 +133,8 @@ end
 class FancyListModel
   include Term2::Model
 
-  APP_STYLE   = Term2::Style.new.padding(1, 2)
-  TITLE_STYLE = Term2::Style.new.fg_hex("#FFFDF5").bg_hex("#25A065").padding(0, 1)
+  APP_STYLE   = Lipgloss::Style.new.padding(1, 2)
+  TITLE_STYLE = Lipgloss::Style.new.fg_hex("#FFFDF5").bg_hex("#25A065").padding(0, 1)
 
   getter list : TC::List
   getter item_generator : RandomItemGenerator
@@ -159,14 +159,14 @@ class FancyListModel
     @list.show_status_bar = true
     @list.show_filter = true
     @list.filtering_enabled = true
-    @list.styles = @list.styles.tap { |s| s.default_filter_character_match = Term2::Style.new.underline(true) }
+    @list.styles = @list.styles.tap { |s| s.default_filter_character_match = Lipgloss::Style.new.underline(true) }
 
     delegate.update_status = ->(text : String) : Term2::Cmd {
       @list.status_message = status_message(text)
       -> { nil.as(Term2::Message?) }
     }
     delegate.on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
-    delegate.match_style = Term2::Style.new.underline(true)
+    delegate.match_style = Lipgloss::Style.new.underline(true)
 
     # Additional help bindings
     @list.additional_full_help_keys = -> {
@@ -240,7 +240,7 @@ class FancyListModel
   end
 
   private def status_message(text : String) : String
-    Term2::Style.new.foreground(STATUS_COLOR).render(text)
+    Lipgloss::Style.new.foreground(STATUS_COLOR).render(text)
   end
 end
 

@@ -1,6 +1,12 @@
 require "./spec_helper"
 
+private def color_hex(color : Lipgloss::Color) : String
+  r, g, b = color.to_rgb
+  "##{r.to_s(16).rjust(2, '0')}#{g.to_s(16).rjust(2, '0')}#{b.to_s(16).rjust(2, '0')}"
+end
+
 describe "View color rendering" do
+
   it "applies background and foreground colors" do
     output = IO::Memory.new
     renderer = Term2::StandardRenderer.new(output)
@@ -9,19 +15,16 @@ describe "View color rendering" do
 
     # Create a View with background and foreground colors
     view = Term2::View.new
-    view.background_color = Term2::Color::RED
-    view.foreground_color = Term2::Color::BLUE
+    view.background_color = Lipgloss::Color::RED
+    view.foreground_color = Lipgloss::Color::BLUE
     view.content = "Hello"
 
     renderer.render(view)
     output_str = output.to_s
 
-    # Should contain background code 41 (40 + 1 for RED)
-    output_str.should contain("\e[41m")
-    # Should contain foreground code 34 (30 + 4 for BLUE)
-    output_str.should contain("\e[34m")
-    # Should contain reset before colors
-    output_str.should contain("\e[0m")
+    # Should contain OSC background/foreground color sequences
+    output_str.should contain("\e]11;#{color_hex(Lipgloss::Color::RED)}\a")
+    output_str.should contain("\e]10;#{color_hex(Lipgloss::Color::BLUE)}\a")
     # Should contain the content
     output_str.should contain("Hello")
   end
@@ -33,20 +36,15 @@ describe "View color rendering" do
     renderer.start
 
     view = Term2::View.new
-    view.background_color = Term2::Color::GREEN
-    view.foreground_color = Term2::Color::YELLOW
+    view.background_color = Lipgloss::Color::GREEN
+    view.foreground_color = Lipgloss::Color::YELLOW
     view.content = "Line 1\nLine 2"
 
     renderer.render(view)
     output_str = output.to_s
 
-    # Should have background code 42 (GREEN) and foreground 33 (YELLOW)
-    # Reset and colors should appear for each line that changed
-    # Since we render line-diff, both lines are new, so colors applied per line.
-    # Additionally, apply_colors outputs colors once before line rendering.
-    # So total occurrences: 1 (global) + 2 (lines) = 3
-    output_str.scan("\e[42m").size.should eq(3)
-    output_str.scan("\e[33m").size.should eq(3)
+    output_str.should contain("\e]11;#{color_hex(Lipgloss::Color::GREEN)}\a")
+    output_str.should contain("\e]10;#{color_hex(Lipgloss::Color::YELLOW)}\a")
   end
 
   it "updates colors when they change" do
@@ -57,7 +55,7 @@ describe "View color rendering" do
 
     # First render with RED background
     view1 = Term2::View.new
-    view1.background_color = Term2::Color::RED
+    view1.background_color = Lipgloss::Color::RED
     view1.content = "Hello"
     renderer.render(view1)
 
@@ -66,14 +64,13 @@ describe "View color rendering" do
 
     # Second render with BLUE background (different color)
     view2 = Term2::View.new
-    view2.background_color = Term2::Color::BLUE
+    view2.background_color = Lipgloss::Color::BLUE
     view2.content = "Hello"
     renderer.render(view2)
 
     output_str = output.to_s
 
-    # Should have both color codes
-    output_str.should contain("\e[41m") # RED background
-    output_str.should contain("\e[44m") # BLUE background
+    output_str.should contain("\e]11;#{color_hex(Lipgloss::Color::RED)}\a")
+    output_str.should contain("\e]11;#{color_hex(Lipgloss::Color::BLUE)}\a")
   end
 end

@@ -13,7 +13,7 @@ class ChatModel
   getter viewport : TC::Viewport
   getter textarea : TC::TextArea
   getter messages : Array(String)
-  getter sender_style : Term2::Style
+  getter sender_style : Lipgloss::Style
   property? suspending : Bool = false
 
   def initialize
@@ -33,7 +33,7 @@ class ChatModel
     @viewport.content = initial_welcome
 
     @messages = [] of String
-    @sender_style = Term2::Style.new.magenta
+    @sender_style = Lipgloss::Style.new.magenta
 
     # Ensure the textarea starts focused for direct model usage (matches Bubble Tea behavior).
     @textarea.focus
@@ -101,7 +101,7 @@ MSG
   end
 
   private def resize(width : Int32, height : Int32)
-    gap_height = Text.height(GAP)
+    gap_height = Lipgloss::Text.height(GAP)
     @viewport.width = width
     @textarea.width = width
     @viewport.height = (height - @textarea.height - gap_height).clamp(1, height)
@@ -120,7 +120,7 @@ MSG
   end
 
   private def update_viewport_content
-    wrapper = Term2::Style.new.width(@viewport.width)
+    wrapper = Lipgloss::Style.new.width(@viewport.width)
     @viewport.content = wrapper.render(@messages.join("\n"))
   end
 end

@@ -7,7 +7,7 @@ describe Term2::Components::Progress do
     p.width = 10
     p.show_percentage = false
     # 50% of 10 chars = 5 chars full, 5 chars empty
-    Term2::Text.strip_ansi(p.view_as(0.5)).should contain("█████░░░░░")
+    Lipgloss::Text.strip_ansi(p.view_as(0.5)).should contain("█████░░░░░")
   end
 
   it "renders with percentage" do
@@ -19,7 +19,7 @@ describe Term2::Components::Progress do
     output = p.view_as(0.5)
     output.should contain(" 50%")
     # Check for correct bar length
-    ansi_stripped = Term2::Text.strip_ansi(output)
+    ansi_stripped = Lipgloss::Text.strip_ansi(output)
     ansi_stripped.size.should eq 20
   end
 

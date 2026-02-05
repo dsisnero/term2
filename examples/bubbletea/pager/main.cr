@@ -2,13 +2,13 @@ require "../../../src/term2"
 
 include Term2::Prelude
 
-TITLE_BORDER = Term2::Border.rounded.dup
+TITLE_BORDER = Lipgloss::Border.rounded.dup
 TITLE_BORDER.right = "├"
-INFO_BORDER = Term2::Border.rounded.dup
+INFO_BORDER = Lipgloss::Border.rounded.dup
 INFO_BORDER.left = "┤"
 
-PAGER_TITLE_STYLE = Term2::Style.new.border(TITLE_BORDER).padding(0, 1)
-INFO_STYLE        = Term2::Style.new.border(INFO_BORDER).padding(0, 1)
+PAGER_TITLE_STYLE = Lipgloss::Style.new.border(TITLE_BORDER).padding(0, 1)
+INFO_STYLE        = Lipgloss::Style.new.border(INFO_BORDER).padding(0, 1)
 
 class PagerModel
   include Term2::Model
@@ -34,8 +34,8 @@ class PagerModel
         return {self, Term2::Cmds.quit}
       end
     when Term2::WindowSizeMsg
-      header_height = Term2::Text.height(header_view)
-      footer_height = Term2::Text.height(footer_view)
+      header_height = Lipgloss::Text.height(header_view)
+      footer_height = Lipgloss::Text.height(footer_view)
       vertical_margin = header_height + footer_height
 
       if !@ready
@@ -60,14 +60,14 @@ class PagerModel
 
   def header_view : String
     title = PAGER_TITLE_STYLE.render("Mr. Pager")
-    line = "─" * Math.max(0, @viewport.width - Term2::Text.width(title))
-    Term2.join_horizontal(Term2::Position::Center, title, line)
+    line = "─" * Math.max(0, @viewport.width - Lipgloss::Text.width(title))
+    Lipgloss.join_horizontal(Lipgloss::Position::Center, title, line)
   end
 
   def footer_view : String
     info = INFO_STYLE.render("%3.f%%" % (@viewport.scroll_percent * 100))
-    line = "─" * Math.max(0, @viewport.width - Term2::Text.width(info))
-    Term2.join_horizontal(Term2::Position::Center, line, info)
+    line = "─" * Math.max(0, @viewport.width - Lipgloss::Text.width(info))
+    Lipgloss.join_horizontal(Lipgloss::Position::Center, line, info)
   end
 end
 

@@ -22,11 +22,11 @@ module Term2
       property filter_text : String = ""
 
       # Styles
-      property cursor_style : Style = Style.new.foreground(Color::MAGENTA)
-      property dir_style : Style = Style.new.foreground(Color::BLUE).bold(true)
-      property file_style : Style = Style.new
-      property selected_style : Style = Style.new.reverse(true)
-      property error_style : Style = Style.new.foreground(Color::RED)
+      property cursor_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color::MAGENTA)
+      property dir_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color::BLUE).bold(true)
+      property file_style : Lipgloss::Style = Lipgloss::Style.new
+      property selected_style : Lipgloss::Style = Lipgloss::Style.new.reverse(true)
+      property error_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color::RED)
 
       property error : String?
       property selected_file : String?
