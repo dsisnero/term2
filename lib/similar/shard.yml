@@ -1,0 +1,19 @@
+name: similar
+version: 0.1.0
+
+description: Crystal port of the similar diff library
+
+authors:
+  - dsisnero <dsisnero@gmail.com>
+
+targets:
+  similar:
+    main: src/similar.cr
+
+crystal: '>= 1.19.1'
+
+license: MIT
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba

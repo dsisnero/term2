@@ -1,0 +1,30 @@
+---
+version: 1.0
+shards:
+  cml:
+    git: https://github.com/dsisnero/cml.git
+    version: 0.5.0+git.commit.140a01e5d8da56524ca9c05d4852ea63d2216eeb
+  textseg:
+    git: https://github.com/naqvis/uni_text_seg.git
+    version: 0.1.3
+  uniwidth:
+    git: https://github.com/naqvis/uni_char_width.git
+    version: 0.1.3
+  ameba:
+    git: https://github.com/crystal-ameba/ameba.git
+    version: 1.6.4
+  cellwrap:
+    git: https://github.com/dsisnero/cellwrap.git
+    version: 0.1.0+git.commit.d898f154af8cdf6ac85cfc72a24f4a354be3d88b
+  nucleoc:
+    git: https://github.com/dsisnero/nucleoc.git
+    version: 0.1.0+git.commit.2bc7f15384e9dd9da04258d784756dbf2b75c701
+  similar:
+    git: https://github.com/dsisnero/similar.cr.git
+    version: 0.1.0+git.commit.52cfbb2cf1295fabc0a4bf2405819181bcae6046
+  golden:
+    git: https://github.com/dsisnero/golden.git
+    version: 0.1.0+git.commit.82c92f031cbd48f150d8c76d321b5f9211d6d440
+  lipgloss:
+    git: https://github.com/dsisnero/lipgloss.git
+    version: 0.1.0+git.commit.ece798ef430419bf40a578d0b346b5732dfe4562

@@ -1,0 +1,21 @@
+name: lipgloss
+version: 0.1.0
+
+authors:
+  - Dominic Sisneros <dsisnero@gmail.com>
+
+dependencies:
+  cellwrap:
+    github: dsisnero/cellwrap
+  textseg:
+    github: naqvis/uni_text_seg
+  uniwidth:
+    github: naqvis/uni_char_width
+
+targets:
+  lipgloss:
+    main: src/lipgloss.cr
+
+crystal: ">= 1.18.2"
+
+license: MIT
