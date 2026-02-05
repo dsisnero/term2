@@ -11,29 +11,31 @@ EXAMPLE_BINARIES := $(EXAMPLE_SOURCES:.cr=)
 build:
 	shards build
 
-# Install dependencies
 install:
-	shards install
+	GIT_CONFIG_GLOBAL=/dev/null shards install
+
+update:
+	GIT_CONFIG_GLOBAL=/dev/null shards update
 
 # Run all tests (excluding interactive)
 spec:
-	crystal spec --tag "~interactive"
+	crystal spec -Dpreview_mt -Dexecution_context --tag "~interactive"
 
 # Run all tests including interactive
 spec-all:
-	crystal spec
+	crystal spec -Dpreview_mt -Dexecution_context
 
 # Run provider-specific tests
 spec-provider:
-	crystal spec --tag provider
+	crystal spec -Dpreview_mt -Dexecution_context --tag provider
 
 # Record HTTP fixtures for provider tests
 spec-provider-record:
-	HTTP_RECORD=1 crystal spec --tag provider
+	HTTP_RECORD=1 crystal spec -Dpreview_mt -Dexecution_context --tag provider
 
 # Run interactive tests (requires real terminal)
 spec-interactive:
-	WITH_TERMINAL=1 crystal spec --tag interactive
+	WITH_TERMINAL=1 crystal spec -Dpreview_mt -Dexecution_context --tag interactive
 
 # Format all Crystal files
 format:
