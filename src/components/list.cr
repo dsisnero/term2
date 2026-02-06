@@ -470,9 +470,62 @@ module Term2
         update_keybindings
       end
 
-      @[Deprecated("Use `items=` instead")]
-      def set_items(items : Array(Item))
-        self.items = items
+      # Replace an item at the given index. This returns a command.
+      def set_item(index : Int32, item : Item) : Cmd
+        @items[index] = item
+        if @filter_state != FilterState::Unfiltered
+          filter_items
+        end
+        update_pagination
+        Cmds.none
+      end
+
+      # Insert an item at the given index. If the index is out of the upper bound,
+      # the item will be appended. This returns a command.
+      def insert_item(index : Int32, item : Item) : Cmd
+        if index >= @items.size
+          @items << item
+        else
+          @items.insert(index, item)
+        end
+        if @filter_state != FilterState::Unfiltered
+          filter_items
+        end
+        update_pagination
+        update_keybindings
+        Cmds.none
+      end
+
+      # Remove an item at the given index. If the index is out of bounds
+      # this will be a no-op.
+      def remove_item(index : Int32) : Nil
+        return if index >= @items.size
+        @items.delete_at(index)
+        if @filter_state != FilterState::Unfiltered
+          # Remove from filtered items
+          @filtered_items = @filtered_items.reject { |fi| fi.index == index }
+          # Adjust indexes of filtered items after the removed index
+          @filtered_items.each do |fi|
+            if fi.index > index
+              fi.index -= 1
+            end
+          end
+          if @filtered_items.empty?
+            reset_filtering
+          end
+        end
+        update_pagination
+      end
+
+      # Set the items available in the list. This returns a command.
+      def set_items(items : Array(Item)) : Cmd
+        @items = items
+        if @filter_state != FilterState::Unfiltered
+          filter_items
+        end
+        update_pagination
+        update_keybindings
+        Cmds.none
       end
 
       def items=(items : Array(Item))
@@ -543,6 +596,11 @@ module Term2
         update_keybindings
       end
 
+      # Reset the current filtering state.
+      def reset_filter : Nil
+        reset_filtering
+      end
+
       # [NEW] Expose status view for testing
       def status_view : String
         # Generate status string similar to view()
@@ -611,6 +669,16 @@ module Term2
         else
           Cmds.none
         end
+      end
+
+      def start_spinner : Cmd
+        @spinner_enabled = true
+        @spinner.frame_index = 0
+        @spinner.tick
+      end
+
+      def stop_spinner : Nil
+        @spinner_enabled = false
       end
 
       private def handle_browsing(msg : Msg) : Cmd
@@ -692,6 +760,30 @@ module Term2
         count = items_on_current_page
         return if count <= 0
         @index = i.clamp(0, count - 1)
+      end
+
+      # Move to the first page, and first item on the first page.
+      def go_to_start : Nil
+        @paginator.page = 0
+        @index = 0
+      end
+
+      # Move to the last page, and last item on the last page.
+      def go_to_end : Nil
+        @paginator.page = max(0, @paginator.total_pages - 1)
+        @index = max(0, @paginator.items_on_page(visible_items.size) - 1)
+      end
+
+      # Move to the previous page, if available.
+      def prev_page : Nil
+        @paginator.prev_page
+        @index = @index.clamp(0, @paginator.items_on_page(visible_items.size) - 1)
+      end
+
+      # Move to the next page, if available.
+      def next_page : Nil
+        @paginator.next_page
+        @index = @index.clamp(0, @paginator.items_on_page(visible_items.size) - 1)
       end
 
       private def cursor_up_internal

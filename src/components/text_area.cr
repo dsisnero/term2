@@ -779,8 +779,6 @@ module Term2
         prefix += @prompt
         Lipgloss::Text.width(prefix)
       end
-
-
     end
   end
 end

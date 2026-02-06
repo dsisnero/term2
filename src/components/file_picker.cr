@@ -1,5 +1,4 @@
 require "file_utils"
-require "nucleoc"
 require "../term2"
 require "./key"
 require "atomic"
