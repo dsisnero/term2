@@ -52,6 +52,7 @@ module Term2
       # Total height including header + viewport. If 0, uses Bubble Tea defaults.
       property height : Int32 = 0
       property id : String = ""
+      property? focus : Bool = false
 
       # Styles
       property styles : Styles = Styles.new
@@ -117,16 +118,20 @@ module Term2
         getter line_down : Key::Binding
         getter page_up : Key::Binding
         getter page_down : Key::Binding
+        getter half_page_up : Key::Binding
+        getter half_page_down : Key::Binding
         getter goto_top : Key::Binding
         getter goto_bottom : Key::Binding
 
         def initialize
           @line_up = Key::Binding.new(["up", "k"], "up", "up")
           @line_down = Key::Binding.new(["down", "j"], "down", "down")
-          @page_up = Key::Binding.new(["pgup", "b"], "pgup", "page up")
-          @page_down = Key::Binding.new(["pgdown", "f", "space"], "pgdn", "page down")
-          @goto_top = Key::Binding.new(["home", "g"], "home", "go to top")
-          @goto_bottom = Key::Binding.new(["end", "G"], "end", "go to bottom")
+          @page_up = Key::Binding.new(["b", "pgup"], "b/pgup", "page up")
+          @page_down = Key::Binding.new(["f", "pgdown", " "], "f/pgdn", "page down")
+          @half_page_up = Key::Binding.new(["u", "ctrl+u"], "u", "½ page up")
+          @half_page_down = Key::Binding.new(["d", "ctrl+d"], "d", "½ page down")
+          @goto_top = Key::Binding.new(["home", "g"], "g/home", "go to start")
+          @goto_bottom = Key::Binding.new(["end", "G"], "G/end", "go to end")
         end
       end
 
@@ -241,15 +246,15 @@ module Term2
       end
 
       def focused? : Bool
-        @id.empty? ? true : Zone.focused?(@id)
+        @focus
       end
 
       def focus
-        Zone.focus(@id) unless @id.empty?
+        @focus = true
       end
 
       def blur
-        Zone.blur(@id) unless @id.empty?
+        @focus = false
       end
 
       def rows=(rows : Array(Row))
@@ -295,6 +300,10 @@ module Term2
           move_cursor(-@viewport.height)
         when @key_map.page_down.matches?(msg)
           move_cursor(@viewport.height)
+        when @key_map.half_page_up.matches?(msg)
+          move_cursor(-(@viewport.height // 2))
+        when @key_map.half_page_down.matches?(msg)
+          move_cursor(@viewport.height // 2)
         when @key_map.goto_top.matches?(msg)
           goto_top
         when @key_map.goto_bottom.matches?(msg)

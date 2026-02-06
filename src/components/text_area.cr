@@ -1,9 +1,10 @@
 require "../term2"
-require "../zone"
 require "./viewport"
 require "./cursor"
 require "./key"
 require "uniwidth"
+require "./memoization"
+require "./rune_util"
 
 module Term2
   module Components
@@ -13,20 +14,50 @@ module Term2
       struct KeyMap
         getter character_backward : Key::Binding
         getter character_forward : Key::Binding
+        getter delete_after_cursor : Key::Binding
+        getter delete_before_cursor : Key::Binding
+        getter delete_character_backward : Key::Binding
+        getter delete_character_forward : Key::Binding
+        getter delete_word_backward : Key::Binding
+        getter delete_word_forward : Key::Binding
+        getter insert_newline : Key::Binding
+        getter line_end : Key::Binding
         getter line_next : Key::Binding
         getter line_previous : Key::Binding
-        getter delete_character_backward : Key::Binding
-        getter delete_word_backward : Key::Binding
-        getter insert_newline : Key::Binding
+        getter line_start : Key::Binding
+        getter paste : Key::Binding
+        getter word_backward : Key::Binding
+        getter word_forward : Key::Binding
+        getter input_begin : Key::Binding
+        getter input_end : Key::Binding
+        getter uppercase_word_forward : Key::Binding
+        getter lowercase_word_forward : Key::Binding
+        getter capitalize_word_forward : Key::Binding
+        getter transpose_character_backward : Key::Binding
 
         def initialize
           @character_forward = Key::Binding.new(["right", "ctrl+f"], "right", "character forward")
           @character_backward = Key::Binding.new(["left", "ctrl+b"], "left", "character backward")
+          @word_forward = Key::Binding.new(["alt+right", "alt+f"], "alt+right", "word forward")
+          @word_backward = Key::Binding.new(["alt+left", "alt+b"], "alt+left", "word backward")
           @line_next = Key::Binding.new(["down", "ctrl+n"], "down", "next line")
           @line_previous = Key::Binding.new(["up", "ctrl+p"], "up", "previous line")
           @delete_word_backward = Key::Binding.new(["alt+backspace", "ctrl+w"], "alt+backspace", "delete word backward")
-          @delete_character_backward = Key::Binding.new(["backspace", "ctrl+h"], "backspace", "delete character backward")
+          @delete_word_forward = Key::Binding.new(["alt+delete", "alt+d"], "alt+delete", "delete word forward")
+          @delete_after_cursor = Key::Binding.new(["ctrl+k"], "ctrl+k", "delete after cursor")
+          @delete_before_cursor = Key::Binding.new(["ctrl+u"], "ctrl+u", "delete before cursor")
           @insert_newline = Key::Binding.new(["enter", "ctrl+m"], "enter", "insert newline")
+          @delete_character_backward = Key::Binding.new(["backspace", "ctrl+h"], "backspace", "delete character backward")
+          @delete_character_forward = Key::Binding.new(["delete", "ctrl+d"], "delete", "delete character forward")
+          @line_start = Key::Binding.new(["home", "ctrl+a"], "home", "line start")
+          @line_end = Key::Binding.new(["end", "ctrl+e"], "end", "line end")
+          @paste = Key::Binding.new(["ctrl+v"], "ctrl+v", "paste")
+          @input_begin = Key::Binding.new(["alt+<", "ctrl+home"], "alt+<", "input begin")
+          @input_end = Key::Binding.new(["alt+>", "ctrl+end"], "alt+>", "input end")
+          @capitalize_word_forward = Key::Binding.new(["alt+c"], "alt+c", "capitalize word forward")
+          @lowercase_word_forward = Key::Binding.new(["alt+l"], "alt+l", "lowercase word forward")
+          @uppercase_word_forward = Key::Binding.new(["alt+u"], "alt+u", "uppercase word forward")
+          @transpose_character_backward = Key::Binding.new(["ctrl+t"], "ctrl+t", "transpose character backward")
         end
       end
 
@@ -36,9 +67,41 @@ module Term2
 
       # Properties matching Go implementation
       property id : String = ""
-      property value : String = ""
+      property? focus : Bool = false
+
+      def focus=(value : Bool)
+        @focus = value
+        if @focus
+          @cursor.focus
+        else
+          @cursor.blur
+        end
+      end
+
+      def value : String
+        @value.map(&.join).join("\n")
+      end
+
       property cursor_line : Int32 = 0
       property cursor_col : Int32 = 0
+
+      def value=(text : String)
+        if @char_limit > 0 && text.size > @char_limit
+          text = text[0...@char_limit]
+        end
+        @value = string_to_lines(text)
+        if @value.empty?
+          @cursor_line = 0
+          @cursor_col = 0
+        else
+          @cursor_line = @value.size - 1
+          @cursor_col = @value.last.size
+        end
+        @preferred_x = display_width(@value.last?.try(&.join) || "")
+        @last_move_vertical = false
+        update_viewport
+        scroll_to_cursor
+      end
 
       property? show_line_numbers : Bool = true
       property prompt : String = "┃ "
@@ -60,6 +123,7 @@ module Term2
       property style : Lipgloss::Style = Lipgloss::Style.new
 
       # Internal state
+      @value : Array(Array(Char)) = [[] of Char]
       @width : Int32 = 40
       @height : Int32 = 6
       @preferred_x : Int32 = 0
@@ -106,12 +170,12 @@ module Term2
       end
 
       def focus : Cmd
-        Zone.focus(@id) unless @id.empty?
+        @focus = true
         @cursor.focus
       end
 
       def blur
-        Zone.blur(@id) unless @id.empty?
+        @focus = false
         @cursor.blur
       end
 
@@ -120,8 +184,7 @@ module Term2
       end
 
       def focused?
-        return @cursor.focus? if @id.empty?
-        Zone.focused?(@id)
+        @focus
       end
 
       # Update logic
@@ -130,10 +193,6 @@ module Term2
         @cursor = new_cursor
 
         case msg
-        when ZoneClickMsg
-          if !@id.empty? && msg.id == @id
-            return {self, focus}
-          end
         when KeyMsg
           if focused?
             handle_key(msg)
@@ -146,7 +205,7 @@ module Term2
       end
 
       def handle_key(msg : KeyMsg)
-        lines = split_lines(@value)
+        lines = @value.map(&.join)
 
         # Ensure we always have at least one line
         lines = [""] if lines.empty?
@@ -204,10 +263,72 @@ module Term2
           delete_char(lines)
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
+        when @key_map.delete_character_forward.matches?(msg)
+          delete_character_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.delete_after_cursor.matches?(msg)
+          delete_after_cursor(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.delete_before_cursor.matches?(msg)
+          delete_before_cursor(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.delete_word_forward.matches?(msg)
+          delete_word_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.line_start.matches?(msg)
+          @cursor_col = 0
+          @preferred_x = 0
+          @last_move_vertical = false
+        when @key_map.line_end.matches?(msg)
+          @cursor_col = lines[@cursor_line].size
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.word_backward.matches?(msg)
+          word_backward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.word_forward.matches?(msg)
+          word_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.input_begin.matches?(msg)
+          @cursor_line = 0
+          @cursor_col = 0
+          @preferred_x = 0
+          @last_move_vertical = false
+        when @key_map.input_end.matches?(msg)
+          @cursor_line = lines.size - 1
+          @cursor_col = lines.last.size
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.uppercase_word_forward.matches?(msg)
+          uppercase_word_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.lowercase_word_forward.matches?(msg)
+          lowercase_word_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.capitalize_word_forward.matches?(msg)
+          capitalize_word_forward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.transpose_character_backward.matches?(msg)
+          transpose_character_backward(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
+        when @key_map.paste.matches?(msg)
+          paste(lines)
+          @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
+          @last_move_vertical = false
         else
           # Check for regular typing
           if msg.key.type == KeyType::Runes && !msg.key.alt? && !msg.key.type.control?
-            if @char_limit > 0 && @value.size >= @char_limit
+            if @char_limit > 0 && value.size >= @char_limit
               return
             end
             insert_char(lines, msg.key.to_s)
@@ -215,7 +336,8 @@ module Term2
           end
         end
 
-        @value = lines.join("\n")
+        @value = lines.map(&.chars.to_a)
+        @value = [[] of Char] if @value.empty?
         @preferred_x = display_width(lines[@cursor_line][0...@cursor_col]) unless @last_move_vertical
       end
 
@@ -289,8 +411,174 @@ module Term2
         @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
       end
 
+      def delete_character_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        if @cursor_col < line.size
+          left = line[0...@cursor_col]
+          right = line[@cursor_col + 1..-1]
+          lines[@cursor_line] = left + right
+        elsif @cursor_line < lines.size - 1
+          # Merge with next line
+          current = lines[@cursor_line]
+          next_line = lines.delete_at(@cursor_line + 1)
+          lines[@cursor_line] = current + next_line
+        end
+      end
+
+      def delete_after_cursor(lines : Array(String))
+        line = lines[@cursor_line]
+        lines[@cursor_line] = line[0...@cursor_col]
+      end
+
+      def delete_before_cursor(lines : Array(String))
+        line = lines[@cursor_line]
+        lines[@cursor_line] = line[@cursor_col..-1]
+        @cursor_col = 0
+      end
+
+      def delete_word_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        return if @cursor_col >= chars.size
+
+        old_col = @cursor_col.clamp(0, chars.size)
+        cursor = old_col
+
+        while cursor < chars.size && chars[cursor].whitespace?
+          cursor += 1
+        end
+
+        while cursor < chars.size
+          if !chars[cursor].whitespace?
+            cursor += 1
+          else
+            break
+          end
+        end
+
+        end_col = cursor
+        new_chars = [] of Char
+        new_chars.concat(chars[0...old_col]) if old_col > 0
+        new_chars.concat(chars[end_col..-1]) if end_col < chars.size
+        lines[@cursor_line] = new_chars.join
+      end
+
+      def word_backward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        return if @cursor_col <= 0
+
+        cursor = @cursor_col - 1
+        while cursor > 0 && chars[cursor].whitespace?
+          cursor -= 1
+        end
+        while cursor > 0
+          if !chars[cursor].whitespace?
+            cursor -= 1
+          else
+            cursor += 1
+            break
+          end
+        end
+        @cursor_col = cursor
+      end
+
+      def word_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        return if @cursor_col >= chars.size
+
+        cursor = @cursor_col
+        while cursor < chars.size && chars[cursor].whitespace?
+          cursor += 1
+        end
+        while cursor < chars.size
+          if !chars[cursor].whitespace?
+            cursor += 1
+          else
+            break
+          end
+        end
+        @cursor_col = cursor
+      end
+
+      def uppercase_word_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        start = @cursor_col
+        # find word start
+        while start > 0 && !chars[start - 1].whitespace?
+          start -= 1
+        end
+        # find word end
+        finish = start
+        while finish < chars.size && !chars[finish].whitespace?
+          finish += 1
+        end
+        # uppercase
+        (start...finish).each do |i|
+          chars[i] = chars[i].upcase
+        end
+        lines[@cursor_line] = chars.join
+        @cursor_col = finish
+      end
+
+      def lowercase_word_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        start = @cursor_col
+        while start > 0 && !chars[start - 1].whitespace?
+          start -= 1
+        end
+        finish = start
+        while finish < chars.size && !chars[finish].whitespace?
+          finish += 1
+        end
+        (start...finish).each do |i|
+          chars[i] = chars[i].downcase
+        end
+        lines[@cursor_line] = chars.join
+        @cursor_col = finish
+      end
+
+      def capitalize_word_forward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        start = @cursor_col
+        while start > 0 && !chars[start - 1].whitespace?
+          start -= 1
+        end
+        finish = start
+        while finish < chars.size && !chars[finish].whitespace?
+          finish += 1
+        end
+        if start < chars.size
+          chars[start] = chars[start].upcase
+          (start + 1...finish).each do |i|
+            chars[i] = chars[i].downcase
+          end
+        end
+        lines[@cursor_line] = chars.join
+        @cursor_col = finish
+      end
+
+      def transpose_character_backward(lines : Array(String))
+        line = lines[@cursor_line]
+        chars = line.chars
+        return if @cursor_col == 0 || @cursor_col >= chars.size
+        # swap chars[@cursor_col - 1] and chars[@cursor_col]
+        chars[@cursor_col - 1], chars[@cursor_col] = chars[@cursor_col], chars[@cursor_col - 1]
+        lines[@cursor_line] = chars.join
+        @cursor_col += 1
+      end
+
+      def paste(lines : Array(String))
+        # placeholder: insert "PASTE"
+        insert_char(lines, "PASTE")
+      end
+
       def reset
-        @value = ""
+        @value = [[] of Char]
         @cursor_line = 0
         @cursor_col = 0
         update_viewport
@@ -298,7 +586,7 @@ module Term2
       end
 
       def insert_string(str : String)
-        lines = split_lines(@value)
+        lines = @value.map(&.join)
         lines = [""] if lines.empty?
 
         @cursor_line = @cursor_line.clamp(0, lines.size - 1)
@@ -312,7 +600,8 @@ module Term2
           new_val = new_val[0...@char_limit]
         end
         lines[@cursor_line] = new_val
-        @value = lines.join("\n")
+        @value = lines.map(&.chars.to_a)
+        @value = [[] of Char] if @value.empty?
         @cursor_col = left.size + str.size
         @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
         update_viewport
@@ -320,7 +609,7 @@ module Term2
       end
 
       def line_info : LineInfo
-        lines = split_lines(@value)
+        lines = @value.map(&.join)
         lines = [""] if lines.empty?
         line = lines[@cursor_line]?
         line ||= ""
@@ -331,7 +620,7 @@ module Term2
       end
 
       def update_viewport
-        lines = split_lines(@value)
+        lines = @value.map(&.join)
         lines = [""] if lines.empty?
 
         rendered_lines = [] of String
@@ -456,12 +745,13 @@ module Term2
         # Usually update_viewport happens in update loop, but for simple tests:
         update_viewport if @viewport.content.empty? && !@value.empty?
 
-        inner_view = @viewport.view
-        if @id.empty?
-          inner_view
-        else
-          View.new(content: Zone.mark(@id, inner_view.content))
-        end
+        @viewport.view
+      end
+
+      private def string_to_lines(s : String) : Array(Array(Char))
+        lines = s.split('\n')
+        lines = [""] if lines.empty?
+        lines.map(&.chars.to_a)
       end
 
       private def split_lines(s : String) : Array(String)
@@ -490,26 +780,7 @@ module Term2
         Lipgloss::Text.width(prefix)
       end
 
-      def value=(text : String)
-        new_val = if @char_limit > 0 && text.size > @char_limit
-                    text[0...@char_limit]
-                  else
-                    text
-                  end
-        @value = new_val
-        lines = split_lines(@value)
-        if lines.empty?
-          @cursor_line = 0
-          @cursor_col = 0
-        else
-          @cursor_line = lines.size - 1
-          @cursor_col = lines.last.size
-        end
-        @preferred_x = display_width(lines.last? || "")
-        @last_move_vertical = false
-        update_viewport
-        scroll_to_cursor
-      end
+
     end
   end
 end

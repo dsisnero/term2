@@ -6,7 +6,6 @@ private def color_hex(color : Lipgloss::Color) : String
 end
 
 describe "View color rendering" do
-
   it "applies background and foreground colors" do
     output = IO::Memory.new
     renderer = Term2::StandardRenderer.new(output)

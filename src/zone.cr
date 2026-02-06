@@ -1,6 +1,3 @@
-require "./base_types"
-require "uniwidth"
-
 # Zone provides focus and mouse click management for Term2.
 #
 # Inspired by BubbleZone, this module allows components to register
@@ -30,6 +27,8 @@ require "uniwidth"
 # end
 # ```
 
+require "uniwidth"
+
 module Term2
   # Zone info for tracking interactive regions
   struct ZoneInfo
@@ -44,12 +43,8 @@ module Term2
     end
 
     # Returns true if the zone isn't known yet (is zero)
-    def is_zero? : Bool
-      @id.empty?
-    end
-
     def zero? : Bool
-      is_zero?
+      @id.empty?
     end
 
     def in_bounds?(event : MouseEvent) : Bool
@@ -66,7 +61,7 @@ module Term2
     # being the top left cell of the zone. If the zone is not known,
     # or the coordinates are not in the bounds of the zone, returns (-1, -1).
     def pos(x : Int32, y : Int32) : Tuple(Int32, Int32)
-      if is_zero? || !in_bounds?(x, y)
+      if zero? || !in_bounds?(x, y)
         return {-1, -1}
       end
       {x - @start_x, y - @start_y}
@@ -138,7 +133,6 @@ module Term2
     @@marker_counter = 1000_u64
     @@prefix_counter = 0_i64
     @@enabled = true
-    @@focused_id : String? = nil
     @@current_x = 0
     @@current_y = 0
 
@@ -155,7 +149,6 @@ module Term2
         @@rids.clear
         @@ids_num.clear
         @@rids_num.clear
-        @@focused_id = nil
       end
     end
 
@@ -166,7 +159,6 @@ module Term2
       @@rids.clear
       @@ids_num.clear
       @@rids_num.clear
-      @@focused_id = nil
     end
 
     # Clear only zone geometry for a new frame, while preserving marker mappings.
@@ -196,29 +188,29 @@ module Term2
     end
 
     # Check if a zone is focused
+    # DEPRECATED: Focus management removed - components should manage focus internally
     def self.focused?(id : String) : Bool
-      @@focused_id == id
+      false
     end
 
-    # Get focused zone ID
+    # DEPRECATED: Focus management removed
     def self.focused_id : String?
-      @@focused_id
+      nil
     end
 
-    # Set focused zone ID
+    # DEPRECATED: Focus management removed
     def self.focused_id=(id : String?)
-      @@focused_id = id
+      # no-op
     end
 
-    # Focus a zone
+    # DEPRECATED: Focus management removed - components should manage focus internally
     def self.focus(id : String)
-      return if id.empty?
-      @@focused_id = id
+      # no-op
     end
 
-    # Blur a zone
+    # DEPRECATED: Focus management removed
     def self.blur(id : String)
-      @@focused_id = nil if @@focused_id == id
+      # no-op
     end
 
     # Register a zone manually (for testing)
@@ -384,6 +376,25 @@ module Term2
       result
     end
 
+    # Scan a View and extract zones, returning a new View with markers stripped
+    def self.scan(view : View) : View
+      scanned_content = scan(view.content)
+      View.new(
+        content: scanned_content,
+        cursor: view.cursor,
+        background_color: view.background_color,
+        foreground_color: view.foreground_color,
+        window_title: view.window_title,
+        progress_bar: view.progress_bar,
+        alt_screen: view.alt_screen,
+        report_focus: view.report_focus,
+        disable_bracketed_paste_mode: view.disable_bracketed_paste_mode,
+        mouse_mode: view.mouse_mode,
+        keyboard_enhancements: view.keyboard_enhancements,
+        on_mouse: view.on_mouse
+      )
+    end
+
     # Find zone at coordinates
     def self.find_at(x : Int32, y : Int32) : ZoneInfo?
       # Find all zones at coordinates
@@ -401,7 +412,7 @@ module Term2
       end
     end
 
-    # Handle mouse event
+    # Handle mouse event (legacy method - use any_in_bounds instead)
     def self.handle_mouse(event : MouseEvent) : ZoneClickMsg?
       return unless @@enabled
 
@@ -428,28 +439,14 @@ module Term2
       end
     end
 
-    # Tab to next zone
+    # DEPRECATED: Focus management removed - tab navigation disabled
     def self.focus_next : String?
-      ids = @@zones.keys.sort!
-      return if ids.empty?
-
-      current_idx = @@focused_id.try { |id| ids.index(id) }
-      next_idx = current_idx ? (current_idx + 1) % ids.size : 0
-
-      @@focused_id = ids[next_idx]
-      @@focused_id
+      nil
     end
 
-    # Tab to previous zone
+    # DEPRECATED: Focus management removed - tab navigation disabled
     def self.focus_prev : String?
-      ids = @@zones.keys.sort!
-      return if ids.empty?
-
-      current_idx = @@focused_id.try { |id| ids.index(id) }
-      prev_idx = current_idx ? (current_idx - 1 + ids.size) % ids.size : ids.size - 1
-
-      @@focused_id = ids[prev_idx]
-      @@focused_id
+      nil
     end
 
     # Clear a specific zone

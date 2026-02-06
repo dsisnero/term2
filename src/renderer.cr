@@ -15,6 +15,7 @@ module Term2
 
     # Render a frame
     abstract def render(view : String) : Nil
+
     def render(view : View) : Nil
       render_view(view)
     end

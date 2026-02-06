@@ -947,17 +947,25 @@ module Term2
           cmds = [] of Cmd?
           cmds << cmd1
 
+          # Bubblezone-style mouse handling: send ZoneInBoundsMsg for zones under mouse
+          t_update2a = Time.instant if @profile
+          updated_model2, cmd2 = Zone.any_in_bounds_and_update(current, mouse_event)
+          current = updated_model2.as(M)
+          t_update2b = Time.instant if @profile
+          cmds << cmd2
+
+          # Also send ZoneClickMsg for backward compatibility
           if zone_click = Zone.handle_mouse(mouse_event)
             if mouse_event.action == MouseEvent::Action::Press
               Zone.focus(zone_click.id)
             end
             @log_file.try { |f| f.puts("in zone_click id=#{zone_click.id} x=#{zone_click.x} y=#{zone_click.y} button=#{zone_click.button} action=#{zone_click.action}") }
 
-            t_update2a = Time.instant if @profile
-            updated_model2, cmd2 = current.update(zone_click)
-            current = updated_model2.as(M)
-            t_update2b = Time.instant if @profile
-            cmds << cmd2
+            t_update3a = Time.instant if @profile
+            updated_model3, cmd3 = current.update(zone_click)
+            current = updated_model3.as(M)
+            t_update3b = Time.instant if @profile
+            cmds << cmd3
           end
 
           @model = current
@@ -1067,11 +1075,10 @@ module Term2
 
     private def render_frame(frame : View)
       Zone.clear_zones
-      stripped = Zone.scan(frame.content)
-      frame.content = stripped
-      @view_mouse_mode = frame.mouse_mode
-      @last_view = frame
-      @renderer.render(frame)
+      scanned_view = Zone.scan(frame)
+      @view_mouse_mode = scanned_view.mouse_mode
+      @last_view = scanned_view
+      @renderer.render(scanned_view)
     end
 
     private def render_print(msg : PrintMsg)
@@ -1211,7 +1218,7 @@ module Term2
     private def exec_sequence(seq : SequenceMsg, spawn_async : Bool = true)
       return if @shutdown_ch.closed?
 
-      runner = ->{
+      runner = -> {
         seq.cmds.each do |cmd|
           # Loop control: break stops the sequence logic inside the fiber
           break if @shutdown_ch.closed?
