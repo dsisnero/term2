@@ -5,6 +5,7 @@ require "./key"
 require "uniwidth"
 require "./memoization"
 require "./rune_util"
+require "easyclip"
 
 module Term2
   module Components
@@ -88,6 +89,94 @@ module Term2
         KeyMap.new
       end
 
+      # Cursor shape enum matching Go's tea.CursorShape
+      enum CursorShape
+        Block
+        Underline
+        Bar
+      end
+
+      # CursorStyle is the style for real and virtual cursors.
+      struct CursorStyle
+        property color : Lipgloss::Color? = nil
+        property shape : CursorShape = CursorShape::Block
+        property? blink : Bool = false
+        property blink_speed : Time::Span = 500.milliseconds
+
+        def initialize(@color = nil, @shape = CursorShape::Block, @blink = false, @blink_speed = 500.milliseconds)
+        end
+      end
+
+      # StyleState that will be applied to the text area.
+      # StyleState can be applied to focused and unfocused states to change the styles
+      # depending on the focus state.
+      struct StyleState
+        property base : Lipgloss::Style
+        property text : Lipgloss::Style
+        property line_number : Lipgloss::Style
+        property cursor_line_number : Lipgloss::Style
+        property cursor_line : Lipgloss::Style
+        property end_of_buffer : Lipgloss::Style
+        property placeholder : Lipgloss::Style
+        property prompt : Lipgloss::Style
+
+        def initialize(
+          @base = Lipgloss::Style.new,
+          @text = Lipgloss::Style.new,
+          @line_number = Lipgloss::Style.new,
+          @cursor_line_number = Lipgloss::Style.new,
+          @cursor_line = Lipgloss::Style.new,
+          @end_of_buffer = Lipgloss::Style.new,
+          @placeholder = Lipgloss::Style.new,
+          @prompt = Lipgloss::Style.new,
+        )
+        end
+
+        def computed_cursor_line : Lipgloss::Style
+          @cursor_line.inherit(@base).inline(true)
+        end
+
+        def computed_cursor_line_number : Lipgloss::Style
+          @cursor_line_number.inherit(@cursor_line).inherit(@base).inline(true)
+        end
+
+        def computed_end_of_buffer : Lipgloss::Style
+          @end_of_buffer.inherit(@base).inline(true)
+        end
+
+        def computed_line_number : Lipgloss::Style
+          @line_number.inherit(@base).inline(true)
+        end
+
+        def computed_placeholder : Lipgloss::Style
+          @placeholder.inherit(@base).inline(true)
+        end
+
+        def computed_prompt : Lipgloss::Style
+          @prompt.inherit(@base).inline(true)
+        end
+
+        def computed_text : Lipgloss::Style
+          @text.inherit(@base).inline(true)
+        end
+      end
+
+      # Styles are the styles for the textarea, separated into focused and blurred
+      # states. The appropriate styles will be chosen based on the focus state of
+      # the textarea.
+      struct Styles
+        property focused : StyleState
+        property blurred : StyleState
+        property cursor : CursorStyle
+
+        def initialize(
+          @focused = StyleState.new,
+          @blurred = StyleState.new,
+          @cursor = CursorStyle.new,
+        )
+        end
+      end
+
       # Properties matching Go implementation
       property id : String = ""
       property? focus : Bool = false
@@ -99,6 +188,61 @@ module Term2
         else
           @cursor.blur
         end
+      end
+
+      private def active_style : StyleState
+        focused? ? @styles.focused : @styles.blurred
+      end
+
+      private def update_cursor_style
+        cursor_style = @styles.cursor
+        @cursor.blink_speed = cursor_style.blink_speed
+        # Set blink mode
+        @cursor.mode = cursor_style.blink? ? Cursor::Mode::Blink : Cursor::Mode::Static
+        # Map shape to Lipgloss::Style
+        case cursor_style.shape
+        when CursorShape::Block
+          @cursor.style = Lipgloss::Style.new.reverse(true)
+        when CursorShape::Underline
+          @cursor.style = Lipgloss::Style.new.underline(true)
+        when CursorShape::Bar
+          # Bar cursor: vertical line at position, we'll use reverse for now
+          @cursor.style = Lipgloss::Style.new.reverse(true)
+        end
+        # Apply color if set
+        if color = cursor_style.color
+          @cursor.style = @cursor.style.foreground(color)
+          @cursor.text_style = Lipgloss::Style.new.foreground(color)
+        else
+          @cursor.text_style = Lipgloss::Style.new
+        end
+      end
+
+      # Styles returns the current styles for the textarea.
+      def styles : Styles
+        @styles
+      end
+
+      # SetStyles updates styling for the textarea.
+      def styles=(s : Styles)
+        @styles = s
+        update_cursor_style
+      end
+
+      # DefaultStyles returns the default styles for focused and blurred states.
+      def self.default_styles(dark : Bool = false) : Styles
+        # Simplified version - TODO: implement proper light/dark styles
+        Styles.new
+      end
+
+      # DefaultLightStyles returns the default styles for a light background.
+      def self.default_light_styles : Styles
+        default_styles(false)
+      end
+
+      # DefaultDarkStyles returns the default styles for a dark background.
+      def self.default_dark_styles : Styles
+        default_styles(true)
       end
 
       def value : String
@@ -155,8 +299,8 @@ module Term2
         end
       end
 
-      # Styles (Placeholder for future expansion)
-      property style : Lipgloss::Style = Lipgloss::Style.new
+      # Styles following Go v2-exp API
+      property styles : Styles = Styles.new
 
       # Internal state
       @value : Array(Array(Char)) = [[] of Char]
@@ -170,6 +314,7 @@ module Term2
         @cursor = Cursor.new
         @cursor.mode = Cursor::Mode::Blink
         @key_map = TextArea.default_key_map
+        update_cursor_style
       end
 
       # Getters/Setters for width/height that update viewport
@@ -619,8 +764,32 @@ module Term2
       end
 
       def paste(lines : Array(String))
-        # placeholder: insert "PASTE"
-        insert_char(lines, "PASTE")
+        content = EasyClip.paste
+        return if content.empty?
+        # Enforce char limit if set
+        if @char_limit > 0
+          current_value = lines.join("\n")
+          remaining = @char_limit - current_value.size
+          return if remaining <= 0
+          if content.size > remaining
+            content = content[0...remaining]
+          end
+        end
+        # Split by newline, preserving empty lines (split with limit -1)
+        paste_lines = content.split('\n', -1)
+        # If single line (no newline) or trailing newline results in empty last line, handle
+        # For now, treat each line as separate insertion
+        # Insert first line at cursor position
+        first_line = paste_lines[0]
+        insert_char(lines, first_line)
+        # For remaining lines, insert as new lines
+        paste_lines[1..-1].each do |line|
+          # Move to next line (insert newline) and insert line
+          insert_newline(lines)
+          insert_char(lines, line)
+        end
+      rescue ex : EasyClip::PasteError
+        Log.debug { "TextArea paste failed: #{ex.message}" }
       end
 
       def reset
@@ -669,25 +838,72 @@ module Term2
         lines = @value.map(&.join)
         lines = [""] if lines.empty?
 
+        styles = active_style
         rendered_lines = [] of String
 
         lines.each_with_index do |line, i|
-          base_prefix = ""
-          if @show_line_numbers
-            base_prefix = sprintf("%3d ", i + 1)
-          end
-          base_prefix += @prompt
-          available = [@width - Lipgloss::Text.width(base_prefix), 1].max
+          # Determine line style: cursor line or normal text
+          line_style = i == @cursor_line ? styles.computed_cursor_line : styles.computed_text
+
+          # Compute prefix strings (without styling)
+          line_number_str = if @show_line_numbers
+                              sprintf("%3d ", i + 1)
+                            else
+                              ""
+                            end
+          prompt_str = @prompt
+
+          # Available width for text after prefix
+          prefix_width = Lipgloss::Text.width(line_number_str + prompt_str)
+          available = [@width - prefix_width, 1].max
+
+          # Wrap line (or placeholder)
           wrapped =
             if @value.empty? && i == 0 && !@placeholder.empty? && line.empty?
+              # Placeholder
               [Lipgloss::Text.truncate(@placeholder, available)]
             else
               memoized_wrap(line.chars.to_a, available).map(&.join)
             end
-          wrapped.each_with_index do |wrapped_line, wl_idx|
-            rendered = base_prefix + wrapped_line
 
-            # Cursor at end of logical line: append it to the end of the last wrapped line.
+          wrapped.each_with_index do |wrapped_line, wl_idx|
+            # Build line parts with appropriate styles
+            # Line number style depends on whether this is cursor line
+            line_number_style = if i == @cursor_line
+                                  styles.computed_cursor_line_number
+                                else
+                                  styles.computed_line_number
+                                end
+
+            # Render line number (if shown)
+            line_number_rendered = if @show_line_numbers
+                                     # For soft-wrapped lines after the first, use empty line number
+                                     if wl_idx == 0
+                                       line_number_style.render(line_number_str)
+                                     else
+                                       line_number_style.render("    ") # same width as "123 "
+                                     end
+                                   else
+                                     ""
+                                   end
+
+            # Render prompt with its own style, then apply line style
+            prompt_rendered = styles.computed_prompt.render(prompt_str)
+
+            # Render wrapped line text
+            text_rendered = line_style.render(wrapped_line)
+
+            # Combine: apply line style to prompt and line number? Go applies line style after rendering prompt with its style.
+            # We'll follow Go: prompt is rendered with computed_prompt, then line_style applied on top.
+            # Actually Go does: prompt = styles.computedPrompt().Render(prompt); s.WriteString(style.Render(prompt))
+            # That means they nest styles. We'll do the same.
+            prompt_styled = line_style.render(prompt_rendered)
+            line_number_styled = line_style.render(line_number_rendered)
+
+            # Build the line
+            rendered = line_number_styled + prompt_styled + text_rendered
+
+            # Cursor at end of logical line: append cursor to the end of the last wrapped line.
             if i == @cursor_line && focused? && @cursor_col >= line.size && wl_idx == wrapped.size - 1
               @cursor.char = " "
               rendered += @cursor.view.content
@@ -700,8 +916,17 @@ module Term2
         # Add End of Buffer markers for empty space
         visible_lines = rendered_lines.size
         if visible_lines < @height
+          styles = active_style
           (visible_lines...@height).each do
-            rendered_lines << @end_of_buffer_char
+            # End of buffer line: prompt + end-of-buffer char + padding
+            prompt_str = @prompt
+            prompt_rendered = styles.computed_prompt.render(prompt_str)
+            prompt_styled = styles.computed_end_of_buffer.render(prompt_rendered)
+            left_gutter = @end_of_buffer_char
+            right_gap_width = @width - Lipgloss::Text.width(left_gutter)
+            right_gap = " " * [right_gap_width, 0].max
+            end_of_buffer_rendered = styles.computed_end_of_buffer.render(left_gutter + right_gap)
+            rendered_lines << prompt_styled + end_of_buffer_rendered
           end
         end
 

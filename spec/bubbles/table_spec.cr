@@ -151,6 +151,7 @@ describe Term2::Components::Table do
           selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
+          Term2::Components::Table.with_width(60),
           Term2::Components::Table.with_height(10),
           Term2::Components::Table.with_columns([
             Term2::Components::Table::Column.new("Name", 25),
@@ -172,6 +173,7 @@ describe Term2::Components::Table do
           selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
+          Term2::Components::Table.with_width(53),
           Term2::Components::Table.with_height(10),
           Term2::Components::Table.with_columns([
             Term2::Components::Table::Column.new("Name", 25),
@@ -193,6 +195,8 @@ describe Term2::Components::Table do
           selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
+          Term2::Components::Table.with_width(59),
+          Term2::Components::Table.with_height(23),
           Term2::Components::Table.with_columns([
             Term2::Components::Table::Column.new("Name", 25),
             Term2::Components::Table::Column.new("Country of Origin", 16),
@@ -213,6 +217,8 @@ describe Term2::Components::Table do
           selected: Lipgloss::Style.new
         )
         Term2::Components::Table.build(
+          Term2::Components::Table.with_width(59),
+          Term2::Components::Table.with_height(21),
           Term2::Components::Table.with_columns([
             Term2::Components::Table::Column.new("Name", 25),
             Term2::Components::Table::Column.new("Country of Origin", 16),
@@ -290,7 +296,7 @@ describe Term2::Components::Table do
       },
     }
 
-    skip = ["Extra_padding", "Bordered_headers", "Bordered_cells"]
+    skip = [] of String
     tests.each do |name, build|
       table = build.call
       table_view = Lipgloss::Text.strip_ansi(table.view.content)
