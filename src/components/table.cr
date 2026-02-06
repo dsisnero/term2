@@ -87,13 +87,13 @@ module Term2
       # Lipgloss::Border configuration
       property border : Lipgloss::Border = Lipgloss::Border.new
       property border_style : Lipgloss::Style = Lipgloss::Style.new
-      property border_top : Bool = false
-      property border_bottom : Bool = false
-      property border_left : Bool = false
-      property border_right : Bool = false
-      property border_header : Bool = false
-      property border_column : Bool = false
-      property border_row : Bool = false
+      property? border_top : Bool = false
+      property? border_bottom : Bool = false
+      property? border_left : Bool = false
+      property? border_right : Bool = false
+      property? border_header : Bool = false
+      property? border_column : Bool = false
+      property? border_row : Bool = false
 
       struct FilteredRow
         property index : Int32
@@ -273,15 +273,6 @@ module Term2
 
       def update(msg : Msg) : {Table, Cmd}
         case msg
-        when ZoneClickMsg
-          if msg.id == @id
-            focus
-            clicked_row = @viewport.y_offset + msg.y - 1
-            if clicked_row >= 0 && clicked_row < visible_rows.size
-              @cursor = clicked_row
-              update_viewport
-            end
-          end
         when KeyMsg
           if focused?
             handle_key(msg)
@@ -464,8 +455,7 @@ module Term2
           io << @viewport.view.content
         end
 
-        final_content = @id.empty? ? content : Zone.mark(@id, content)
-        View.new(content: final_content)
+        View.new(content: content)
       end
     end
   end
