@@ -271,7 +271,15 @@ module Term2
       property filter_input : TextInput
       property spinner : Spinner
       property status_message : String = ""
+      property additional_short_help_keys : Proc(Array(Key::Binding)) = -> { [] of Key::Binding }
       property additional_full_help_keys : Proc(Array(Key::Binding)) = -> { [] of Key::Binding }
+      property status_message_lifetime : Time::Span = 1.second
+
+      def new_status_message(message : String) : Cmd
+        @status_message = message
+        # TODO: Implement timer to hide message after status_message_lifetime
+        nil
+      end
 
       getter filter_state : FilterState = FilterState::Unfiltered
       getter index : Int32 = 0 # Cursor index relative to current view (paginated)
@@ -302,6 +310,51 @@ module Term2
           update_pagination
           update_keybindings
         end
+      end
+
+      @[Deprecated("Use `filtering_enabled=` instead")]
+      def set_filtering_enabled(enabled : Bool)
+        self.filtering_enabled = enabled
+      end
+
+      @[Deprecated("Use `show_title=` instead")]
+      def set_show_title(show : Bool)
+        self.show_title = show
+      end
+
+      def show_title=(show : Bool)
+        @show_title = show
+        update_pagination
+      end
+
+      @[Deprecated("Use `show_filter=` instead")]
+      def set_show_filter(show : Bool)
+        self.show_filter = show
+      end
+
+      def show_filter=(show : Bool)
+        @show_filter = show
+        update_pagination
+      end
+
+      @[Deprecated("Use `show_status_bar=` instead")]
+      def set_show_status_bar(show : Bool)
+        self.show_status_bar = show
+      end
+
+      def show_status_bar=(show : Bool)
+        @show_status_bar = show
+        update_pagination
+      end
+
+      @[Deprecated("Use `show_pagination=` instead")]
+      def set_show_pagination(show : Bool)
+        self.show_pagination = show
+      end
+
+      def show_pagination=(show : Bool)
+        @show_pagination = show
+        update_pagination
       end
 
       module Enumerators
@@ -389,6 +442,8 @@ module Term2
         @help = Help.new
         @spinner = Spinner.new
         @status_message = ""
+        @status_message_lifetime = 1.second
+        @additional_short_help_keys = -> { [] of Key::Binding }
         @additional_full_help_keys = -> { [] of Key::Binding }
         @enumerator = Enumerators::None.new
 
@@ -407,19 +462,19 @@ module Term2
       class HelpMap
         include Help::KeyMap
 
-        def initialize(@key_map : KeyMap, @filter_state : FilterState, @extra : Array(Key::Binding))
+        def initialize(@key_map : KeyMap, @filter_state : FilterState, @short_extra : Array(Key::Binding), @full_extra : Array(Key::Binding))
         end
 
         def short_help : Array(Key::Binding)
           case @filter_state
           when FilterState::Filtering
-            [
+            base = [
               @key_map.accept_while_filtering,
               @key_map.cancel_while_filtering,
               @key_map.force_quit,
             ]
           when FilterState::FilterApplied
-            [
+            base = [
               @key_map.cursor_up,
               @key_map.cursor_down,
               @key_map.prev_page,
@@ -428,7 +483,7 @@ module Term2
               @key_map.quit,
             ]
           else
-            [
+            base = [
               @key_map.cursor_up,
               @key_map.cursor_down,
               @key_map.prev_page,
@@ -437,6 +492,7 @@ module Term2
               @key_map.quit,
             ]
           end
+          base + @short_extra
         end
 
         def full_help : Array(Array(Key::Binding))
@@ -445,7 +501,7 @@ module Term2
             [@key_map.filter, @key_map.clear_filter, @key_map.accept_while_filtering, @key_map.cancel_while_filtering],
             [@key_map.show_full_help, @key_map.close_full_help],
             [@key_map.quit, @key_map.force_quit],
-            @extra,
+            @full_extra,
           ]
         end
       end
@@ -546,6 +602,11 @@ module Term2
       end
 
       # [NEW] Helper to set filter text programmatically
+      @[Deprecated("Use `filter_text=` instead")]
+      def set_filter_text(text : String)
+        self.filter_text = text
+      end
+
       def filter_text=(text : String)
         @filter_input.set_value(text)
         @filter_state = FilterState::FilterApplied
@@ -556,6 +617,18 @@ module Term2
       def filter_value=(text : String)
         @filter_input.set_value(text)
         # Note: This doesn't auto-apply state like filter_text= does, usually used in setup
+      end
+
+      def filter_value : String
+        @filter_input.value
+      end
+
+      def setting_filter? : Bool
+        @filter_state == FilterState::Filtering
+      end
+
+      def is_filtered? : Bool
+        @filter_state == FilterState::FilterApplied
       end
 
       # [NEW] Helper to get matches for an item index (visual index)
@@ -607,6 +680,10 @@ module Term2
         count = visible_items.size
         name = count == 1 ? @item_name_singular : @item_name_plural
         "#{count} #{name}"
+      end
+
+      def status_bar_item_name : {String, String}
+        {@item_name_singular, @item_name_plural}
       end
 
       # Current selected item
@@ -905,6 +982,12 @@ module Term2
         update_pagination
       end
 
+      def set_size(width : Int32, height : Int32)
+        @width = width
+        @height = height
+        update_pagination
+      end
+
       private def update_pagination
         avail_height = @height
 
@@ -992,7 +1075,7 @@ module Term2
         end
 
         if @show_help
-          help_map = HelpMap.new(@key_map, @filter_state, @additional_full_help_keys.call)
+          help_map = HelpMap.new(@key_map, @filter_state, @additional_short_help_keys.call, @additional_full_help_keys.call)
           help_keys = @help.view(help_map)
           sections << @styles.help_style.render(help_keys.content)
         end

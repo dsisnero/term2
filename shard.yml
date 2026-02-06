@@ -27,5 +27,6 @@ targets:
     main: src/term2.cr
 
 crystal: ">= 1.18.2"
+flags: ["-Dpreview_mt", "-Dexecution_context"]
 
 license: MIT

@@ -9,7 +9,7 @@ EXAMPLE_BINARIES := $(EXAMPLE_SOURCES:.cr=)
 
 # Build the library (check for errors)
 build:
-	shards build
+	crystal build src/term2.cr -Dpreview_mt -Dexecution_context
 
 install:
 	GIT_CONFIG_GLOBAL=/dev/null shards install
