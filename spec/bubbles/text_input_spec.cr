@@ -46,12 +46,12 @@ describe Term2::Components::TextInput do
     ti.view.should be_a(Term2::View)
   end
 
-  it "matches suggestions with fuzzy input" do
+  it "matches suggestions with prefix input" do
     ti = Term2::Components::TextInput.new
     ti.show_suggestions = true
     ti.suggestions = ["abc", "adc", "a1c", "zzz"]
 
-    ti.set_value("ac")
+    ti.set_value("a")
     ti.update_suggestions
 
     ti.matched_suggestions.size.should eq 3

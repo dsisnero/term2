@@ -1,7 +1,7 @@
-require "nucleoc"
 require "../term2"
 require "./cursor"
 require "./key"
+require "./rune_util"
 
 module Term2
   module Components
@@ -74,18 +74,23 @@ module Term2
 
       # State
       property key_map : KeyMap = KeyMap.new
-      getter value : String = ""
+
+      def value : String
+        @value.join
+      end
+
       getter pos : Int32 = 0
 
-      property show_suggestions : Bool = false
+      property? show_suggestions : Bool = false
 
       # Internal state
+      @value : Array(Char) = [] of Char
       @focus : Bool = false
       @offset : Int32 = 0
       @offset_right : Int32 = 0
       @err : Exception? = nil
-      @suggestions : Array(String) = [] of String
-      @matched_suggestions : Array(String) = [] of String
+      @suggestions : Array(Array(Char)) = [] of Array(Char)
+      @matched_suggestions : Array(Array(Char)) = [] of Array(Char)
       @current_suggestion_index : Int32 = 0
 
       # Validate function
@@ -115,8 +120,9 @@ module Term2
       end
 
       # SetValue sets the value of the text input.
+      # ameba:disable Naming/AccessorMethodName
       def set_value(s : String)
-        runes = sanitize(s)
+        runes = RuneUtil.sanitize(s).chars.to_a
         if @char_limit > 0 && runes.size > @char_limit
           runes = runes[0, @char_limit]
         end
@@ -145,6 +151,7 @@ module Term2
         set_cursor(pos)
       end
 
+      # ameba:disable Naming/AccessorMethodName
       def set_cursor(pos : Int32)
         @pos = pos.clamp(0, @value.size)
         handle_overflow
@@ -173,12 +180,13 @@ module Term2
       end
 
       def reset
-        @value = ""
+        @value = [] of Char
         set_cursor(0)
       end
 
+      # ameba:disable Naming/AccessorMethodName
       def set_suggestions(suggestions : Array(String))
-        @suggestions = suggestions
+        @suggestions = suggestions.map(&.chars.to_a)
         update_suggestions
       end
 
@@ -187,17 +195,17 @@ module Term2
       end
 
       def available_suggestions : Array(String)
-        @suggestions
+        @suggestions.map(&.join)
       end
 
       def matched_suggestions : Array(String)
-        @matched_suggestions
+        @matched_suggestions.map(&.join)
       end
 
       def current_suggestion : String
         return "" if @matched_suggestions.empty?
         return "" if @current_suggestion_index >= @matched_suggestions.size
-        @matched_suggestions[@current_suggestion_index]
+        @matched_suggestions[@current_suggestion_index].join
       end
 
       def update(msg : Msg) : {self, Cmd}
@@ -210,15 +218,16 @@ module Term2
             # Append the rest of the suggestion
             if suggestion.size > @value.size
               suffix = suggestion[@value.size..-1]
-              set_value(@value + suffix)
-              cursor_end
+              @value = @value + suffix
+              set_cursor(@value.size)
+              handle_overflow
+              run_validate
             end
             return {self, nil}
           end
         end
 
         old_pos = @pos
-        cmd : Cmd = nil
 
         case msg
         when KeyMsg
@@ -250,7 +259,7 @@ module Term2
           elsif @key_map.prev_suggestion.matches?(msg)
             prev_suggestion
             # Explicitly check for Runes type to insert text
-          elsif msg.key.type == Term2::KeyType::Runes && msg.key.runes.any?
+          elsif msg.key.type == Term2::KeyType::Runes && !msg.key.runes.empty?
             insert_runes(msg.key.runes)
           end
 
@@ -273,7 +282,7 @@ module Term2
 
       private def run_validate : Nil
         if validator = @validate
-          @err = validator.call(@value)
+          @err = validator.call(@value.join)
         else
           @err = nil
         end
@@ -287,9 +296,10 @@ module Term2
 
         # Current viewable window
         visible_value = @value[@offset...@offset_right]
+        visible_value_str = visible_value.join
         cursor_pos = (@pos - @offset).clamp(0, visible_value.size)
 
-        pre_cursor = visible_value[0...cursor_pos]
+        pre_cursor = visible_value[0...cursor_pos].join
 
         # Determine char under cursor
         char_under = if cursor_pos < visible_value.size
@@ -299,7 +309,7 @@ module Term2
                      end
 
         post_cursor = if cursor_pos + 1 < visible_value.size
-                        visible_value[cursor_pos + 1..-1]
+                        visible_value[cursor_pos + 1..-1].join
                       else
                         ""
                       end
@@ -323,7 +333,7 @@ module Term2
             @cursor.text_style = @completion_style
             @cursor.char = completion_char.to_s
 
-            rest_completion = suggestion[@value.size + 1..-1]
+            rest_completion = suggestion[@value.size + 1..-1].join
             cursor_view = @cursor.view.content
             content = @prompt_style.render(@prompt) + v + cursor_view + @completion_style.render(rest_completion)
             return View.new(content: content)
@@ -333,7 +343,7 @@ module Term2
         v += @cursor.view.content
         v += @text_style.render(post_cursor)
 
-        visible_width = Lipgloss::Text.width(echo_transform(visible_value))
+        visible_width = Lipgloss::Text.width(echo_transform(visible_value_str))
         if @width > 0 && visible_width <= @width
           padding = (@width - visible_width).clamp(0, Int32::MAX)
           if visible_width + padding <= @width && cursor_pos < visible_value.size
@@ -352,11 +362,11 @@ module Term2
         first = ""
         rest = String.build do |io|
           i = 0
-          @placeholder.each_grapheme do |g|
+          @placeholder.each_grapheme do |grapheme|
             if i == 0
-              first = g.to_s
+              first = grapheme.to_s
             else
-              io << g
+              io << grapheme
             end
             i += 1
           end
@@ -380,28 +390,21 @@ module Term2
         p + v
       end
 
-      private def sanitize(s : String) : String
-        # Replace newlines and tabs with spaces for single-line input
-        s.gsub("\n", " ").gsub("\t", " ")
-      end
-
       private def insert_runes(runes : Array(Char))
-        to_insert = runes.join
-
         # Handle char limit
         if @char_limit > 0
           avail = @char_limit - @value.size
           return if avail <= 0
-          if avail < to_insert.size
-            to_insert = to_insert[0, avail]
+          if avail < runes.size
+            runes = runes[0, avail]
           end
         end
 
         head = @value[0...@pos]
         tail = @value[@pos..-1]
 
-        @value = head + to_insert + tail
-        @pos += to_insert.size
+        @value = head + runes + tail
+        @pos += runes.size
       end
 
       private def handle_overflow
@@ -451,35 +454,25 @@ module Term2
       def update_suggestions : Nil
         return unless @show_suggestions
         if @value.empty? || @suggestions.empty?
-          @matched_suggestions = [] of String
+          @matched_suggestions = [] of Array(Char)
           @current_suggestion_index = 0
           return
         end
 
-        ranks = [] of Tuple(Int32, UInt16, String)
-        @suggestions.each_with_index do |suggestion, index|
-          if score = Nucleoc.fuzzy_match(suggestion, @value)
-            ranks << {index, score, suggestion}
+        value_str = @value.join.downcase
+        matches = [] of Array(Char)
+        @suggestions.each do |suggestion|
+          suggestion_str = suggestion.join.downcase
+          if suggestion_str.starts_with?(value_str)
+            matches << suggestion
           end
         end
 
-        if ranks.empty?
-          @matched_suggestions = [] of String
+        # Reset index if matches changed
+        if matches != @matched_suggestions
           @current_suggestion_index = 0
-          return
         end
-
-        ranks.sort! do |a, b|
-          score_comparison = b[1] <=> a[1]
-          if score_comparison != 0
-            score_comparison
-          else
-            a[0] <=> b[0]
-          end
-        end
-
-        @matched_suggestions = ranks.map(&.[2])
-        @current_suggestion_index = 0
+        @matched_suggestions = matches
       end
 
       private def can_accept_suggestion? : Bool
@@ -496,6 +489,8 @@ module Term2
           suffix = suggestion[@value.size..-1]
           @value += suffix
           set_cursor(@value.size)
+          handle_overflow
+          run_validate
         end
       end
 
