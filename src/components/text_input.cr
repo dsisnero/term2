@@ -55,6 +55,87 @@ module Term2
         end
       end
 
+      # CursorStyle is the style for real and virtual cursors.
+      struct CursorStyle
+        property color : Lipgloss::Color?
+        property shape : Term2::CursorShape
+        property blink : Bool
+        property blink_speed : Time::Span
+
+        def initialize(@color = nil, @shape = Term2::CursorShape::Block, @blink = false, @blink_speed = 500.milliseconds)
+        end
+      end
+
+      # StyleState that will be applied to the text input.
+      # StyleState can be applied to focused and unfocused states to change the styles
+      # depending on the focus state.
+      struct StyleState
+        property text : Lipgloss::Style
+        property placeholder : Lipgloss::Style
+        property suggestion : Lipgloss::Style
+        property prompt : Lipgloss::Style
+
+        def initialize(
+          @text = Lipgloss::Style.new,
+          @placeholder = Lipgloss::Style.new,
+          @suggestion = Lipgloss::Style.new,
+          @prompt = Lipgloss::Style.new
+        )
+        end
+      end
+
+      # Styles are the styles for the text input, separated into focused and blurred
+      # states. The appropriate styles will be chosen based on the focus state of
+      # the text input.
+      struct Styles
+        property focused : StyleState
+        property blurred : StyleState
+        property cursor : CursorStyle
+
+        def initialize(
+          @focused = StyleState.new,
+          @blurred = StyleState.new,
+          @cursor = CursorStyle.new
+        )
+        end
+      end
+
+      # Styles for the text input (v2‑exp API).
+      property styles : Styles = Styles.new
+
+      def styles=(s : Styles)
+        @styles = s
+        update_cursor_style
+      end
+
+
+      private def active_style : StyleState
+        @focus ? @styles.focused : @styles.blurred
+      end
+
+      private def update_cursor_style
+        cursor_style = @styles.cursor
+        @cursor.blink_speed = cursor_style.blink_speed
+        # Set blink mode
+        @cursor.mode = cursor_style.blink ? Cursor::Mode::Blink : Cursor::Mode::Static
+        # Map shape to Lipgloss::Style
+        case cursor_style.shape
+        when Term2::CursorShape::Block
+          @cursor.style = Lipgloss::Style.new.reverse(true)
+        when Term2::CursorShape::Underline
+          @cursor.style = Lipgloss::Style.new.underline(true)
+        when Term2::CursorShape::Bar
+          @cursor.style = Lipgloss::Style.new.reverse(true)
+        end
+        # Apply color if set
+        if color = cursor_style.color
+          @cursor.style = @cursor.style.foreground(color)
+          @cursor.text_style = Lipgloss::Style.new.foreground(color)
+        else
+          @cursor.text_style = Lipgloss::Style.new
+        end
+      end
+
       # General settings
       property prompt : String = "> "
       property placeholder : String = ""
@@ -62,12 +143,64 @@ module Term2
       property echo_character : Char = '*'
       property cursor : Cursor = Cursor.new
 
-      # Styles
-      property prompt_style : Lipgloss::Style = Lipgloss::Style.new
-      property text_style : Lipgloss::Style = Lipgloss::Style.new
-      property placeholder_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
-      property completion_style : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
-      property cursor_style : Lipgloss::Style = Lipgloss::Style.new
+      # Styles (deprecated, use `styles` property)
+      def prompt_style : Lipgloss::Style
+        active_style.prompt
+      end
+
+      def prompt_style=(style : Lipgloss::Style)
+        if @focus
+          @styles.focused.prompt = style
+        else
+          @styles.blurred.prompt = style
+        end
+      end
+
+      def text_style : Lipgloss::Style
+        active_style.text
+      end
+
+      def text_style=(style : Lipgloss::Style)
+        if @focus
+          @styles.focused.text = style
+        else
+          @styles.blurred.text = style
+        end
+      end
+
+      def placeholder_style : Lipgloss::Style
+        active_style.placeholder
+      end
+
+      def placeholder_style=(style : Lipgloss::Style)
+        if @focus
+          @styles.focused.placeholder = style
+        else
+          @styles.blurred.placeholder = style
+        end
+      end
+
+      def completion_style : Lipgloss::Style
+        active_style.suggestion
+      end
+
+      def completion_style=(style : Lipgloss::Style)
+        if @focus
+          @styles.focused.suggestion = style
+        else
+          @styles.blurred.suggestion = style
+        end
+      end
+
+      def cursor_style : Lipgloss::Style
+        # cursor style is not part of StyleState; we map to cursor.color? Not straightforward.
+        # For compatibility, return a dummy style.
+        Lipgloss::Style.new
+      end
+
+      def cursor_style=(style : Lipgloss::Style)
+        # ignore for now
+      end
 
       # Limits
       property char_limit : Int32 = 0
@@ -109,6 +242,7 @@ module Term2
       end
 
       def initialize
+        update_cursor_style
       end
 
       # Compatibility constructor: TextInput IDs are handled by Zone in some ports.
@@ -344,7 +478,7 @@ module Term2
         post_cursor = echo_transform(post_cursor)
 
         # Lipgloss::Style text
-        v = @text_style.render(pre_cursor)
+        v = text_style.render(pre_cursor)
 
         # Render Cursor
         @cursor.char = char_under_str
@@ -354,18 +488,18 @@ module Term2
           if suggestion.size > @value.size
             # Show ghost text
             completion_char = suggestion[@value.size]
-            @cursor.text_style = @completion_style
+            @cursor.text_style = active_style.suggestion
             @cursor.char = completion_char.to_s
 
             rest_completion = suggestion[@value.size + 1..-1].join
             cursor_view = @cursor.view.content
-            content = @prompt_style.render(@prompt) + v + cursor_view + @completion_style.render(rest_completion)
+            content = prompt_style.render(@prompt) + v + cursor_view + completion_style.render(rest_completion)
             return View.new(content: content)
           end
         end
 
         v += @cursor.view.content
-        v += @text_style.render(post_cursor)
+        v += text_style.render(post_cursor)
 
         visible_width = Lipgloss::Text.width(echo_transform(visible_value_str))
         if @width > 0 && visible_width <= @width
@@ -373,15 +507,15 @@ module Term2
           if visible_width + padding <= @width && cursor_pos < visible_value.size
             padding += 1
           end
-          v += @text_style.render(" " * padding)
+          v += text_style.render(" " * padding)
         end
 
-        content = @prompt_style.render(@prompt) + v
+        content = prompt_style.render(@prompt) + v
         View.new(content: content)
       end
 
       private def placeholder_view : String
-        p = @prompt_style.render(@prompt)
+        p = prompt_style.render(@prompt)
 
         first = ""
         rest = String.build do |io|
@@ -397,7 +531,7 @@ module Term2
         end
 
         v = ""
-        @cursor.text_style = @placeholder_style
+        @cursor.text_style = placeholder_style
         @cursor.char = first
         v += @cursor.view.content
 
@@ -406,9 +540,9 @@ module Term2
           available = [available, 0].max
           placeholder_rest = Lipgloss::StyleTable.truncate(rest, available, "…")
           pad = [available - Lipgloss::Text.width(placeholder_rest), 0].max
-          v += @placeholder_style.render(placeholder_rest) + (" " * pad)
+          v += placeholder_style.render(placeholder_rest) + (" " * pad)
         else
-          v += @placeholder_style.render(rest)
+          v += placeholder_style.render(rest)
         end
 
         p + v

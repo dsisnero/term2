@@ -182,19 +182,106 @@ module Term2
 
       # Styles for the list component
       class Styles
-        property title : Lipgloss::Style = Lipgloss::Style.new.background(Lipgloss::Color::MAGENTA).foreground(Lipgloss::Color::WHITE).padding(0, 1)
+        # Style definitions matching Go v2-exp structure
         property title_bar : Lipgloss::Style = Lipgloss::Style.new.padding(0, 0, 1, 2)
+        property title : Lipgloss::Style = Lipgloss::Style.new.background(Lipgloss::Color::MAGENTA).foreground(Lipgloss::Color::WHITE).padding(0, 1)
+        property spinner : Lipgloss::Style = Lipgloss::Style.new
+
+        # Filter input styles (placeholder for textinput.Styles)
+        struct FilterStyles
+          property prompt_style : Lipgloss::Style
+          property cursor_style : Lipgloss::Style
+          property default_filter_character_match : Lipgloss::Style
+
+          def initialize(
+            *,
+            @prompt_style = Lipgloss::Style.new.bold(true),
+            @cursor_style = Lipgloss::Style.new,
+            @default_filter_character_match = Lipgloss::Style.new.underline(true)
+          )
+          end
+        end
+
+        property filter : FilterStyles = FilterStyles.new
+        property default_filter_character_match : Lipgloss::Style = Lipgloss::Style.new.underline(true)
+
         property status_bar : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
         property status_empty : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property status_bar_active_filter : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
         property status_bar_filter_count : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+
+        property no_items : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)).padding_left(2)
         property pagination_style : Lipgloss::Style = Lipgloss::Style.new.padding_left(2)
         property help_style : Lipgloss::Style = Lipgloss::Style.new.padding(1, 0, 0, 2)
-        property no_items : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)).padding_left(2)
 
-        # Filter input styles
-        property filter_prompt : Lipgloss::Style = Lipgloss::Style.new.bold(true)
-        property filter_cursor : Lipgloss::Style = Lipgloss::Style.new
-        property default_filter_character_match : Lipgloss::Style = Lipgloss::Style.new.underline(true)
+        property active_pagination_dot : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property inactive_pagination_dot : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property arabic_pagination : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+        property divider_dot : Lipgloss::Style = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240))
+
+        # Deprecated style properties for backward compatibility
+        def filter_prompt : Lipgloss::Style
+          @filter.prompt_style
+        end
+
+        def filter_prompt=(style : Lipgloss::Style)
+          @filter.prompt_style = style
+        end
+
+        def filter_cursor : Lipgloss::Style
+          @filter.cursor_style
+        end
+
+        def filter_cursor=(style : Lipgloss::Style)
+          @filter.cursor_style = style
+        end
+
+        def self.default_dark : Styles
+          very_subdued_color = Lipgloss::Color.from_hex("#3C3C3C")
+          subdued_color = Lipgloss::Color.from_hex("#5C5C5C")
+
+          styles = Styles.new
+          styles.title_bar = Lipgloss::Style.new.padding(0, 0, 1, 2)
+          styles.title = Lipgloss::Style.new
+            .background(Lipgloss::Color.from_hex("62"))
+            .foreground(Lipgloss::Color.from_hex("230"))
+            .padding(0, 1)
+          styles.spinner = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#747373"))
+
+          styles.filter = FilterStyles.new(
+            prompt_style: Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#ECFD65")),
+            cursor_style: Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#EE6FF8")),
+            default_filter_character_match: Lipgloss::Style.new.underline(true)
+          )
+          styles.default_filter_character_match = Lipgloss::Style.new.underline(true)
+
+          styles.status_bar = Lipgloss::Style.new
+            .foreground(Lipgloss::Color.from_hex("#777777"))
+            .padding(0, 0, 1, 2)
+          styles.status_empty = Lipgloss::Style.new.foreground(subdued_color)
+          styles.status_bar_active_filter = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#dddddd"))
+          styles.status_bar_filter_count = Lipgloss::Style.new.foreground(very_subdued_color)
+
+          styles.no_items = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#626262"))
+          styles.pagination_style = Lipgloss::Style.new.padding_left(2)
+          styles.help_style = Lipgloss::Style.new.padding(1, 0, 0, 2)
+
+          active_dot_style = Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#979797"))
+          active_dot_style.string = "•"
+          styles.active_pagination_dot = active_dot_style
+
+          inactive_dot_style = Lipgloss::Style.new.foreground(very_subdued_color)
+          inactive_dot_style.string = "•"
+          styles.inactive_pagination_dot = inactive_dot_style
+
+          styles.arabic_pagination = Lipgloss::Style.new.foreground(subdued_color)
+
+          divider_dot_style = Lipgloss::Style.new.foreground(very_subdued_color)
+          divider_dot_style.string = " • "
+          styles.divider_dot = divider_dot_style
+
+          styles
+        end
       end
 
       # KeyMap for the list
@@ -437,10 +524,14 @@ module Term2
           end
         end
         @delegate = DefaultDelegate.new
+        @styles = Styles.default_dark
         @paginator = Paginator.new
+        @paginator.active_dot = @styles.active_pagination_dot.render("")
+        @paginator.inactive_dot = @styles.inactive_pagination_dot.render("")
         @paginator.type = Paginator::Type::Dots
         @help = Help.new
         @spinner = Spinner.new
+        @spinner.style = @styles.spinner
         @status_message = ""
         @status_message_lifetime = 1.second
         @additional_short_help_keys = -> { [] of Key::Binding }
@@ -1048,7 +1139,13 @@ module Term2
             end
           spinner_str = @spinner_enabled ? @spinner.view.content : ""
           status_out = spinner_str.empty? ? status : "#{spinner_str} #{status}"
-          style = count == 0 ? @styles.status_empty : @styles.status_bar
+          style = if count == 0
+                    @styles.status_empty
+                  elsif @filter_state == FilterState::FilterApplied || @filter_state == FilterState::Filtering
+                    @styles.status_bar_active_filter
+                  else
+                    @styles.status_bar
+                  end
           sections << style.render(status_out)
         end
 
