@@ -339,7 +339,14 @@ module Term2
       end
 
       # Line metadata for navigation calculations
-      record LineInfo, width : Int32, char_offset : Int32, column_offset : Int32
+      record LineInfo,
+        width : Int32,
+        char_width : Int32,
+        height : Int32,
+        start_column : Int32,
+        column_offset : Int32,
+        row_offset : Int32,
+        char_offset : Int32
 
       # Alias for Go-style setters
       # ameba:disable Naming/AccessorMethodName
@@ -471,12 +478,10 @@ module Term2
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.page_up.matches?(msg)
-          @cursor_line = (@cursor_line - @height).clamp(0, lines.size - 1)
-          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          page_up
           @last_move_vertical = true
         when @key_map.page_down.matches?(msg)
-          @cursor_line = (@cursor_line + @height).clamp(0, lines.size - 1)
-          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          page_down
           @last_move_vertical = true
         when @key_map.word_backward.matches?(msg)
           word_backward(lines)
@@ -828,10 +833,125 @@ module Term2
         lines = [""] if lines.empty?
         line = lines[@cursor_line]?
         line ||= ""
-        available = [@width - visible_prefix_width, 0].max
-        width = display_width(line).clamp(0, available)
-        char_offset = display_width(line[0...@cursor_col])
-        LineInfo.new(width, char_offset, @cursor_col)
+
+        # Available width for text (after prompt and line numbers)
+        available = [@width - visible_prefix_width, 1].max
+
+        # Get wrapped segments for this line
+        grid = memoized_wrap(line.chars.to_a, available)
+
+        counter = 0
+        grid.each_with_index do |wrapped_line, i|
+          # Check if cursor is at the exact boundary between wrapped segments
+          if counter + wrapped_line.size == @cursor_col && i + 1 < grid.size
+            # Cursor at end of wrapped line, wrap to next line
+            return LineInfo.new(
+              width: wrapped_line.size,
+              char_width: display_width(wrapped_line.join),
+              height: grid.size,
+              start_column: @cursor_col,
+              column_offset: 0,
+              row_offset: i + 1,
+              char_offset: 0
+            )
+          end
+
+          if counter + wrapped_line.size >= @cursor_col
+            # Cursor is within this wrapped segment
+            chars_before_cursor = @cursor_col - counter
+            segment_before = wrapped_line[0...chars_before_cursor]
+            return LineInfo.new(
+              width: wrapped_line.size,
+              char_width: display_width(wrapped_line.join),
+              height: grid.size,
+              start_column: counter,
+              column_offset: chars_before_cursor,
+              row_offset: i,
+              char_offset: display_width(segment_before.join)
+            )
+          end
+
+          counter += wrapped_line.size
+        end
+
+        # Cursor at end of last wrapped segment
+        if grid.empty?
+          LineInfo.new(width: 0, char_width: 0, height: 0, start_column: 0, column_offset: 0, row_offset: 0, char_offset: 0)
+        else
+          last_line = grid.last
+          LineInfo.new(
+            width: last_line.size,
+            char_width: display_width(last_line.join),
+            height: grid.size,
+            start_column: counter,
+            column_offset: last_line.size,
+            row_offset: grid.size - 1,
+            char_offset: display_width(last_line.join)
+          )
+        end
+      end
+
+      private def cursor_line_number : Int32
+        # Sum wrapped lines for rows before current row
+        lines = @value.map(&.join)
+        lines = [""] if lines.empty?
+
+        total = 0
+        available = [@width - visible_prefix_width, 1].max
+
+        # For rows before current cursor line
+        @cursor_line.times do |i|
+          line = lines[i]
+          wrapped = memoized_wrap(line.chars.to_a, available)
+          total += wrapped.size
+        end
+
+        # Add row offset within current line
+        info = line_info
+        total + info.row_offset
+      end
+
+      private def page_up
+        lines = @value.map(&.join)
+        lines = [""] if lines.empty?
+
+        cursor_line = cursor_line_number
+        # If not on first visible line, snap to it
+        offset = @viewport.y_offset - cursor_line
+        if offset < 0
+          # Move cursor up by offset lines (negative offset means cursor is below)
+          # Simplified: move by logical lines (not accounting for soft wraps)
+          # For now, move cursor up by offset logical lines
+          new_line = (@cursor_line + offset).clamp(0, lines.size - 1)
+          @cursor_line = new_line
+          @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+          return
+        end
+
+        # Already on first visible line, move up by a full page (height logical lines)
+        @cursor_line = (@cursor_line - @height).clamp(0, lines.size - 1)
+        @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+      end
+
+      private def page_down
+        lines = @value.map(&.join)
+        lines = [""] if lines.empty?
+
+        cursor_line = cursor_line_number
+        # If not on last visible line, snap to it
+        offset = cursor_line - @viewport.y_offset
+        if offset < @height - 1
+          # Move cursor down to last visible line
+          delta = @height - 1 - offset
+          # Simplified: move by logical lines
+          @cursor_line = (@cursor_line + delta).clamp(0, lines.size - 1)
+          @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+          return
+        end
+
+        # Already on last visible line, move down by a full page
+        @cursor_line = (@cursor_line + @height).clamp(0, lines.size - 1)
+        @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
       end
 
       def update_viewport

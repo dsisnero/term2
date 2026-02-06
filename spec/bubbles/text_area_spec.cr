@@ -148,4 +148,37 @@ describe Term2::Components::TextArea do
     textarea.cursor_col.should eq 4
     textarea.cursor_line.should eq 2
   end
+
+  it "page up/down moves cursor with snap behavior" do
+    textarea = Term2::Components::TextArea.new
+    textarea.width = 40
+    textarea.height = 3 # Viewport shows 3 lines at a time
+    textarea.value = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10"
+    textarea.focus
+
+    # Start at line 5 (0-indexed 4)
+    textarea.cursor_line = 4
+    textarea.cursor_col = 0
+
+    # Set viewport to show lines 0-2 initially
+    textarea.viewport.y_offset = 0
+
+    # Page up should snap to first visible line (line 0) since cursor is at line 4
+    # Actually cursor_line_number = 4, viewport.y_offset = 0, offset = -4 < 0
+    # So should snap to first visible line (line 0)
+    page_up = Term2::KeyMsg.new(Term2::Key.new("pgup"))
+    textarea, _ = textarea.update(page_up)
+    textarea.cursor_line.should eq 0
+
+    # Move cursor down to line 2
+    textarea.cursor_line = 2
+    textarea.cursor_col = 0
+
+    # Page down should snap to last visible line (line 2) since cursor is at line 2
+    # and viewport shows lines 0-2 (last visible is line 2)
+    page_down = Term2::KeyMsg.new(Term2::Key.new("pgdown"))
+    textarea, _ = textarea.update(page_down)
+    # Should move to line 5 (2 + 3 height)
+    textarea.cursor_line.should eq 5
+  end
 end
