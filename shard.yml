@@ -17,6 +17,8 @@ dependencies:
     github: naqvis/uni_char_width
   golden:
     github: dsisnero/golden
+  easyclip:
+    github: kojix2/easyclip
 
 development_dependencies:
   ameba:

@@ -2,6 +2,7 @@ require "../term2"
 require "./cursor"
 require "./key"
 require "./rune_util"
+require "easyclip"
 
 module Term2
   module Components
@@ -236,6 +237,10 @@ module Term2
             set_cursor(@pos + 1) if @pos < @value.size
           elsif @key_map.character_backward.matches?(msg)
             set_cursor(@pos - 1) if @pos > 0
+          elsif @key_map.word_forward.matches?(msg)
+            move_word_forward
+          elsif @key_map.word_backward.matches?(msg)
+            move_word_backward
           elsif @key_map.line_start.matches?(msg)
             cursor_start
           elsif @key_map.line_end.matches?(msg)
@@ -254,6 +259,16 @@ module Term2
               tail = @value[@pos + 1..-1]
               @value = head + tail
             end
+          elsif @key_map.delete_word_backward.matches?(msg)
+            delete_word_backward
+          elsif @key_map.delete_word_forward.matches?(msg)
+            delete_word_forward
+          elsif @key_map.delete_after_cursor.matches?(msg)
+            delete_after_cursor
+          elsif @key_map.delete_before_cursor.matches?(msg)
+            delete_before_cursor
+          elsif @key_map.paste.matches?(msg)
+            paste
           elsif @key_map.next_suggestion.matches?(msg)
             next_suggestion
           elsif @key_map.prev_suggestion.matches?(msg)
@@ -278,6 +293,15 @@ module Term2
         run_validate
 
         {self, cursor_cmd}
+      end
+
+      private def ascii_punctuation?(char : Char) : Bool
+        # ASCII punctuation characters: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+        ord = char.ord
+        (33 <= ord <= 47) ||   # !"#$%&'()*+,-./
+        (58 <= ord <= 64) ||   # :;<=>?@
+        (91 <= ord <= 96) ||   # [\]^_`
+        (123 <= ord <= 126)    # {|}~
       end
 
       private def run_validate : Nil
@@ -405,6 +429,114 @@ module Term2
 
         @value = head + runes + tail
         @pos += runes.size
+      end
+
+      private def move_word_forward : Nil
+        return if @value.empty? || @pos >= @value.size
+        # Skip current word characters until whitespace or punctuation
+        i = @pos
+        while i < @value.size && !@value[i].whitespace? && !ascii_punctuation?(@value[i])
+          i += 1
+        end
+        # Skip whitespace/punctuation
+        while i < @value.size && (@value[i].whitespace? || ascii_punctuation?(@value[i]))
+          i += 1
+        end
+        set_cursor(i)
+      end
+
+      private def move_word_backward : Nil
+        return if @value.empty? || @pos <= 0
+        i = @pos - 1
+        # Skip whitespace/punctuation before cursor
+        while i >= 0 && (@value[i].whitespace? || ascii_punctuation?(@value[i]))
+          i -= 1
+        end
+        # Skip word characters
+        while i >= 0 && !@value[i].whitespace? && !ascii_punctuation?(@value[i])
+          i -= 1
+        end
+        set_cursor(i + 1)
+      end
+
+      private def delete_word_backward : Nil
+        return if @value.empty? || @pos <= 0
+        start_pos = @pos
+        i = @pos - 1
+        # Skip whitespace/punctuation before cursor
+        while i >= 0 && (@value[i].whitespace? || ascii_punctuation?(@value[i]))
+          i -= 1
+        end
+        # Skip word characters
+        while i >= 0 && !@value[i].whitespace? && !ascii_punctuation?(@value[i])
+          i -= 1
+        end
+        delete_start = i + 1
+        delete_end = start_pos
+        if delete_start < delete_end
+          head = @value[0...delete_start]
+          tail = @value[delete_end..-1]
+          @value = head + tail
+          set_cursor(delete_start)
+        end
+      end
+
+      private def delete_word_forward : Nil
+        return if @value.empty? || @pos >= @value.size
+        i = @pos
+        # Skip current word characters until whitespace or punctuation
+        while i < @value.size && !@value[i].whitespace? && !ascii_punctuation?(@value[i])
+          i += 1
+        end
+        # Skip whitespace/punctuation
+        while i < @value.size && (@value[i].whitespace? || ascii_punctuation?(@value[i]))
+          i += 1
+        end
+        delete_start = @pos
+        delete_end = i
+        if delete_start < delete_end
+          head = @value[0...delete_start]
+          tail = @value[delete_end..-1]
+          @value = head + tail
+          set_cursor(delete_start)
+        end
+      end
+
+      private def delete_after_cursor : Nil
+        return if @value.empty? || @pos >= @value.size
+        @value = @value[0...@pos]
+      end
+
+      private def delete_before_cursor : Nil
+        return if @value.empty? || @pos <= 0
+        head = @value[0...0] # empty
+        tail = @value[@pos..-1]
+        @value = head + tail
+        set_cursor(0)
+      end
+
+      private def paste : Nil
+        begin
+          content = EasyClip.paste
+          return if content.empty?
+          # Insert clipboard content as runes
+          runes = content.chars
+          # Handle char limit
+          if @char_limit > 0
+            avail = @char_limit - @value.size
+            return if avail <= 0
+            if avail < runes.size
+              runes = runes[0, avail]
+            end
+          end
+          head = @value[0...@pos]
+          tail = @value[@pos..-1]
+          @value = head + runes + tail
+          @pos += runes.size
+        rescue ex : EasyClip::PasteError
+          # Log error but don't crash
+          Log.debug { "TextInput paste failed: #{ex.message}" }
+        end
       end
 
       private def handle_overflow
