@@ -28,3 +28,6 @@ shards:
   lipgloss:
     git: https://github.com/dsisnero/lipgloss.git
     version: 0.1.0+git.commit.ece798ef430419bf40a578d0b346b5732dfe4562
+  easyclip:
+    git: https://github.com/kojix2/easyclip.git
+    version: 0.1.1

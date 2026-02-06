@@ -104,6 +104,15 @@
 TERM2_DEBUG=1 crystal run examples/simple.cr
 ```
 
+## Go Compatibility
+
+### Source of Truth
+
+* **Go libraries and tests are the authoritative source** - The `bubbles`, `bubbletea`, and `lipgloss` submodules contain the reference implementation
+* **Golden files must match Go output** - Test fixtures in submodule `testdata/` directories are canonical; our implementation must produce identical output
+* **API parity is required** - Public APIs should match Go equivalents in behavior and semantics
+* **When in doubt, consult Go source** - Check the Go implementation for edge cases, default values, and behavioral details
+
 ## Issue Tracking
 
 This project uses **bd (beads)** for issue tracking.

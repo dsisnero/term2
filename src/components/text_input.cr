@@ -299,9 +299,9 @@ module Term2
         # ASCII punctuation characters: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
         ord = char.ord
         (33 <= ord <= 47) ||   # !"#$%&'()*+,-./
-        (58 <= ord <= 64) ||   # :;<=>?@
-        (91 <= ord <= 96) ||   # [\]^_`
-        (123 <= ord <= 126)    # {|}~
+          (58 <= ord <= 64) || # :;<=>?@
+          (91 <= ord <= 96) || # [\]^_`
+          (123 <= ord <= 126)  # {|}~
       end
 
       private def run_validate : Nil
@@ -516,27 +516,25 @@ module Term2
       end
 
       private def paste : Nil
-        begin
-          content = EasyClip.paste
-          return if content.empty?
-          # Insert clipboard content as runes
-          runes = content.chars
-          # Handle char limit
-          if @char_limit > 0
-            avail = @char_limit - @value.size
-            return if avail <= 0
-            if avail < runes.size
-              runes = runes[0, avail]
-            end
+        content = EasyClip.paste
+        return if content.empty?
+        # Insert clipboard content as runes
+        runes = content.chars
+        # Handle char limit
+        if @char_limit > 0
+          avail = @char_limit - @value.size
+          return if avail <= 0
+          if avail < runes.size
+            runes = runes[0, avail]
           end
-          head = @value[0...@pos]
-          tail = @value[@pos..-1]
-          @value = head + runes + tail
-          @pos += runes.size
-        rescue ex : EasyClip::PasteError
-          # Log error but don't crash
-          Log.debug { "TextInput paste failed: #{ex.message}" }
         end
+        head = @value[0...@pos]
+        tail = @value[@pos..-1]
+        @value = head + runes + tail
+        @pos += runes.size
+      rescue ex : EasyClip::PasteError
+        # Log error but don't crash
+        Log.debug { "TextInput paste failed: #{ex.message}" }
       end
 
       private def handle_overflow

@@ -11,6 +11,8 @@ module Term2
     class TextArea
       include Model
 
+      MAX_LINES = 10000
+
       struct KeyMap
         getter character_backward : Key::Binding
         getter character_forward : Key::Binding
@@ -25,6 +27,8 @@ module Term2
         getter line_next : Key::Binding
         getter line_previous : Key::Binding
         getter line_start : Key::Binding
+        getter page_up : Key::Binding
+        getter page_down : Key::Binding
         getter paste : Key::Binding
         getter word_backward : Key::Binding
         getter word_forward : Key::Binding
@@ -51,6 +55,8 @@ module Term2
           @delete_character_forward = Key::Binding.new(["delete", "ctrl+d"], "delete", "delete character forward")
           @line_start = Key::Binding.new(["home", "ctrl+a"], "home", "line start")
           @line_end = Key::Binding.new(["end", "ctrl+e"], "end", "line end")
+          @page_up = Key::Binding.new(["pgup"], "pgup", "page up")
+          @page_down = Key::Binding.new(["pgdown"], "pgdown", "page down")
           @paste = Key::Binding.new(["ctrl+v"], "ctrl+v", "paste")
           @input_begin = Key::Binding.new(["alt+<", "ctrl+home"], "alt+<", "input begin")
           @input_end = Key::Binding.new(["alt+>", "ctrl+end"], "alt+>", "input end")
@@ -58,6 +64,23 @@ module Term2
           @lowercase_word_forward = Key::Binding.new(["alt+l"], "alt+l", "lowercase word forward")
           @uppercase_word_forward = Key::Binding.new(["alt+u"], "alt+u", "uppercase word forward")
           @transpose_character_backward = Key::Binding.new(["ctrl+t"], "ctrl+t", "transpose character backward")
+        end
+      end
+
+      private struct Line
+        include Memoization::Hashable
+        getter runes : Array(Char)
+        getter width : Int32
+
+        def initialize(@runes : Array(Char), @width : Int32)
+        end
+
+        def hash_value : String
+          Digest::SHA256.hexdigest("#{runes.join}:#{width}")
+        end
+
+        def ==(other)
+          other.is_a?(Line) && other.runes == @runes && other.width == @width
         end
       end
 
@@ -112,12 +135,25 @@ module Term2
       property end_of_buffer_char : String = "~"
 
       property char_limit : Int32 = 0
-      property max_height : Int32 = 99
+      getter max_height : Int32 = 99
+
+      def max_height=(value : Int32)
+        @max_height = value
+        update_cache_capacity
+      end
+
       property max_width : Int32 = 500
 
       property viewport : Viewport
       property cursor : Cursor
       property key_map : KeyMap
+      property cache : Memoization::MemoCache(Line, Array(Array(Char))) = Memoization::MemoCache(Line, Array(Array(Char))).new(MAX_LINES)
+
+      private def update_cache_capacity
+        if @max_height > 0 && @max_height != @cache.capacity
+          @cache = Memoization::MemoCache(Line, Array(Array(Char))).new(@max_height)
+        end
+      end
 
       # Styles (Placeholder for future expansion)
       property style : Lipgloss::Style = Lipgloss::Style.new
@@ -161,10 +197,12 @@ module Term2
       record LineInfo, width : Int32, char_offset : Int32, column_offset : Int32
 
       # Alias for Go-style setters
+      # ameba:disable Naming/AccessorMethodName
       def set_width(w : Int32)
         self.width = w
       end
 
+      # ameba:disable Naming/AccessorMethodName
       def set_height(h : Int32)
         self.height = h
       end
@@ -287,6 +325,14 @@ module Term2
           @cursor_col = lines[@cursor_line].size
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
+        when @key_map.page_up.matches?(msg)
+          @cursor_line = (@cursor_line - @height).clamp(0, lines.size - 1)
+          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          @last_move_vertical = true
+        when @key_map.page_down.matches?(msg)
+          @cursor_line = (@cursor_line + @height).clamp(0, lines.size - 1)
+          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          @last_move_vertical = true
         when @key_map.word_backward.matches?(msg)
           word_backward(lines)
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
@@ -636,7 +682,7 @@ module Term2
             if @value.empty? && i == 0 && !@placeholder.empty? && line.empty?
               [Lipgloss::Text.truncate(@placeholder, available)]
             else
-              wrap_line(line, available)
+              memoized_wrap(line.chars.to_a, available).map(&.join)
             end
           wrapped.each_with_index do |wrapped_line, wl_idx|
             rendered = base_prefix + wrapped_line
@@ -729,6 +775,21 @@ module Term2
         end
 
         lines.map(&.join)
+      end
+
+      private def wrap_runes(runes : Array(Char), width : Int32) : Array(Array(Char))
+        wrap_line(runes.join, width).map(&.chars.to_a)
+      end
+
+      private def memoized_wrap(runes : Array(Char), width : Int32) : Array(Array(Char))
+        line = Line.new(runes, width)
+        cached, hit = @cache.get(line)
+        if hit
+          return cached.not_nil!
+        end
+        wrapped = wrap_runes(runes, width)
+        @cache.set(line, wrapped)
+        wrapped
       end
 
       def scroll_to_cursor
