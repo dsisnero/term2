@@ -112,7 +112,7 @@ describe Term2::Components::Table do
       ["3", "Alicia"],
     ]
 
-    table = Term2::Components::Table.new(cols, rows)
+    table = Term2::Components::Table::FilteredTable.new(cols, rows)
     table.filter_text = "alic"
 
     table.visible_rows.size.should eq 2
