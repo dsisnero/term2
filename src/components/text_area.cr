@@ -411,12 +411,10 @@ module Term2
 
         case
         when @key_map.line_previous.matches?(msg)
-          @cursor_line = (@cursor_line - 1).clamp(0, lines.size - 1)
-          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          set_cursor_line_relative(-1)
           @last_move_vertical = true
         when @key_map.line_next.matches?(msg)
-          @cursor_line = (@cursor_line + 1).clamp(0, lines.size - 1)
-          @cursor_col = column_for_display(lines[@cursor_line], target_x)
+          set_cursor_line_relative(1)
           @last_move_vertical = true
         when @key_map.character_backward.matches?(msg)
           if @cursor_col > 0
@@ -425,6 +423,7 @@ module Term2
             @cursor_line -= 1
             @cursor_col = lines[@cursor_line].size
           end
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.character_forward.matches?(msg)
@@ -434,10 +433,12 @@ module Term2
             @cursor_line += 1
             @cursor_col = 0
           end
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.insert_newline.matches?(msg)
           insert_newline(lines)
+          @last_char_offset = 0
           @preferred_x = 0
           @last_move_vertical = false
         when @key_map.delete_word_backward.matches?(msg)
@@ -446,34 +447,42 @@ module Term2
           else
             delete_word_left(lines)
           end
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.delete_character_backward.matches?(msg)
           delete_char(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.delete_character_forward.matches?(msg)
           delete_character_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.delete_after_cursor.matches?(msg)
           delete_after_cursor(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.delete_before_cursor.matches?(msg)
           delete_before_cursor(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.delete_word_forward.matches?(msg)
           delete_word_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.line_start.matches?(msg)
           @cursor_col = 0
+          @last_char_offset = 0
           @preferred_x = 0
           @last_move_vertical = false
         when @key_map.line_end.matches?(msg)
           @cursor_col = lines[@cursor_line].size
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.page_up.matches?(msg)
@@ -484,40 +493,49 @@ module Term2
           @last_move_vertical = true
         when @key_map.word_backward.matches?(msg)
           word_backward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.word_forward.matches?(msg)
           word_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.input_begin.matches?(msg)
           @cursor_line = 0
           @cursor_col = 0
+          @last_char_offset = 0
           @preferred_x = 0
           @last_move_vertical = false
         when @key_map.input_end.matches?(msg)
           @cursor_line = lines.size - 1
           @cursor_col = lines.last.size
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.uppercase_word_forward.matches?(msg)
           uppercase_word_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.lowercase_word_forward.matches?(msg)
           lowercase_word_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.capitalize_word_forward.matches?(msg)
           capitalize_word_forward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.transpose_character_backward.matches?(msg)
           transpose_character_backward(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         when @key_map.paste.matches?(msg)
           paste(lines)
+          @last_char_offset = 0
           @preferred_x = display_width(lines[@cursor_line][0...@cursor_col])
           @last_move_vertical = false
         else
@@ -527,6 +545,7 @@ module Term2
               return
             end
             insert_char(lines, msg.key.to_s)
+            @last_char_offset = 0
             @last_move_vertical = false
           end
         end
@@ -898,7 +917,7 @@ module Term2
         end
 
         li = line_info
-        char_offset = @last_char_offset.max(li.char_offset)
+        char_offset = Math.max(@last_char_offset, li.char_offset)
         @last_char_offset = char_offset
 
         # 2 columns to account for the trailing space wrapping.
@@ -912,8 +931,8 @@ module Term2
               @cursor_col = 0
             else
               # Move the cursor to the start of the next virtual line.
-              line_size = @value[@cursor_line]?.size || 0
-              @cursor_col = (li.start_column + li.width + trailing_space).min(line_size - 1)
+              line_size = @value[@cursor_line].size
+              @cursor_col = Math.min(li.start_column + li.width + trailing_space, line_size - 1)
             end
             li = line_info
           end
@@ -922,11 +941,11 @@ module Term2
           (-delta).times do
             if li.row_offset <= 0 && @cursor_line > 0
               @cursor_line -= 1
-              line_size = @value[@cursor_line]?.size || 0
+               line_size = @value[@cursor_line].size
               @cursor_col = line_size
             else
               # Move the cursor to the end of the previous line.
-              @cursor_col = (li.start_column - trailing_space).max(0)
+              @cursor_col = Math.max(li.start_column - trailing_space, 0)
             end
             li = line_info
           end
@@ -942,10 +961,14 @@ module Term2
 
         offset = 0
         while offset < char_offset
-          if @cursor_line >= @value.size || @cursor_col >= (@value[@cursor_line]?.size || 0) || offset >= nli.char_width - 1
+          if @cursor_line >= @value.size
             break
           end
-          offset += display_width(@value[@cursor_line][@cursor_col].to_s)
+          line = @value[@cursor_line]
+          if @cursor_col >= line.size || offset >= nli.char_width - 1
+            break
+          end
+          offset += display_width(line[@cursor_col].to_s)
           @cursor_col += 1
         end
         scroll_to_cursor
