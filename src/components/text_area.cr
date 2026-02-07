@@ -995,46 +995,32 @@ module Term2
       end
 
       private def page_up
-        lines = @value.map(&.join)
-        lines = [""] if lines.empty?
-
         cursor_line = cursor_line_number
         # If not on first visible line, snap to it
         offset = @viewport.y_offset - cursor_line
         if offset < 0
           # Move cursor up by offset lines (negative offset means cursor is below)
-          # Simplified: move by logical lines (not accounting for soft wraps)
-          # For now, move cursor up by offset logical lines
-          new_line = (@cursor_line + offset).clamp(0, lines.size - 1)
-          @cursor_line = new_line
-          @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+          set_cursor_line_relative(offset)
           return
         end
 
-        # Already on first visible line, move up by a full page (height logical lines)
-        @cursor_line = (@cursor_line - @height).clamp(0, lines.size - 1)
-        @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+        # Already on first visible line, move up by a full page (height display lines)
+        set_cursor_line_relative(-@height)
       end
 
       private def page_down
-        lines = @value.map(&.join)
-        lines = [""] if lines.empty?
-
         cursor_line = cursor_line_number
         # If not on last visible line, snap to it
         offset = cursor_line - @viewport.y_offset
         if offset < @height - 1
           # Move cursor down to last visible line
           delta = @height - 1 - offset
-          # Simplified: move by logical lines
-          @cursor_line = (@cursor_line + delta).clamp(0, lines.size - 1)
-          @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+          set_cursor_line_relative(delta)
           return
         end
 
         # Already on last visible line, move down by a full page
-        @cursor_line = (@cursor_line + @height).clamp(0, lines.size - 1)
-        @cursor_col = column_for_display(lines[@cursor_line], @preferred_x)
+        set_cursor_line_relative(@height)
       end
 
       def update_viewport

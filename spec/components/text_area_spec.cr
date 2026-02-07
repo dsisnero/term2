@@ -119,4 +119,19 @@ describe Term2::Components::TextArea do
     ta.styles.focused.cursor_line.should_not eq Lipgloss::Style.new
     ta.styles.blurred.cursor_line.should_not eq Lipgloss::Style.new
   end
+
+  it "navigates by display lines with set_cursor_line_relative" do
+    ta = Term2::Components::TextArea.new
+    ta.width = 20
+    ta.value = "short line"
+
+    start_line = ta.cursor_line
+    start_col = ta.cursor_col
+
+    ta.set_cursor_line_relative(1)
+    ta.set_cursor_line_relative(-1)
+
+    ta.cursor_line.should eq start_line
+    ta.cursor_col.should eq start_col
+  end
 end
