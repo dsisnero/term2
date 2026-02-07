@@ -218,12 +218,10 @@ module Term2
         end
       end
 
-      # Styles returns the current styles for the textarea.
-      def styles : Styles
-        @styles
-      end
+
 
       # SetStyles updates styling for the textarea.
+      property styles : Styles = Styles.new
       def styles=(s : Styles)
         @styles = s
         update_cursor_style
@@ -300,7 +298,7 @@ module Term2
       end
 
       # Styles following Go v2-exp API
-      property styles : Styles = Styles.new
+
 
       # Internal state
       @value : Array(Array(Char)) = [[] of Char]

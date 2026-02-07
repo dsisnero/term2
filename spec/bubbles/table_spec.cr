@@ -25,7 +25,7 @@ describe Term2::Components::Table do
           [["Foooooo", "Baaaaar", "Baaaaaz"]],
           0,
           0
-        ).tap(&.cell_style=(Lipgloss::Style.new)),
+        ).tap { |t| t.styles = Term2::Components::Table::Styles.new(cell: Lipgloss::Style.new) },
         expected: "Foooooo   Baaaaar   Baaaaaz   ",
       },
       {
@@ -35,7 +35,7 @@ describe Term2::Components::Table do
           [["Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"]],
           0,
           0
-        ).tap(&.cell_style=(Lipgloss::Style.new)),
+        ).tap { |t| t.styles = Term2::Components::Table::Styles.new(cell: Lipgloss::Style.new) },
         expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
       },
       {

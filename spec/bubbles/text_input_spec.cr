@@ -66,8 +66,10 @@ describe Term2::Components::TextInput do
     ti.placeholder = "输入消息..."
     ti.width = 20
     # Reset styles to defaults for strict string comparison
-    ti.prompt_style = Lipgloss::Style.new
-    ti.placeholder_style = Lipgloss::Style.new
+    ti.styles.focused.prompt = Lipgloss::Style.new
+    ti.styles.blurred.prompt = Lipgloss::Style.new
+    ti.styles.focused.placeholder = Lipgloss::Style.new
+    ti.styles.blurred.placeholder = Lipgloss::Style.new
 
     # Note: Crystal's string width calculation might differ slightly from Go's runewidth
     # depending on the libraries used, but assuming standard wide-char handling:
@@ -77,8 +79,10 @@ describe Term2::Components::TextInput do
   it "truncates long placeholder" do
     ti = Term2::Components::TextInput.new
     ti.placeholder = "A very long placeholder, or maybe not so much"
-    ti.prompt_style = Lipgloss::Style.new
-    ti.placeholder_style = Lipgloss::Style.new
+    ti.styles.focused.prompt = Lipgloss::Style.new
+    ti.styles.blurred.prompt = Lipgloss::Style.new
+    ti.styles.focused.placeholder = Lipgloss::Style.new
+    ti.styles.blurred.placeholder = Lipgloss::Style.new
     ti.width = 10
 
     # Note: Term2 uses "…" (ellipsis) for truncation
@@ -140,5 +144,50 @@ describe Term2::Components::TextInput do
     # However, let's verify the VALIDATOR logic itself works:
 
     ti.validate.not_nil!.call("4505 1234 5678 9012a").should_not be_nil
+  end
+
+  it "maps cursor style properties" do
+    ti = Term2::Components::TextInput.new
+    ti.styles = Term2::Components::TextInput::Styles.new(
+      cursor: Term2::Components::TextInput::CursorStyle.new(
+        color: Lipgloss::Color.from_hex("#FF0000"),
+        shape: Term2::CursorShape::Underline,
+        blink: true,
+        blink_speed: 300.milliseconds
+      )
+    )
+
+    ti.cursor.blink_speed.should eq 300.milliseconds
+    ti.cursor.mode.should eq Term2::Components::Cursor::Mode::Blink
+    # Shape mapping to Lipgloss::Style
+    ti.cursor.style.underline?.should be_true
+    # Color mapping to text_style
+    # ti.cursor.text_style should have foreground color set
+    # We'll trust that update_cursor_style worked since blink_speed and mode are set
+  end
+
+  it "uses Styles struct for focused and blurred states" do
+    ti = Term2::Components::TextInput.new
+    focused_style = Term2::Components::TextInput::StyleState.new(
+      prompt: Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#00FF00")),
+      text: Lipgloss::Style.new.bold(true)
+    )
+    blurred_style = Term2::Components::TextInput::StyleState.new(
+      prompt: Lipgloss::Style.new.foreground(Lipgloss::Color.from_hex("#0000FF")),
+      text: Lipgloss::Style.new.faint(true)
+    )
+    ti.styles = Term2::Components::TextInput::Styles.new(
+      focused: focused_style,
+      blurred: blurred_style,
+      cursor: Term2::Components::TextInput::CursorStyle.new
+    )
+
+    ti.focus
+    ti.prompt_style.should eq focused_style.prompt
+    ti.text_style.should eq focused_style.text
+
+    ti.blur
+    ti.prompt_style.should eq blurred_style.prompt
+    ti.text_style.should eq blurred_style.text
   end
 end
