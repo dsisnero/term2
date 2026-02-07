@@ -305,6 +305,7 @@ module Term2
       @width : Int32 = 40
       @height : Int32 = 6
       @preferred_x : Int32 = 0
+      @last_char_offset : Int32 = 0
       @last_move_vertical : Bool = false
 
       def initialize(@id : String = "")
@@ -887,6 +888,67 @@ module Term2
             char_offset: display_width(last_line.join)
           )
         end
+      end
+
+      # Moves the cursor by the given number of lines. Negative values move the cursor up,
+      # positive values move the cursor down.
+      def set_cursor_line_relative(delta : Int32)
+        if delta == 0
+          return
+        end
+
+        li = line_info
+        char_offset = @last_char_offset.max(li.char_offset)
+        @last_char_offset = char_offset
+
+        # 2 columns to account for the trailing space wrapping.
+        trailing_space = 2
+
+        if delta > 0
+          # Moving down.
+          delta.times do
+            if li.row_offset + 1 >= li.height && @cursor_line < @value.size - 1
+              @cursor_line += 1
+              @cursor_col = 0
+            else
+              # Move the cursor to the start of the next virtual line.
+              line_size = @value[@cursor_line]?.size || 0
+              @cursor_col = (li.start_column + li.width + trailing_space).min(line_size - 1)
+            end
+            li = line_info
+          end
+        else
+          # Moving up.
+          (-delta).times do
+            if li.row_offset <= 0 && @cursor_line > 0
+              @cursor_line -= 1
+              line_size = @value[@cursor_line]?.size || 0
+              @cursor_col = line_size
+            else
+              # Move the cursor to the end of the previous line.
+              @cursor_col = (li.start_column - trailing_space).max(0)
+            end
+            li = line_info
+          end
+        end
+
+        nli = line_info
+        @cursor_col = nli.start_column
+
+        if nli.width <= 0
+          scroll_to_cursor
+          return
+        end
+
+        offset = 0
+        while offset < char_offset
+          if @cursor_line >= @value.size || @cursor_col >= (@value[@cursor_line]?.size || 0) || offset >= nli.char_width - 1
+            break
+          end
+          offset += display_width(@value[@cursor_line][@cursor_col].to_s)
+          @cursor_col += 1
+        end
+        scroll_to_cursor
       end
 
       private def cursor_line_number : Int32
