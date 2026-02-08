@@ -10,6 +10,8 @@ module Term2
   module Environ
     extend self
 
+    private class_property color_profile_override : Lipgloss::ColorProfile? = nil
+
     # Returns the terminal type string (e.g., "xterm-256color", "kitty", "wezterm").
     # Primarily derived from the `TERM` environment variable.
     def terminal_type : String
@@ -22,6 +24,11 @@ module Term2
     # 2. `TERM` substring matching (256color, ansi, color)
     # 3. Fallback to ANSI
     def color_profile : Lipgloss::ColorProfile
+      # Check for capability-based override first
+      if override = color_profile_override
+        return override
+      end
+
       # Check for truecolor/24bit support
       colorterm = ENV["COLORTERM"]?.to_s.downcase
       if colorterm.includes?("truecolor") || colorterm.includes?("24bit")
@@ -41,6 +48,37 @@ module Term2
 
       # Default to ANSI for safety (most terminals support at least 16 colors)
       Lipgloss::ColorProfile::ANSI
+    end
+
+    # Decode hex string to ASCII string
+    private def self.hex_to_string(hex : String) : String
+      return "" if hex.size % 2 != 0
+      String.build do |str|
+        i = 0
+        while i < hex.size
+          byte = hex[i, 2].to_i(16)
+          str << byte.unsafe_chr
+          i += 2
+        end
+      end
+    end
+
+    # Process a capability response and upgrade color profile if applicable.
+    # Returns true if color profile was upgraded.
+    def self.process_capability(content : String) : Bool
+      # Decode hex content
+      decoded = hex_to_string(content)
+      # Check for RGB or Tc capability
+      if decoded.includes?("RGB")
+        # RGB capability indicates true color support
+        self.color_profile_override = Lipgloss::ColorProfile::TrueColor
+        return true
+      elsif decoded.includes?("Tc")
+        # Tc capability indicates true color support
+        self.color_profile_override = Lipgloss::ColorProfile::TrueColor
+        return true
+      end
+      false
     end
 
     # Returns the platform identifier as a Symbol.

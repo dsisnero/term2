@@ -955,6 +955,21 @@ module Term2
           Terminal.request_cursor_color(@output_io)
         end
         return
+      when RequestCapabilityMsg
+        if @bootstrapping
+          buffer = IO::Memory.new
+          Terminal.request_capability(buffer, filtered_msg.capability)
+          @deferred_outputs << buffer.to_s
+        else
+          Terminal.request_capability(@output_io, filtered_msg.capability)
+        end
+        return
+      when CapabilityMsg
+        if Environ.process_capability(filtered_msg.content)
+          # Profile upgraded, send notification
+          dispatch(ColorProfileMsg.new(Environ.color_profile))
+        end
+        # fall through to update
       when PrintMsg
         @render_mailbox.send(filtered_msg)
         return

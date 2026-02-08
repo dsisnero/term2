@@ -193,6 +193,39 @@ module Term2
       end
     end
 
+    private def self.parse_dcs(seq : Bytes, length : Int32) : Term2::Msg?
+      # seq is the entire DCS sequence including \eP and terminator \e\
+      # length is total length in bytes
+      return if length < 5 # \eP X \e\ minimum
+      return unless seq[0] == 0x1b && seq[1] == 'P'.ord
+      return unless seq[length - 2] == 0x1b && seq[length - 1] == '\\'.ord
+
+      # Skip \eP (2 bytes)
+      i = 2
+      # Skip parameter bytes (digits, ';', ':')
+      while i < length - 2 && seq[i] >= '0'.ord && seq[i] <= ';'.ord
+        i += 1
+      end
+      # Skip intermediate bytes (0x20-0x2F)
+      while i < length - 2 && seq[i] >= 0x20 && seq[i] <= 0x2F
+        i += 1
+      end
+      # Final byte must be in 0x40-0x7E
+      return if i >= length - 2
+      final_byte = seq[i]
+      return unless final_byte >= 0x40 && final_byte <= 0x7E
+
+      # Data starts after final byte
+      data_start = i + 1
+      data_end = length - 2 # before ESC \
+      return if data_start >= data_end
+
+      # Extract hex data (for XTGETTCAP)
+      data = seq[data_start...data_end]
+      content = String.new(data)
+      CapabilityMsg.new(content)
+    end
+
     # Sequence mappings for terminal escape sequences
     SEQUENCES = {
       # Arrow keys
@@ -558,6 +591,30 @@ module Term2
         if data.size == 1
           k = Key.new(KeyType::Esc)
           return {true, 1, KeyMsg.new(k)}
+        end
+
+        # Check for DCS (Device Control String) starting with ESC P
+        if data.size >= 3 && data[1] == 'P'.ord
+          # DCS format: ESC P <intermediate> <parameter>... <data> ESC \
+          # For XTGETTCAP responses: ESC P 1 + r <hexdata> ESC \
+          # We'll scan for terminator ESC \
+          i = 2 # Skip ESC P
+          while i < data.size
+            if data[i] == 0x1b && i + 1 < data.size && data[i + 1] == '\\'.ord
+              # Found terminator
+              seq = data[0, i + 2]
+              if msg = parse_dcs(seq, i + 2)
+                return {true, i + 2, msg}
+              else
+                # Fallback: return raw content as CapabilityMsg
+                content = String.new(seq[2...i]) # Skip ESC P and terminator
+                return {true, i + 2, CapabilityMsg.new(content)}
+              end
+            end
+            i += 1
+          end
+          # Incomplete DCS sequence
+          return {false, 0, nil}
         end
 
         # 3. Check known sequences

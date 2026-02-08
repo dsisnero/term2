@@ -90,6 +90,15 @@ module Term2
       io.flush
     end
 
+    # Request terminal capability via XTGETTCAP (DCS + q)
+    # Sends: \eP+q<hex-encoded-capability>\e\
+    def self.request_capability(io : IO, capability : String)
+      # Convert capability name to hex, uppercase
+      hex = capability.each_byte.map(&.to_s(16).upcase.rjust(2, '0')).join
+      io.print "\eP+q#{hex}\e\\"
+      io.flush
+    end
+
     # Read clipboard (OSC 52)
     def self.read_clipboard(io : IO, selection : Char = 'c')
       io.print "\033]52;#{selection};?\x07"
