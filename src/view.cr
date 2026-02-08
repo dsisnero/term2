@@ -125,6 +125,14 @@ module Term2
     # ANSI escape codes.
     property content : String
 
+    # OffsetX is the horizontal offset of the view within the terminal.
+    # Used to convert screen coordinates to view-relative coordinates.
+    property offset_x : Int32 = 0
+
+    # OffsetY is the vertical offset of the view within the terminal.
+    # Used to convert screen coordinates to view-relative coordinates.
+    property offset_y : Int32 = 0
+
     # Cursor represents the cursor position, style, and visibility on the
     # screen. When not nil, the cursor will be shown at the specified
     # position.
@@ -178,6 +186,8 @@ module Term2
 
     def initialize(
       @content : String = "",
+      @offset_x : Int32 = 0,
+      @offset_y : Int32 = 0,
       @cursor : Cursor? = nil,
       @background_color : Lipgloss::Color? = nil,
       @foreground_color : Lipgloss::Color? = nil,

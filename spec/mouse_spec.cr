@@ -185,4 +185,29 @@ module Term2
       Mouse.responds_to?(:disable_move_reporting).should be_true
     end
   end
+
+  describe MouseEvent do
+    describe "#relative_to" do
+      it "returns a new MouseEvent with coordinates adjusted by view offset" do
+        view = View.new(content: "test", offset_x: 5, offset_y: 10)
+        event = MouseEvent.new(15, 25, MouseEvent::Button::Left, MouseEvent::Action::Press)
+        relative = event.relative_to(view)
+        relative.x.should eq(10)
+        relative.y.should eq(15)
+        relative.button.should eq(MouseEvent::Button::Left)
+        relative.action.should eq(MouseEvent::Action::Press)
+      end
+
+      it "preserves modifiers" do
+        view = View.new(content: "test", offset_x: 2, offset_y: 3)
+        event = MouseEvent.new(10, 20, MouseEvent::Button::Right, MouseEvent::Action::Release, alt: true, ctrl: true)
+        relative = event.relative_to(view)
+        relative.x.should eq(8)
+        relative.y.should eq(17)
+        relative.alt?.should be_true
+        relative.ctrl?.should be_true
+        relative.shift?.should be_false
+      end
+    end
+  end
 end

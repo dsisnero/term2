@@ -1016,7 +1016,8 @@ module Term2
           mouse_event = filtered_msg
           if last_view = @last_view
             if handler = last_view.on_mouse
-              run_cmd(handler.call(mouse_event))
+              relative_event = mouse_event.relative_to(last_view)
+              run_cmd(handler.call(relative_event))
             end
           end
           t_update0 = Time.instant if @profile

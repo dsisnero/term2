@@ -611,7 +611,7 @@ src/
   base_types.cr      # Model, Message, Key, KeyType
   key_sequences.cr   # Escape sequence mappings
   mouse.cr           # Mouse event handling
-  renderer.cr        # StandardRenderer, NilRenderer
+  renderer.cr        # CursedRenderer (default), StandardRenderer, NilRenderer
   terminal.cr        # Terminal control utilities, Cursor escapes
   style.cr           # Lipgloss-style fluent styling API
   zone.cr            # Zone system for focus/click tracking

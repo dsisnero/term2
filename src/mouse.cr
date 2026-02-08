@@ -1,4 +1,5 @@
 require "./base_types"
+require "./view"
 
 # Mouse event handling for terminal applications
 module Term2
@@ -124,6 +125,20 @@ module Term2
     def mouse : MouseEvent
       self
     end
+
+    # Returns a new MouseEvent with coordinates relative to the given view.
+    # The view's offset_x and offset_y are subtracted from the coordinates.
+    def relative_to(view : View) : MouseEvent
+      MouseEvent.new(
+        x: @x - view.offset_x,
+        y: @y - view.offset_y,
+        button: @button,
+        action: @action,
+        alt: @alt,
+        ctrl: @ctrl,
+        shift: @shift
+      )
+    end
   end
 
   # MouseReader handles parsing mouse events from terminal input.
@@ -226,14 +241,14 @@ module Term2
         button = MouseEvent::Button::None
       end
 
-      action =
-        if release
-          MouseEvent::Action::Release
-        elsif motion
-          MouseEvent::Action::Move
-        else
-          MouseEvent::Action::Press
-        end
+      action = case {release, motion}
+               when {true, _}
+                 MouseEvent::Action::Release
+               when {_, true}
+                 MouseEvent::Action::Move
+               else
+                 MouseEvent::Action::Press
+               end
 
       shift = (code & SHIFT_MASK) != 0
       alt = (code & ALT_MASK) != 0
