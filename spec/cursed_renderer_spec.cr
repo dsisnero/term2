@@ -1,5 +1,11 @@
 require "./spec_helper"
 
+module SpecHelpers
+  def self.strip_ansi(str : String) : String
+    str.gsub(/\e\[[0-9;]*[a-zA-Z]|\e\[?.*?[a-zA-Z]/, "")
+  end
+end
+
 describe Term2::CursedRenderer do
   it "starts in stopped state" do
     output = IO::Memory.new
@@ -38,7 +44,8 @@ describe Term2::CursedRenderer do
     renderer.start
     view = Term2::View.new(content: "Test content", alt_screen: false)
     renderer.render_view(view)
-    output.to_s.should contain("Test content")
+    stripped = SpecHelpers.strip_ansi(output.to_s)
+    stripped.should contain("Test content")
   end
 
   it "handles color profile" do

@@ -231,9 +231,9 @@ module Term2
         @last_render = view.content
       end
 
-      if view.cursor
+      if cursor = view.cursor
         # Position cursor at cursor location
-        move_cursor_to(view.cursor.x, view.cursor.y)
+        move_cursor_to(cursor.position.x, cursor.position.y)
         apply_cursor_visibility(true)
       end
 
