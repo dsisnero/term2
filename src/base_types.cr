@@ -970,9 +970,8 @@ module Term2
   end
 
   # Alias for request_capability to match Bubble Tea's naming convention.
-  def self.RequestCapability(capability : String) : Cmd
-    request_capability(capability)
-  end
+  # Note: Crystal method names are typically lowercase; use request_capability.
+  # RequestCapability = ->request_capability(String)
 
   module Cmds
     # No-op command (nil)
