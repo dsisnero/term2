@@ -367,6 +367,11 @@ module Term2
       STDERR.flush
     end
 
+    # Use a custom renderer instance
+    def use_renderer(renderer : Renderer) : Nil
+      @renderer = renderer
+    end
+
     def run : M
       STDERR.puts "DEBUG: run start" if ENV["TERM2_DEBUG"]?
       if the_io = @input_io

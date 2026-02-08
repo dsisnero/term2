@@ -1,5 +1,6 @@
 # Program options and configuration system
 require "./program_context"
+require "./cursed_renderer"
 
 module Term2
   # Base type for program configuration options.
@@ -38,6 +39,13 @@ module Term2
   struct WithoutRenderer < ProgramOption
     def apply(program : Program) : Nil
       program.disable_renderer
+    end
+  end
+
+  # Uses the ultraviolet-based cursed renderer (Bubble Tea v2 default).
+  struct WithCursedRenderer < ProgramOption
+    def apply(program : Program) : Nil
+      program.use_renderer(CursedRenderer.new(program.output_io))
     end
   end
 
