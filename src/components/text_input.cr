@@ -79,7 +79,7 @@ module Term2
           @text = Lipgloss::Style.new,
           @placeholder = Lipgloss::Style.new,
           @suggestion = Lipgloss::Style.new,
-          @prompt = Lipgloss::Style.new
+          @prompt = Lipgloss::Style.new,
         )
         end
       end
@@ -95,7 +95,7 @@ module Term2
         def initialize(
           @focused = StyleState.new,
           @blurred = StyleState.new,
-          @cursor = CursorStyle.new
+          @cursor = CursorStyle.new,
         )
         end
       end
@@ -107,7 +107,6 @@ module Term2
         @styles = s
         update_cursor_style
       end
-
 
       private def active_style : StyleState
         @focus ? @styles.focused : @styles.blurred

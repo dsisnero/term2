@@ -162,29 +162,53 @@ module Term2
     getter? alt : Bool
     # Whether this key came from a paste operation
     getter? paste : Bool
+    # Modifier keys bitmask
+    getter mod : KeyMod = KeyMod::None
+    # Whether this is a repeated key event
+    getter? is_repeat : Bool = false
+    # Shifted key code (if available)
+    getter shifted_code : Char? = nil
+    # Base key code according to PC‑101 layout (if available)
+    getter base_code : Char? = nil
 
-    def initialize(@type : KeyType, @runes : Array(Char) = [] of Char, @alt : Bool = false, @paste : Bool = false)
+    def initialize(@type : KeyType, @runes : Array(Char) = [] of Char, @alt : Bool = false, @paste : Bool = false, @mod : KeyMod = KeyMod::None, @is_repeat : Bool = false, @shifted_code : Char? = nil, @base_code : Char? = nil)
+      @mod |= KeyMod::Alt if @alt
     end
 
-    def initialize(char : Char, alt : Bool = false)
+    def initialize(char : Char, alt : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
       @type = KeyType::Runes
       @runes = [char]
       @alt = alt
       @paste = false
+      @mod = mod
+      @is_repeat = is_repeat
+      @shifted_code = shifted_code
+      @base_code = base_code
+      @mod |= KeyMod::Alt if @alt
     end
 
-    def initialize(str : String, alt : Bool = false)
+    def initialize(str : String, alt : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
       @type = KeyType::Runes
       @runes = str.chars
       @alt = alt
       @paste = false
+      @mod = mod
+      @is_repeat = is_repeat
+      @shifted_code = shifted_code
+      @base_code = base_code
+      @mod |= KeyMod::Alt if @alt
     end
 
-    def initialize(runes : Array(Char), alt : Bool = false, paste : Bool = false)
+    def initialize(runes : Array(Char), alt : Bool = false, paste : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
       @type = KeyType::Runes
       @runes = runes
       @alt = alt
       @paste = paste
+      @mod = mod
+      @is_repeat = is_repeat
+      @shifted_code = shifted_code
+      @base_code = base_code
+      @mod |= KeyMod::Alt if @alt
     end
 
     # Returns a friendly string representation for a key
@@ -214,7 +238,11 @@ module Term2
       @type == other.@type &&
         @runes == other.@runes &&
         @alt == other.@alt &&
-        @paste == other.@paste
+        @paste == other.@paste &&
+        @mod == other.@mod &&
+        @is_repeat == other.@is_repeat &&
+        @shifted_code == other.@shifted_code &&
+        @base_code == other.@base_code
     end
 
     # Check if this is a specific key type
@@ -370,6 +398,24 @@ module Term2
       else
         ""
       end
+    end
+  end
+
+  @[Flags]
+  enum KeyMod
+    None       = 0
+    Shift      = 1 << 0
+    Alt        = 1 << 1
+    Ctrl       = 1 << 2
+    Meta       = 1 << 3
+    Hyper      = 1 << 4
+    Super      = 1 << 5
+    CapsLock   = 1 << 6
+    NumLock    = 1 << 7
+    ScrollLock = 1 << 8
+
+    def contains?(mods : KeyMod) : Bool
+      (self & mods) == mods
     end
   end
 
@@ -708,6 +754,93 @@ module Term2
 
     def to_s : String
       @key.to_s
+    end
+  end
+
+  # KeyPressMsg represents a key press message with enhanced keyboard protocol support.
+  class KeyPressMsg < KeyMsg
+  end
+
+  # KeyReleaseMsg represents a key release message with enhanced keyboard protocol support.
+  class KeyReleaseMsg < KeyMsg
+  end
+
+  # KeyboardEnhancementsMsg is a message that gets sent when the terminal
+  # supports keyboard enhancements.
+  class KeyboardEnhancementsMsg < Message
+    getter flags : Int32
+
+    def initialize(@flags : Int32)
+    end
+
+    # Returns whether the terminal supports key disambiguation
+    # (e.g., distinguishing between different modifier keys).
+    def supports_key_disambiguation? : Bool
+      @flags > 0
+    end
+
+    # Returns whether the terminal supports reporting
+    # different types of key events (press, release, and repeat).
+    def supports_event_types? : Bool
+      @flags & 2 != 0 # ansi.KittyReportEventTypes = 2
+    end
+
+    def ==(other : KeyboardEnhancementsMsg)
+      @flags == other.flags
+    end
+  end
+
+  # EnvMsg represents the environment variables of the program.
+  # This is useful for getting environment variables of programs
+  # running in a remote session like SSH. In that case, using ENV[] would
+  # return the server's environment variables, not the client's.
+  #
+  # This message is sent to the program when it starts.
+  #
+  # Example:
+  #
+  #   case msg
+  #   when Term2::EnvMsg
+  #     term = msg.getenv("TERM")
+  class EnvMsg < Message
+    getter env : Hash(String, String)
+
+    def initialize(@env : Hash(String, String))
+    end
+
+    # Returns the value of the environment variable named by the key.
+    # If the variable is not present, returns an empty string.
+    def getenv(key : String) : String
+      @env[key]? || ""
+    end
+
+    # Retrieves the value of the environment variable named by the key.
+    # If the variable is present returns the value (may be empty) and true,
+    # otherwise returns empty string and false.
+    def lookup_env(key : String) : {String, Bool}
+      if value = @env[key]?
+        {value, true}
+      else
+        {"", false}
+      end
+    end
+
+    def ==(other : EnvMsg)
+      @env == other.env
+    end
+  end
+
+  # ColorProfileMsg is a message that describes the terminal's color profile.
+  #
+  # To upgrade the terminal color profile, use the `RequestCapability` command.
+  class ColorProfileMsg < Message
+    getter profile : Lipgloss::ColorProfile
+
+    def initialize(@profile : Lipgloss::ColorProfile)
+    end
+
+    def ==(other : ColorProfileMsg)
+      @profile == other.profile
     end
   end
 

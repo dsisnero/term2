@@ -28,7 +28,7 @@ describe "Term2::Zone mouse handling (v2‑exp)" do
     model = ZoneMouseTestModel.new
     event = Term2::MouseEvent.new(0, 0, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press)
     updated, cmd = Term2::Zone.any_in_bounds_and_update(model, event)
-    updated.received.select { |msg| msg.is_a?(Term2::ZoneInBoundsMsg) }.should be_empty
+    updated.received.select(Term2::ZoneInBoundsMsg).should be_empty
     cmd.should be_nil
   end
 
@@ -41,7 +41,7 @@ describe "Term2::Zone mouse handling (v2‑exp)" do
     event = Term2::MouseEvent.new(0, 0, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press)
     updated, cmd = Term2::Zone.any_in_bounds_and_update(model, event)
 
-    msgs = updated.received.select { |msg| msg.is_a?(Term2::ZoneInBoundsMsg) }
+    msgs = updated.received.select(Term2::ZoneInBoundsMsg)
     msgs.size.should eq(1)
     msg = msgs.first.as(Term2::ZoneInBoundsMsg)
     msg.zone.id.should eq("demo")

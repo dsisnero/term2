@@ -6,127 +6,127 @@ module Term2
     class Help
       include Model
 
-       module KeyMap
-         abstract def short_help : Array(Key::Binding)
-         abstract def full_help : Array(Array(Key::Binding))
+      module KeyMap
+        abstract def short_help : Array(Key::Binding)
+        abstract def full_help : Array(Array(Key::Binding))
 
-         def self.bindings(entries : Array(NamedTuple(keys: Array(String), help: String, description: String))) : Array(Key::Binding)
-           entries.map do |entry|
-             Key::Binding.new(entry[:keys], entry[:help], entry[:description])
-           end
-         end
+        def self.bindings(entries : Array(NamedTuple(keys: Array(String), help: String, description: String))) : Array(Key::Binding)
+          entries.map do |entry|
+            Key::Binding.new(entry[:keys], entry[:help], entry[:description])
+          end
+        end
 
-         def self.bindings(entries : Array(Tuple(Array(String), String, String))) : Array(Key::Binding)
-           entries.map do |entry|
-             Key::Binding.new(entry[0], entry[1], entry[2])
-           end
-         end
-       end
+        def self.bindings(entries : Array(Tuple(Array(String), String, String))) : Array(Key::Binding)
+          entries.map do |entry|
+            Key::Binding.new(entry[0], entry[1], entry[2])
+          end
+        end
+      end
 
-       # Styles for the help bubble (v2‑exp API)
-       struct Styles
-         property ellipsis : Lipgloss::Style
+      # Styles for the help bubble (v2‑exp API)
+      struct Styles
+        property ellipsis : Lipgloss::Style
 
-         # Styling for the short help
-         property short_key : Lipgloss::Style
-         property short_desc : Lipgloss::Style
-         property short_separator : Lipgloss::Style
+        # Styling for the short help
+        property short_key : Lipgloss::Style
+        property short_desc : Lipgloss::Style
+        property short_separator : Lipgloss::Style
 
-         # Styling for the full help
-         property full_key : Lipgloss::Style
-         property full_desc : Lipgloss::Style
-         property full_separator : Lipgloss::Style
+        # Styling for the full help
+        property full_key : Lipgloss::Style
+        property full_desc : Lipgloss::Style
+        property full_separator : Lipgloss::Style
 
-         def initialize(
-           @ellipsis = Lipgloss::Style.new,
-           @short_key = Lipgloss::Style.new.faint(true),
-           @short_desc = Lipgloss::Style.new.faint(true),
-           @short_separator = Lipgloss::Style.new.faint(true),
-           @full_key = Lipgloss::Style.new.faint(true),
-           @full_desc = Lipgloss::Style.new.faint(true),
-           @full_separator = Lipgloss::Style.new.faint(true)
-         )
-         end
+        def initialize(
+          @ellipsis = Lipgloss::Style.new,
+          @short_key = Lipgloss::Style.new.faint(true),
+          @short_desc = Lipgloss::Style.new.faint(true),
+          @short_separator = Lipgloss::Style.new.faint(true),
+          @full_key = Lipgloss::Style.new.faint(true),
+          @full_desc = Lipgloss::Style.new.faint(true),
+          @full_separator = Lipgloss::Style.new.faint(true),
+        )
+        end
 
-         def self.default_dark : Styles
-           key_color = Lipgloss::Color.from_hex("#626262")
-           desc_color = Lipgloss::Color.from_hex("#4A4A4A")
-           sep_color = Lipgloss::Color.from_hex("#3C3C3C")
+        def self.default_dark : Styles
+          key_color = Lipgloss::Color.from_hex("#626262")
+          desc_color = Lipgloss::Color.from_hex("#4A4A4A")
+          sep_color = Lipgloss::Color.from_hex("#3C3C3C")
 
-           Styles.new(
-             ellipsis: Lipgloss::Style.new.foreground(sep_color),
-             short_key: Lipgloss::Style.new.foreground(key_color),
-             short_desc: Lipgloss::Style.new.foreground(desc_color),
-             short_separator: Lipgloss::Style.new.foreground(sep_color),
-             full_key: Lipgloss::Style.new.foreground(key_color),
-             full_desc: Lipgloss::Style.new.foreground(desc_color),
-             full_separator: Lipgloss::Style.new.foreground(sep_color)
-           )
-         end
+          Styles.new(
+            ellipsis: Lipgloss::Style.new.foreground(sep_color),
+            short_key: Lipgloss::Style.new.foreground(key_color),
+            short_desc: Lipgloss::Style.new.foreground(desc_color),
+            short_separator: Lipgloss::Style.new.foreground(sep_color),
+            full_key: Lipgloss::Style.new.foreground(key_color),
+            full_desc: Lipgloss::Style.new.foreground(desc_color),
+            full_separator: Lipgloss::Style.new.foreground(sep_color)
+          )
+        end
 
-         def self.default_light : Styles
-           key_color = Lipgloss::Color.from_hex("#909090")
-           desc_color = Lipgloss::Color.from_hex("#B2B2B2")
-           sep_color = Lipgloss::Color.from_hex("#DADADA")
+        def self.default_light : Styles
+          key_color = Lipgloss::Color.from_hex("#909090")
+          desc_color = Lipgloss::Color.from_hex("#B2B2B2")
+          sep_color = Lipgloss::Color.from_hex("#DADADA")
 
-           Styles.new(
-             ellipsis: Lipgloss::Style.new.foreground(sep_color),
-             short_key: Lipgloss::Style.new.foreground(key_color),
-             short_desc: Lipgloss::Style.new.foreground(desc_color),
-             short_separator: Lipgloss::Style.new.foreground(sep_color),
-             full_key: Lipgloss::Style.new.foreground(key_color),
-             full_desc: Lipgloss::Style.new.foreground(desc_color),
-             full_separator: Lipgloss::Style.new.foreground(sep_color)
-           )
-         end
-       end
+          Styles.new(
+            ellipsis: Lipgloss::Style.new.foreground(sep_color),
+            short_key: Lipgloss::Style.new.foreground(key_color),
+            short_desc: Lipgloss::Style.new.foreground(desc_color),
+            short_separator: Lipgloss::Style.new.foreground(sep_color),
+            full_key: Lipgloss::Style.new.foreground(key_color),
+            full_desc: Lipgloss::Style.new.foreground(desc_color),
+            full_separator: Lipgloss::Style.new.foreground(sep_color)
+          )
+        end
+      end
 
-       property? show_all : Bool = false
-       property width : Int32 = 80
+      property? show_all : Bool = false
+      property width : Int32 = 80
 
-       # Styles (v2‑exp API)
-       property styles : Styles = Styles.default_dark
+      # Styles (v2‑exp API)
+      property styles : Styles = Styles.default_dark
 
-       # Separators and ellipsis
-       property short_separator : String = " • "
-       property full_separator : String = "  "
-       property ellipsis : String = "…"
+      # Separators and ellipsis
+      property short_separator : String = " • "
+      property full_separator : String = "  "
+      property ellipsis : String = "…"
 
-       # Legacy style properties (deprecated, map to styles)
-       def key_style : Lipgloss::Style
-         @styles.short_key
-       end
+      # Legacy style properties (deprecated, map to styles)
+      def key_style : Lipgloss::Style
+        @styles.short_key
+      end
 
-       def key_style=(style : Lipgloss::Style)
-         @styles.short_key = style
-         @styles.full_key = style
-       end
+      def key_style=(style : Lipgloss::Style)
+        @styles.short_key = style
+        @styles.full_key = style
+      end
 
-       def desc_style : Lipgloss::Style
-         @styles.short_desc
-       end
+      def desc_style : Lipgloss::Style
+        @styles.short_desc
+      end
 
-       def desc_style=(style : Lipgloss::Style)
-         @styles.short_desc = style
-         @styles.full_desc = style
-       end
+      def desc_style=(style : Lipgloss::Style)
+        @styles.short_desc = style
+        @styles.full_desc = style
+      end
 
-       def separator_style : Lipgloss::Style
-         @styles.short_separator
-       end
+      def separator_style : Lipgloss::Style
+        @styles.short_separator
+      end
 
-       def separator_style=(style : Lipgloss::Style)
-         @styles.short_separator = style
-         @styles.full_separator = style
-       end
+      def separator_style=(style : Lipgloss::Style)
+        @styles.short_separator = style
+        @styles.full_separator = style
+      end
 
-       def ellipsis_style : Lipgloss::Style
-         @styles.ellipsis
-       end
+      def ellipsis_style : Lipgloss::Style
+        @styles.ellipsis
+      end
 
-       def ellipsis_style=(style : Lipgloss::Style)
-         @styles.ellipsis = style
-       end
+      def ellipsis_style=(style : Lipgloss::Style)
+        @styles.ellipsis = style
+      end
 
       def initialize
       end

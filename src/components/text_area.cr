@@ -218,10 +218,9 @@ module Term2
         end
       end
 
-
-
       # SetStyles updates styling for the textarea.
       property styles : Styles = Styles.new
+
       def styles=(s : Styles)
         @styles = s
         update_cursor_style
@@ -298,7 +297,6 @@ module Term2
       end
 
       # Styles following Go v2-exp API
-
 
       # Internal state
       @value : Array(Array(Char)) = [[] of Char]
@@ -941,7 +939,7 @@ module Term2
           (-delta).times do
             if li.row_offset <= 0 && @cursor_line > 0
               @cursor_line -= 1
-               line_size = @value[@cursor_line].size
+              line_size = @value[@cursor_line].size
               @cursor_col = line_size
             else
               # Move the cursor to the end of the previous line.

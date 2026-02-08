@@ -197,7 +197,7 @@ module Term2
             *,
             @prompt_style = Lipgloss::Style.new.bold(true),
             @cursor_style = Lipgloss::Style.new,
-            @default_filter_character_match = Lipgloss::Style.new.underline(true)
+            @default_filter_character_match = Lipgloss::Style.new.underline(true),
           )
           end
         end

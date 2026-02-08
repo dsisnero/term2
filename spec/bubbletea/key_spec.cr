@@ -67,4 +67,30 @@ describe "Bubbletea parity: key_test.go" do
       msg.should eq(test_case[:msg])
     end
   end
+
+  it "parses CSI-u sequences" do
+    # Test cases for CSI-u (Kitty keyboard protocol)
+    tests = [
+      # Keyboard enhancement response
+      {seq: "\e[?1;1u".to_slice, msg: Term2::KeyboardEnhancementsMsg.new(1)},
+      {seq: "\e[?1;2u".to_slice, msg: Term2::KeyboardEnhancementsMsg.new(2)},
+      # Basic key press with modifiers
+      {seq: "\e[97;1u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: false))},
+      # Key press with shift modifier
+      {seq: "\e[65;2u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new(Term2::KeyType::Up, mod: Term2::KeyMod::Shift, is_repeat: false))},
+      # Key repeat event
+      {seq: "\e[97;1:2u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: true))},
+      # Key release event
+      {seq: "\e[97;1:3u".to_slice, msg: Term2::KeyReleaseMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: false))},
+      # Arrow key with Ctrl+Shift
+      {seq: "\e[67;6u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new(Term2::KeyType::Right, mod: Term2::KeyMod::Ctrl | Term2::KeyMod::Shift, is_repeat: false))},
+    ]
+
+    tests.each do |test_case|
+      has_seq, width, msg = Term2::KeySequences.detect_one_msg(test_case[:seq])
+      has_seq.should be_true
+      width.should eq(test_case[:seq].size)
+      msg.should eq(test_case[:msg])
+    end
+  end
 end

@@ -9,6 +9,7 @@ require "./key_sequences"
 require "./mouse"
 require "./osc"
 require "./renderer"
+require "./environ"
 require "lipgloss"
 require "./components/*"
 
@@ -41,9 +42,11 @@ module Term2
     @paste_buffer : String = ""
     @last_mouse_event : MouseEvent? = nil
     @last_osc_event : Message? = nil
+    @last_key_msg : Message? = nil
 
     getter last_mouse_event : MouseEvent?
     getter last_osc_event : Message?
+    getter last_key_msg : Message?
 
     # Bracketed paste escape sequences
     PASTE_START = "\e[200~"
@@ -165,6 +168,36 @@ module Term2
           @buffer = @buffer[consumed..] || ""
           return
         end
+      end
+
+      # Try to detect a complete message using the enhanced parser
+      if !@buffer.empty?
+        buffer_bytes = @buffer.to_slice
+        has_msg, width, msg = KeySequences.detect_one_msg(buffer_bytes)
+        if has_msg && width > 0
+          # Consume the parsed bytes from buffer
+          @buffer = @buffer[width..] || ""
+
+          case msg
+          when KeyPressMsg, KeyReleaseMsg
+            # Store enhanced key messages for dispatch
+            @last_key_msg = msg
+            return Key.new(KeyType::Null)
+          when KeyMsg
+            # For KeyMsg (non-enhanced), return the key directly
+            @last_key_msg = nil
+            return msg.key
+          else
+            # For other message types, store and return sentinel
+            @last_key_msg = msg
+            return Key.new(KeyType::Null)
+          end
+        elsif has_msg
+          # Should not happen, but handle gracefully
+          @buffer = ""
+          return Key.new(KeyType::Null)
+        end
+        # If has_msg is false, continue with normal parsing
       end
 
       # Check for escape sequences
@@ -604,6 +637,7 @@ module Term2
           STDERR.puts "TERM2_LOG_FILE error: #{ex.message}"
         end
       end
+      detect_environment
       if @renderer_enabled
         @renderer.start
       end
@@ -642,6 +676,26 @@ module Term2
       end
     end
 
+    private def detect_environment
+      # Populate environment hash if empty
+      if @environment.empty?
+        @environment = ENV.to_h
+      end
+
+      # Detect color profile
+      detected_profile = Environ.color_profile
+      if @color_profile.nil?
+        @color_profile = detected_profile
+        @renderer.color_profile = detected_profile
+      end
+
+      # Send environment message
+      dispatch(EnvMsg.new(@environment))
+
+      # Send color profile message
+      dispatch(ColorProfileMsg.new(@color_profile.as(Lipgloss::ColorProfile)))
+    end
+
     private def start_input_reader
       CML.trace "start_input_reader", tag: "term2" if ENV["TERM2_TRACE"]?
       return unless io = @input_io
@@ -668,6 +722,11 @@ module Term2
 
           if osc_event = key_reader.last_osc_event
             dispatch(osc_event)
+            next
+          end
+
+          if key_msg = key_reader.last_key_msg
+            dispatch(key_msg)
             next
           end
 
