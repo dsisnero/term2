@@ -1,6 +1,7 @@
 # CursedRenderer provides ultraviolet-compatible terminal rendering
 # for Bubble Tea v2 API compatibility.
 require "lipgloss"
+require "uniwidth"
 require "./view"
 require "./mouse"
 require "./terminal"
@@ -29,14 +30,16 @@ module Term2
 
     # Ultraviolet cell buffer for efficient diffing
     @cell_buf : Ultraviolet::Buffer
+    @previous_cell_buf : Ultraviolet::Buffer?
     @last_content : String = ""
     @cell_width : Int32 = 0
     @cell_height : Int32 = 0
 
     def initialize(@output : IO = STDOUT)
       update_frame_duration
-      # Initialize cell buffer with dummy size (will resize on first render)
+      # Initialize cell buffers with dummy size (will resize on first render)
       @cell_buf = Ultraviolet::Buffer.new(0, 0)
+      @previous_cell_buf = nil
     end
 
     def output=(io : IO) : Nil
@@ -221,13 +224,16 @@ module Term2
             @output.print("\r\e[J")
           end
         end
-        @output.print(view.content)
+
+        # Render ultraviolet cell buffer
+        render_full_buffer
         @output.flush
         @last_render = view.content
       end
 
       if view.cursor
-        @output.print("\r")
+        # Position cursor at cursor location
+        move_cursor_to(view.cursor.x, view.cursor.y)
         apply_cursor_visibility(true)
       end
 
@@ -425,6 +431,103 @@ module Term2
           @cell_buf.set_cell(x, y, cell)
         end
       end
+    end
+
+    # Render full cell buffer to output with cursor positioning
+    private def render_full_buffer : Nil
+      buffer = @cell_buf
+      return if buffer.width == 0 || buffer.height == 0
+
+      cur_style = Ultraviolet::Style.new
+      cur_link = Ultraviolet::Link.new
+
+      buffer.height.times do |y|
+        buffer.width.times do |x|
+          cell = buffer.cell_at(x, y)
+
+          # Move cursor to cell position
+          move_cursor_to(x, y)
+
+          # Output cell
+          cur_style, cur_link = output_cell(cell, cur_style, cur_link)
+        end
+      end
+
+      # Reset style and link at end
+      if !cur_style.zero?
+        @output.print("\e[0m")
+      end
+      if !cur_link.empty?
+        @output.print(cur_link.end_sequence)
+      end
+
+      # Update previous buffer for future diffing
+      @previous_cell_buf = buffer.clone
+    end
+
+    # Check if two cells are different
+    private def cell_changed?(prev_cell : Ultraviolet::Cell?, curr_cell : Ultraviolet::Cell?) : Bool
+      # Both nil -> no change
+      return false if prev_cell.nil? && curr_cell.nil?
+
+      # One nil, other not -> change
+      return true if prev_cell.nil? != curr_cell.nil?
+
+      # Now both are not nil, compare fields
+      prev = prev_cell.not_nil!
+      curr = curr_cell.not_nil!
+
+      return true if prev.content != curr.content
+      return true if prev.width != curr.width
+      return true if prev.style != curr.style
+      return true if prev.link != curr.link
+
+      false
+    end
+
+    # Move cursor to position (0,0 is top-left)
+    private def move_cursor_to(x : Int32, y : Int32) : Nil
+      # Use 1-based indexing for ANSI
+      @output.print("\e[#{y + 1};#{x + 1}H")
+    end
+
+    # Output a cell with proper styling, returns updated style and link
+    private def output_cell(cell : Ultraviolet::Cell?, cur_style : Ultraviolet::Style, cur_link : Ultraviolet::Link) : {Ultraviolet::Style, Ultraviolet::Link}
+      if cell.nil? || (cell.content == " " && cell.width == 1 && cell.style.zero? && cell.link.empty?)
+        # Empty cell
+        @output.print(" ")
+        return {cur_style, cur_link}
+      end
+
+      new_style = cur_style
+      new_link = cur_link
+
+      # Apply style changes if needed
+      if cell.style != cur_style
+        if cell.style.zero?
+          @output.print("\e[0m")
+          new_style = Ultraviolet::Style.new
+        else
+          @output.print(cell.style.string)
+          new_style = cell.style
+        end
+      end
+
+      # Apply link changes if needed
+      if cell.link != cur_link
+        if !cur_link.empty?
+          @output.print(cur_link.end_sequence)
+        end
+        if !cell.link.empty?
+          @output.print(cell.link.start_sequence)
+        end
+        new_link = cell.link
+      end
+
+      # Output cell content
+      @output.print(cell.content)
+
+      {new_style, new_link}
     end
 
     # Parse ANSI-escaped content into a 2D array of cells
