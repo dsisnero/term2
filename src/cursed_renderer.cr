@@ -29,17 +29,31 @@ module Term2
     @clear_requested : Bool = false
 
     # Ultraviolet cell buffer for efficient diffing
-    @cell_buf : Ultraviolet::Buffer
-    @previous_cell_buf : Ultraviolet::Buffer?
+    @cell_buf : Ultraviolet::ScreenBuffer
+    @previous_cell_buf : Ultraviolet::ScreenBuffer?
     @last_content : String = ""
     @cell_width : Int32 = 0
     @cell_height : Int32 = 0
 
-    def initialize(@output : IO = STDOUT)
+    # Terminal renderer and buffer
+    @scr : Ultraviolet::TerminalRenderer?
+    @env : Array(String)
+    @width : Int32
+    @height : Int32
+    @hard_tabs : Bool = false
+    @backspace : Bool = false
+    @mapnl : Bool = false
+    @syncd_updates : Bool = false
+
+    def initialize(@output : IO = STDOUT, env : Array(String) = ENV.map { |k, v| "#{k}=#{v}" }.to_a, width : Int32 = 0, height : Int32 = 0)
       update_frame_duration
+      @env = env
+      @width = width
+      @height = height
       # Initialize cell buffers with dummy size (will resize on first render)
-      @cell_buf = Ultraviolet::Buffer.new(0, 0)
+      @cell_buf = Ultraviolet::ScreenBuffer.new(0, 0)
       @previous_cell_buf = nil
+      @scr = nil
     end
 
     def output=(io : IO) : Nil
@@ -49,6 +63,7 @@ module Term2
     # Start the renderer
     def start : Nil
       return if @running
+      reset if @scr.nil?
       @running = true
       @last_render = ""
       @last_lines.clear
@@ -92,9 +107,6 @@ module Term2
 
     # Render a View struct (v2 API)
     def render_view(view : View) : Nil
-      # TODO: Implement ultraviolet-style cell buffer diffing
-      # For now, delegate to StandardRenderer logic
-      update_cell_buffer(view)
       render_standard(view)
     end
 
@@ -144,6 +156,9 @@ module Term2
     # Set the color profile
     def color_profile=(profile : Lipgloss::ColorProfile) : Nil
       @color_profile = profile
+      if scr = @scr
+        scr.color_profile = to_ultraviolet_profile(profile)
+      end
     end
 
     # Set the frame rate (frames per second)
@@ -175,8 +190,10 @@ module Term2
 
     # TODO: Implement ultraviolet-style cell buffer diffing
     private def render_standard(view : View) : Nil
-      # Temporary implementation using StandardRenderer logic
-      # This will be replaced with ultraviolet cell buffer diffing
+      # Ensure terminal renderer is initialized
+      reset if @scr.nil?
+
+      # Update alt screen state
       if @current_alt_screen.nil?
         if view.alt_screen
           @output.print("\e[=0;1u")
@@ -213,28 +230,26 @@ module Term2
         apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
       end
 
-      content_changed = view.content != @last_render
-      if content_changed
-        if view.alt_screen
-          @output.print("\e[H\e[2J")
-        else
-          if clear_requested
-            @output.print("\e[J")
-          else
-            @output.print("\r\e[J")
-          end
-        end
+      # Create styled string and draw into cell buffer
+      content = Ultraviolet::StyledString.new(view.content)
+      @cell_buf.clear
+      content.draw(@cell_buf, @cell_buf.bounds)
 
-        # Render ultraviolet cell buffer
-        render_full_buffer
-        @output.flush
-        @last_render = view.content
-      end
+      # Render cell buffer to terminal
+      scr = @scr.not_nil!
+      scr.render(@cell_buf)
 
       if cursor = view.cursor
-        # Position cursor at cursor location
-        move_cursor_to(cursor.position.x, cursor.position.y)
+        scr.move_to(cursor.position.x, cursor.position.y)
         apply_cursor_visibility(true)
+      else
+        # Move cursor out of the way in inline mode
+        unless view.alt_screen
+          x, y = scr.position
+          if x >= @width - 1
+            scr.move_to(0, y)
+          end
+        end
       end
 
       if title = view.window_title
@@ -245,6 +260,9 @@ module Term2
         apply_progress_bar(progress)
       end
 
+      scr.flush
+
+      @last_render = view.content
       @last_view = view
     end
 
@@ -655,6 +673,49 @@ module Term2
         return {0xFFFD, 1}
       else
         return {0xFFFD, 1}
+      end
+    end
+
+    private def reset : Nil
+      # Determine terminal dimensions
+      if @width <= 0 || @height <= 0
+        @width, @height = Terminal.size
+      end
+
+      # Create terminal renderer
+      @scr = Ultraviolet::TerminalRenderer.new(@output, @env)
+      scr = @scr.not_nil!
+
+      # Set color profile
+      scr.color_profile = to_ultraviolet_profile(@color_profile)
+
+      # Set flags
+      scr.relative_cursor = true # Always start in inline mode
+      scr.fullscreen = false     # Always start in inline mode
+      scr.scroll_optim = !(@env.includes?("TERM2_WINDOWS") || @env.includes?("WT_SESSION"))
+      scr.map_newline = @mapnl
+      scr.backspace = @backspace
+      scr.tab_stops = @width
+
+      # Resize cell buffer
+      @cell_buf = Ultraviolet::ScreenBuffer.new(@width, @height)
+      @previous_cell_buf = nil
+      @cell_width = @width
+      @cell_height = @height
+    end
+
+    private def to_ultraviolet_profile(profile : Lipgloss::ColorProfile) : Ultraviolet::ColorProfile
+      case profile
+      when Lipgloss::ColorProfile::TrueColor
+        Ultraviolet::ColorProfile::TrueColor
+      when Lipgloss::ColorProfile::ANSI256
+        Ultraviolet::ColorProfile::ANSI256
+      when Lipgloss::ColorProfile::ANSI
+        Ultraviolet::ColorProfile::ANSI
+      when Lipgloss::ColorProfile::ASCII
+        Ultraviolet::ColorProfile::Ascii
+      else
+        Ultraviolet::ColorProfile::TrueColor
       end
     end
   end
