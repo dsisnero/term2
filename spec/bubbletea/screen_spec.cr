@@ -187,6 +187,7 @@ describe "Bubbletea parity: screen_test.go" do
           input: input,
           output: io,
           options: Term2::ProgramOptions.new(
+            Term2::WithCursedRenderer.new,
             Term2::WithWindowSize.new(80, 24),
             Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
             Term2::WithEnvironment.new(["TERM=xterm-256color"])
@@ -243,6 +244,7 @@ describe "Bubbletea parity: screen_test.go" do
           input: input,
           output: io,
           options: Term2::ProgramOptions.new(
+            Term2::WithCursedRenderer.new,
             Term2::WithWindowSize.new(80, 24),
             Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
             Term2::WithEnvironment.new(["TERM=xterm-256color"])

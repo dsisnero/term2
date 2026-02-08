@@ -301,6 +301,7 @@ module Term2
     getter startup_options : Array(Symbol)
     getter context : ProgramContext?
     getter input_type : Symbol
+    getter environment : Hash(String, String)
     @model : M
     @pending_shutdown : Bool
     @options : ProgramOptions
@@ -323,7 +324,7 @@ module Term2
     @needs_render : Bool = false
     @profile : Bool = false
     @killed : Atomic(Bool) = Atomic(Bool).new(false)
-    @window_size : {Int32, Int32}? = nil
+    @window_size : {Int32, Int32} = {0, 0}
     @color_profile : Lipgloss::ColorProfile? = nil
     @environment : Hash(String, String) = Hash(String, String).new
     @last_view : View? = nil
@@ -356,7 +357,7 @@ module Term2
       @mouse_cell_motion_enabled = false
       @mouse_all_motion_enabled = false
       @filter = nil
-      @renderer = StandardRenderer.new(@output_io)
+      @renderer = CursedRenderer.new(@output_io)
       @context = nil
       @startup_options = [] of Symbol
       @input_type = :stdin
@@ -502,9 +503,7 @@ module Term2
 
     def output=(output : IO)
       @output_io = output
-      if @renderer.is_a?(StandardRenderer)
-        @renderer.as(StandardRenderer).output = output
-      end
+      @renderer.output = output
     end
 
     def input=(input : IO)
@@ -539,6 +538,14 @@ module Term2
 
     def window_size=(size : {Int32, Int32})
       @window_size = size
+    end
+
+    def window_size : {Int32, Int32}
+      if @window_size == {0, 0}
+        Terminal.size
+      else
+        @window_size
+      end
     end
 
     def color_profile=(profile : Lipgloss::ColorProfile)
@@ -618,14 +625,6 @@ module Term2
 
     private def remove_startup_option(option : Symbol)
       @startup_options.reject! { |opt| opt == option }
-    end
-
-    private def window_size : {Int32, Int32}
-      if custom = @window_size
-        custom
-      else
-        Terminal.size
-      end
     end
 
     private def bootstrap

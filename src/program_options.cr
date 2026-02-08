@@ -45,7 +45,9 @@ module Term2
   # Uses the ultraviolet-based cursed renderer (Bubble Tea v2 default).
   struct WithCursedRenderer < ProgramOption
     def apply(program : Program) : Nil
-      program.use_renderer(CursedRenderer.new(program.output_io))
+      env = program.environment.map { |k, v| "#{k}=#{v}" }.to_a
+      width, height = program.window_size
+      program.use_renderer(CursedRenderer.new(program.output_io, env, width, height))
     end
   end
 

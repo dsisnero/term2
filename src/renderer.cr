@@ -48,6 +48,9 @@ module Term2
 
     # Set the color profile
     abstract def color_profile=(profile : Lipgloss::ColorProfile) : Nil
+
+    # Set the output IO
+    abstract def output=(io : IO) : Nil
   end
 
   # StandardRenderer provides ANSI-based terminal rendering
@@ -476,6 +479,10 @@ module Term2
     end
 
     def color_profile=(profile : Lipgloss::ColorProfile) : Nil
+      # No-op
+    end
+
+    def output=(io : IO) : Nil
       # No-op
     end
 

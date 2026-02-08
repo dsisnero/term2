@@ -30,10 +30,6 @@ module Term2
 
     # Ultraviolet cell buffer for efficient diffing
     @cell_buf : Ultraviolet::ScreenBuffer
-    @previous_cell_buf : Ultraviolet::ScreenBuffer?
-    @last_content : String = ""
-    @cell_width : Int32 = 0
-    @cell_height : Int32 = 0
 
     # Terminal renderer and buffer
     @scr : Ultraviolet::TerminalRenderer?
@@ -52,7 +48,6 @@ module Term2
       @height = height
       # Initialize cell buffers with dummy size (will resize on first render)
       @cell_buf = Ultraviolet::ScreenBuffer.new(0, 0)
-      @previous_cell_buf = nil
       @scr = nil
     end
 
@@ -80,7 +75,7 @@ module Term2
       return unless @running
       @running = false
       @current_alt_screen = nil
-      @output.flush
+      scr.flush
     end
 
     # Render a string view (legacy compatibility)
@@ -98,9 +93,9 @@ module Term2
       # Only render if the view has changed
       return if view == @last_render
 
-      @output.print("\r\e[J")
-      @output.print(view)
-      @output.flush
+      write_string("\r\e[J")
+      write_string(view)
+      scr.flush
 
       @last_render = view
     end
@@ -117,7 +112,7 @@ module Term2
 
     # Flush any pending output
     def flush : Nil
-      @output.flush
+      scr.flush
     end
 
     # Check if the renderer is running
@@ -141,8 +136,8 @@ module Term2
 
       # Print the text
       formatted_text = text.gsub("\n", "\r\n")
-      @output.print(formatted_text)
-      @output.flush
+      write_string(formatted_text)
+      scr.flush
 
       # Force repaint on next render
       repaint
@@ -180,7 +175,15 @@ module Term2
 
     private def clear_screen
       # Move cursor to home position and clear from cursor to end of screen
-      @output.print("\e[H\e[J")
+      write_string("\e[H\e[J")
+    end
+
+    private def scr : Ultraviolet::TerminalRenderer
+      @scr.not_nil!
+    end
+
+    private def write_string(str : String) : Nil
+      scr.write_string(str)
     end
 
     # Compatibility no-op with Bubble Tea renderer API
@@ -192,20 +195,30 @@ module Term2
     private def render_standard(view : View) : Nil
       # Ensure terminal renderer is initialized
       reset if @scr.nil?
+      scr = @scr.not_nil!
 
-      # Update alt screen state
-      if @current_alt_screen.nil?
+      # Update alt screen state (matches Go's shouldUpdateAltScreen logic)
+      should_update_alt_screen = (@current_alt_screen.nil? && view.alt_screen) ||
+                                 (@current_alt_screen != nil && @current_alt_screen != view.alt_screen)
+
+      if should_update_alt_screen
+        # Kitty keyboard reset when switching screens
+        write_string("\e[=0;1u")
+
         if view.alt_screen
-          @output.print("\e[=0;1u")
-          Terminal.enter_alt_screen(@output)
-        end
-        @current_alt_screen = view.alt_screen
-      elsif @current_alt_screen != view.alt_screen
-        @output.print("\e[=0;1u")
-        if view.alt_screen
-          Terminal.enter_alt_screen(@output)
+          # Enter alt screen
+          scr.save_cursor
+          write_string("\e[?1049h")
+          scr.fullscreen = true
+          scr.relative_cursor = false
+          scr.erase
         else
-          Terminal.exit_alt_screen(@output)
+          # Exit alt screen
+          scr.erase
+          scr.relative_cursor = true
+          scr.fullscreen = false
+          write_string("\e[?1049l")
+          scr.restore_cursor
         end
         @current_alt_screen = view.alt_screen
       end
@@ -214,11 +227,10 @@ module Term2
         apply_cursor_visibility(false)
       end
 
-      clear_requested = false
       if @clear_requested
-        @output.print("\r")
+        scr.erase
+        scr.move_to(0, 0)
         @clear_requested = false
-        clear_requested = true
       end
 
       apply_bracketed_paste(view.disable_bracketed_paste_mode)
@@ -230,13 +242,32 @@ module Term2
         apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
       end
 
-      # Create styled string and draw into cell buffer
+      scr = @scr.not_nil!
+
+      # Create styled string and compute frame dimensions (matching Go's flush logic)
       content = Ultraviolet::StyledString.new(view.content)
+      frame_area = @cell_buf.bounds
+      unless view.alt_screen
+        # In inline mode, resize based on content height
+        frame_height = content.height
+        if frame_height != frame_area.dy
+          frame_area = Ultraviolet.rect(frame_area.min.x, frame_area.min.y, frame_area.dx, frame_height)
+        end
+      end
+
+      # Resize cell buffer if dimensions changed
+      if frame_area != @cell_buf.bounds
+        scr.erase # Force full redraw to avoid artifacts
+        # We need to reset touched lines buffer to match new height
+        # @cell_buf.touched = nil if @cell_buf.responds_to?(:touched)
+        @cell_buf.resize(frame_area.dx, frame_area.dy)
+      end
+
+      # Clear screen buffer before drawing new content
       @cell_buf.clear
       content.draw(@cell_buf, @cell_buf.bounds)
 
       # Render cell buffer to terminal
-      scr = @scr.not_nil!
       scr.render(@cell_buf)
 
       if cursor = view.cursor
@@ -253,7 +284,7 @@ module Term2
       end
 
       if title = view.window_title
-        Terminal.set_window_title(@output, title)
+        write_string("\e]2;#{title}\a")
       end
 
       if progress = view.progress_bar
@@ -276,17 +307,17 @@ module Term2
 
       if background != old_bg
         if background
-          @output.print("\e]11;#{color_hex(background)}\a")
+          write_string("\e]11;#{color_hex(background)}\a")
         else
-          @output.print("\e]111\a")
+          write_string("\e]111\a")
         end
       end
 
       if foreground != old_fg
         if foreground
-          @output.print("\e]10;#{color_hex(foreground)}\a")
+          write_string("\e]10;#{color_hex(foreground)}\a")
         else
-          @output.print("\e]110\a")
+          write_string("\e]110\a")
         end
       end
     end
@@ -302,20 +333,20 @@ module Term2
              when {CursorShape::Bar, false}       then 6
              else                                      1 # default blinking block
              end
-      @output.print("\e[#{code} q")
+      write_string("\e[#{code} q")
 
       # Cursor color via OSC 12 when explicitly set
       if color
-        @output.print("\e]12;#{color_hex(color)}\a")
+        write_string("\e]12;#{color_hex(color)}\a")
       end
     end
 
     private def apply_cursor_visibility(show : Bool)
       return if @cursor_visible == show
       if show
-        Terminal.show_cursor(@output)
+        write_string("\e[?25h")
       else
-        Terminal.hide_cursor(@output)
+        write_string("\e[?25l")
       end
       @cursor_visible = show
     end
@@ -323,9 +354,9 @@ module Term2
     private def apply_bracketed_paste(disable : Bool)
       return if @current_bracketed_paste_disabled == disable
       if disable
-        Terminal.disable_bracketed_paste(@output)
+        write_string("\e[?2004l")
       else
-        Terminal.enable_bracketed_paste(@output)
+        write_string("\e[?2004h")
       end
       @current_bracketed_paste_disabled = disable
     end
@@ -361,24 +392,23 @@ module Term2
 
       flags = 1
       flags |= 2 if ke.report_event_types
-      @output.print("\e[=#{flags};1u")
+      write_string("\e[=#{flags};1u")
       @current_keyboard_enhancements = ke
     end
 
     private def apply_progress_bar(progress : ProgressBar)
       case progress.state
       when ProgressBarState::None
-        @output.print("\e]9;4;0\a")
+        write_string("\e]9;4;0\a")
       when ProgressBarState::Default
-        @output.print("\e]9;4;1;#{progress.value}\a")
+        write_string("\e]9;4;1;#{progress.value}\a")
       when ProgressBarState::Error
-        @output.print("\e]9;4;2;#{progress.value}\a")
+        write_string("\e]9;4;2;#{progress.value}\a")
       when ProgressBarState::Indeterminate
-        @output.print("\e]9;4;3\a")
+        write_string("\e]9;4;3\a")
       when ProgressBarState::Warning
-        @output.print("\e]9;4;4;#{progress.value}\a")
+        write_string("\e]9;4;4;#{progress.value}\a")
       end
-      @output.flush
     end
 
     private def color_hex(color : Lipgloss::Color) : String
@@ -388,292 +418,37 @@ module Term2
 
     # Enable mouse cell motion tracking (clicks and drags)
     def enable_mouse_cell_motion : Nil
-      @output.print("\e[?1002h\e[?1006h")
-      @output.flush
+      write_string("\e[?1002h\e[?1006h")
     end
 
     # Disable mouse cell motion tracking
     def disable_mouse_cell_motion : Nil
-      @output.print("\e[?1002l\e[?1003l\e[?1006l")
-      @output.flush
+      write_string("\e[?1002l\e[?1003l\e[?1006l")
     end
 
     # Enable mouse all motion tracking (including hover)
     def enable_mouse_all_motion : Nil
-      @output.print("\e[?1003h\e[?1006h")
-      @output.flush
+      write_string("\e[?1003h\e[?1006h")
     end
 
     # Disable mouse all motion tracking
     def disable_mouse_all_motion : Nil
-      @output.print("\e[?1003l")
-      @output.flush
+      write_string("\e[?1003l")
     end
 
     # Disable all mouse tracking
     def disable_mouse_tracking : Nil
-      @output.print("\e[?1002l\e[?1003l\e[?1006l")
-      @output.flush
+      write_string("\e[?1002l\e[?1003l\e[?1006l")
     end
 
     # Enable keyboard enhancements (key repeat/release reporting)
     def enable_keyboard_enhancements : Nil
-      @output.print("\e[?1001h")
-      @output.flush
+      write_string("\e[?1001h")
     end
 
     # Disable keyboard enhancements
     def disable_keyboard_enhancements : Nil
-      @output.print("\e[?1001l")
-      @output.flush
-    end
-
-    # Update the ultraviolet cell buffer with the view's content
-    private def update_cell_buffer(view : View) : Nil
-      return if view.content == @last_content
-      @last_content = view.content
-
-      # Parse content into cells
-      cells, width, height = parse_content_to_cells(view.content)
-
-      # Resize buffer if dimensions changed
-      if width != @cell_width || height != @cell_height
-        @cell_width = width
-        @cell_height = height
-        @cell_buf = Ultraviolet::Buffer.new(width, height)
-      end
-
-      # Fill buffer with cells
-      cells.each_with_index do |row, y|
-        row.each_with_index do |cell, x|
-          @cell_buf.set_cell(x, y, cell)
-        end
-      end
-    end
-
-    # Render full cell buffer to output with cursor positioning
-    private def render_full_buffer : Nil
-      buffer = @cell_buf
-      return if buffer.width == 0 || buffer.height == 0
-
-      cur_style = Ultraviolet::Style.new
-      cur_link = Ultraviolet::Link.new
-
-      buffer.height.times do |y|
-        buffer.width.times do |x|
-          cell = buffer.cell_at(x, y)
-
-          # Move cursor to cell position
-          move_cursor_to(x, y)
-
-          # Output cell
-          cur_style, cur_link = output_cell(cell, cur_style, cur_link)
-        end
-      end
-
-      # Reset style and link at end
-      if !cur_style.zero?
-        @output.print("\e[0m")
-      end
-      if !cur_link.empty?
-        @output.print(cur_link.end_sequence)
-      end
-
-      # Update previous buffer for future diffing
-      @previous_cell_buf = buffer.clone
-    end
-
-    # Check if two cells are different
-    private def cell_changed?(prev_cell : Ultraviolet::Cell?, curr_cell : Ultraviolet::Cell?) : Bool
-      # Both nil -> no change
-      return false if prev_cell.nil? && curr_cell.nil?
-
-      # One nil, other not -> change
-      return true if prev_cell.nil? != curr_cell.nil?
-
-      # Now both are not nil, compare fields
-      prev = prev_cell.not_nil!
-      curr = curr_cell.not_nil!
-
-      return true if prev.content != curr.content
-      return true if prev.width != curr.width
-      return true if prev.style != curr.style
-      return true if prev.link != curr.link
-
-      false
-    end
-
-    # Move cursor to position (0,0 is top-left)
-    private def move_cursor_to(x : Int32, y : Int32) : Nil
-      # Use 1-based indexing for ANSI
-      @output.print("\e[#{y + 1};#{x + 1}H")
-    end
-
-    # Output a cell with proper styling, returns updated style and link
-    private def output_cell(cell : Ultraviolet::Cell?, cur_style : Ultraviolet::Style, cur_link : Ultraviolet::Link) : {Ultraviolet::Style, Ultraviolet::Link}
-      if cell.nil? || (cell.content == " " && cell.width == 1 && cell.style.zero? && cell.link.empty?)
-        # Empty cell
-        @output.print(" ")
-        return {cur_style, cur_link}
-      end
-
-      new_style = cur_style
-      new_link = cur_link
-
-      # Apply style changes if needed
-      if cell.style != cur_style
-        if cell.style.zero?
-          @output.print("\e[0m")
-          new_style = Ultraviolet::Style.new
-        else
-          @output.print(cell.style.string)
-          new_style = cell.style
-        end
-      end
-
-      # Apply link changes if needed
-      if cell.link != cur_link
-        if !cur_link.empty?
-          @output.print(cur_link.end_sequence)
-        end
-        if !cell.link.empty?
-          @output.print(cell.link.start_sequence)
-        end
-        new_link = cell.link
-      end
-
-      # Output cell content
-      @output.print(cell.content)
-
-      {new_style, new_link}
-    end
-
-    # Parse ANSI-escaped content into a 2D array of cells
-    private def parse_content_to_cells(content : String) : {Array(Array(Ultraviolet::Cell?)), Int32, Int32}
-      bytes = content.to_slice
-      i = 0
-      x = 0
-      y = 0
-      rows = [] of Array(Ultraviolet::Cell?)
-      current_row = [] of Ultraviolet::Cell?
-      current_style = Ultraviolet::Style.new
-
-      while i < bytes.size
-        b = bytes[i]
-
-        # Handle escape sequences
-        if b == 0x1b_u8 && i + 1 < bytes.size
-          i = consume_escape_sequence(bytes, i)
-          next
-        end
-
-        # Handle newline
-        if b == '\n'.ord.to_u8
-          rows << current_row
-          current_row = [] of Ultraviolet::Cell?
-          x = 0
-          y += 1
-          i += 1
-          next
-        end
-
-        # Handle carriage return (ignore for positioning)
-        if b == '\r'.ord.to_u8
-          i += 1
-          next
-        end
-
-        # Decode UTF-8 grapheme
-        cp, len = decode_utf8(bytes, i)
-        grapheme = String.new(bytes[i, len])
-        width = UnicodeCharWidth.width(cp)
-
-        # Create cell
-        cell = Ultraviolet::Cell.new(grapheme, width, current_style)
-        current_row << cell
-        x += width
-
-        i += len
-      end
-
-      # Add last row if not empty
-      rows << current_row unless current_row.empty?
-
-      # Determine max width
-      max_width = rows.max_of?(&.size) || 0
-      height = rows.size
-
-      # Pad rows to uniform width
-      rows.each do |row|
-        while row.size < max_width
-          row << nil
-        end
-      end
-
-      {rows, max_width, height}
-    end
-
-    # Consume an ANSI escape sequence, returning new index
-    private def consume_escape_sequence(bytes : Bytes, i : Int32) : Int32
-      return i + 1 if i + 1 >= bytes.size
-      second = bytes[i + 1]
-
-      # CSI: ESC [ ... final-byte(@-~)
-      if second == '['.ord.to_u8
-        j = i + 2
-        while j < bytes.size
-          final = bytes[j]
-          j += 1
-          break if final >= 0x40_u8 && final <= 0x7E_u8
-        end
-        return j
-      end
-
-      # OSC: ESC ] ... BEL or ST(ESC \)
-      if second == ']'.ord.to_u8
-        j = i + 2
-        while j < bytes.size
-          b = bytes[j]
-          j += 1
-          break if b == 0x07_u8
-          if b == 0x1b_u8 && j < bytes.size && bytes[j] == '\\'.ord.to_u8
-            j += 1
-            break
-          end
-        end
-        return j
-      end
-
-      # Other single-char escape sequence
-      i + 2
-    end
-
-    # Decode UTF-8 codepoint, returns codepoint and byte length
-    private def decode_utf8(bytes : Bytes, i : Int32) : {Int32, Int32}
-      first = bytes[i].to_i32
-      if first < 0x80
-        return {first, 1}
-      elsif first < 0xC2
-        # Invalid continuation, treat as replacement character
-        return {0xFFFD, 1}
-      elsif first < 0xE0
-        return {(first & 0x1F) << 6 | (bytes[i + 1] & 0x3F), 2} if i + 1 < bytes.size
-        return {0xFFFD, 1}
-      elsif first < 0xF0
-        if i + 2 < bytes.size
-          cp = (first & 0x0F) << 12 | (bytes[i + 1] & 0x3F) << 6 | (bytes[i + 2] & 0x3F)
-          return {cp, 3}
-        end
-        return {0xFFFD, 1}
-      elsif first < 0xF8
-        if i + 3 < bytes.size
-          cp = (first & 0x07) << 18 | (bytes[i + 1] & 0x3F) << 12 | (bytes[i + 2] & 0x3F) << 6 | (bytes[i + 3] & 0x3F)
-          return {cp, 4}
-        end
-        return {0xFFFD, 1}
-      else
-        return {0xFFFD, 1}
-      end
+      write_string("\e[?1001l")
     end
 
     private def reset : Nil
@@ -699,9 +474,6 @@ module Term2
 
       # Resize cell buffer
       @cell_buf = Ultraviolet::ScreenBuffer.new(@width, @height)
-      @previous_cell_buf = nil
-      @cell_width = @width
-      @cell_height = @height
     end
 
     private def to_ultraviolet_profile(profile : Lipgloss::ColorProfile) : Ultraviolet::ColorProfile
