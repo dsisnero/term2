@@ -1,0 +1,319 @@
+# Baked File System
+
+Include (bake them) static files into a binary at compile time and access them anytime you need.
+
+## Installation
+
+
+Add this to your application's `shard.yml`:
+
+```yaml
+dependencies:
+  baked_file_system:
+    github: schovi/baked_file_system
+    version: 0.13.0
+```
+
+## Usage
+
+Create a class that extends `BakedFileSystem` and use `bake_folder` to include static files at compile time.
+
+```crystal
+require "baked_file_system"
+
+class Assets
+  extend BakedFileSystem
+
+  bake_folder "./public"
+  bake_folder "./views", include_dotfiles: true
+end
+```
+
+**Options:**
+- `bake_folder(path, dir = __DIR__, allow_empty: false, include_dotfiles: false, include_patterns: nil, exclude_patterns: nil, max_size: nil)` - Bake all files in a directory
+- `include_dotfiles: true` - Include files/folders starting with `.` (e.g., `.gitignore`)
+- `allow_empty: false` - Raise error if folder is empty
+- `include_patterns: Array(String)` - Include only files matching glob patterns
+- `exclude_patterns: Array(String)` - Exclude files matching glob patterns
+- `max_size: Int64` - Maximum total compressed size in bytes (compilation fails if exceeded)
+
+### File Filtering
+
+Use glob patterns to selectively include or exclude files when baking directories.
+
+**Pattern Syntax:**
+- `*` - Matches any characters except path separator (e.g., `*.cr` matches `file.cr`)
+- `**` - Matches zero or more directory levels (e.g., `**/*.cr` matches `src/file.cr`, `src/models/user.cr`)
+- `?` - Matches single character except path separator (e.g., `file?.txt` matches `file1.txt`)
+
+**Include Patterns** (whitelist approach):
+
+```crystal
+class Assets
+  extend BakedFileSystem
+
+  # Only include Crystal source files
+  bake_folder "./src", include_patterns: ["**/*.cr"]
+
+  # Include multiple file types
+  bake_folder "./docs", include_patterns: ["**/*.md", "**/*.txt"]
+end
+```
+
+**Exclude Patterns** (blacklist approach):
+
+```crystal
+class Assets
+  extend BakedFileSystem
+
+  # Exclude test and spec files
+  bake_folder "./project", exclude_patterns: ["**/test/*", "**/spec/*"]
+
+  # Exclude build artifacts and temporary files
+  bake_folder "./app", exclude_patterns: ["**/build/*", "**/*.tmp", "**/*.log"]
+end
+```
+
+**Combined Filtering** (include first, then exclude):
+
+```crystal
+class Assets
+  extend BakedFileSystem
+
+  # Include only source files, but exclude test files
+  bake_folder "./src",
+    include_patterns: ["**/*.cr", "**/*.md"],
+    exclude_patterns: ["**/test/*", "**/*_spec.cr"]
+end
+```
+
+**Important Notes:**
+- Patterns are relative to the baked directory (not absolute paths)
+- Include patterns are applied first (OR logic - match any pattern)
+- Exclude patterns are then applied (OR logic - exclude if matches any pattern)
+- Empty results raise error unless `allow_empty: true`
+
+**Use Cases:**
+- Embed only production assets (exclude dev/test files)
+- Include specific file types (source code, documentation)
+- Exclude large or generated files (builds, logs, cache)
+- Filter by directory structure (exclude vendor, node_modules)
+
+### Loading Files
+
+```crystal
+# Get file or raise BakedFileSystem::NoSuchFileError
+file = Assets.get("path/to/file.txt")
+
+# Get file or nil
+file = Assets.get?("path/to/file.txt")
+
+# Read file content as String
+content = Assets.get("file.txt").gets_to_end
+
+# List all baked files
+Assets.files.each do |file|
+  puts "#{file.path} (#{file.size} bytes)"
+end
+```
+
+### File Properties
+
+```crystal
+file = Assets.get("document.pdf")
+
+file.path          # => "/document.pdf"
+file.size          # => 10240 (original uncompressed size)
+file.compressed?   # => true (all files are automatically compressed)
+file.compressed_size # => 3120 (actual stored size in binary)
+```
+
+### Compression
+
+Files are automatically gzip-compressed at compile time to reduce binary size. This is transparent - reading a file automatically decompresses it.
+
+**Special case:** Files ending in `.gz` are stored compressed as-is (no double compression).
+
+```crystal
+# Both work the same - automatic decompression on read
+Assets.get("file.txt").gets_to_end
+Assets.get("file.txt.gz").gets_to_end
+```
+
+### Size Management & Limits
+
+BakedFileSystem automatically reports compilation statistics to help you monitor binary size impact:
+
+```
+BakedFileSystem: Embedded 42 files (2.3 MB → 890.0 KB compressed, 38.7% ratio)
+```
+
+#### Compilation Warnings
+
+Automatic warnings help catch potential issues:
+
+```
+⚠️  WARNING: Large file detected: /images/demo.mp4 (45.2 MB → 38.1 MB)
+⚠️  WARNING: Total embedded size (12.5 MB) is significant.
+    Consider using lazy loading or external storage for large assets.
+```
+
+#### Size Limits
+
+Enforce maximum size limits per folder:
+
+```crystal
+class Assets
+  extend BakedFileSystem
+
+  # Compilation will fail if compressed size exceeds 10 MB
+  bake_folder "./images", max_size: 10_485_760  # 10 MB in bytes
+end
+```
+
+#### Environment Variable Configuration
+
+Configure limits globally via environment variables:
+
+```bash
+# Set maximum total size (default: 50 MB)
+export BAKED_FILE_SYSTEM_MAX_SIZE=104857600  # 100 MB
+
+# Set warning threshold (default: 10 MB)
+export BAKED_FILE_SYSTEM_WARN_THRESHOLD=5242880  # 5 MB
+
+crystal build your_app.cr
+```
+
+#### Best Practices
+
+- **Keep total embedded size under 50 MB** for reasonable binary sizes
+- **Use runtime loading for very large assets** (> 10 MB per file)
+- **Review compilation statistics** to catch accidentally embedded files
+- **Use file filtering patterns** to exclude build artifacts, tests, and development files
+- **Monitor benchmark results** to understand compile time and binary size impact
+
+### Advanced
+
+Add files programmatically:
+
+```crystal
+class Assets
+  extend BakedFileSystem
+
+  bake_folder "./public"
+  bake_file "/generated.json", %({"created": true})
+end
+```
+
+Write file to IO with optional compression:
+
+```crystal
+file = Assets.get("document.pdf")
+
+# Write decompressed content
+file.write_to_io(io, compressed: false)
+
+# Write original compressed content
+file.write_to_io(io, compressed: true)
+```
+
+### Error Handling
+
+```crystal
+# Raise on missing file
+begin
+  Assets.get("missing/file")
+rescue BakedFileSystem::NoSuchFileError
+  puts "File not found"
+end
+
+# Or use safe access
+unless file = Assets.get?("missing/file")
+  puts "File not found"
+end
+```
+
+## Benchmarks
+
+Comprehensive benchmarking suite comparing BakedFileSystem against traditional File I/O. See [benchmarks/README.md](benchmarks/README.md) for detailed methodology and instructions.
+
+### System Specifications
+
+- **OS:** Darwin 25.0.0 (arm64) - Apple M4 Pro
+- **Crystal:** 1.17.1
+- **Test Date:** 2025-11-02
+
+### Compile Time
+
+Embedding ~1.2 MB of assets adds **3.7 seconds** to compilation time (30% overhead):
+
+| Configuration   | Mean Compile Time |
+|-----------------|-------------------|
+| Baseline        | 12.27s            |
+| BakedFileSystem | 15.98s            |
+
+### Binary Size
+
+Automatic gzip compression achieves **0.88x ratio** (assets compressed to 88% of original size):
+
+| Metric      | Baseline | BakedFileSystem | Overhead  |
+|-------------|----------|-----------------|-----------|
+| Binary Size | 1.69 MB  | 2.72 MB         | +1.03 MB  |
+| Assets      | -        | 1.17 MB (raw)   | -         |
+
+### Memory Usage
+
+Minimal startup overhead with lazy decompression:
+
+| Stage             | Baseline | BakedFileSystem | Overhead |
+|-------------------|----------|-----------------|----------|
+| Startup           | 5.02 MB  | 5.08 MB         | +0.06 MB |
+| After Small File  | 5.97 MB  | 5.20 MB         | -0.77 MB |
+| After Medium File | 6.12 MB  | 5.77 MB         | -0.36 MB |
+| After Large File  | 6.14 MB  | 10.38 MB        | +4.23 MB |
+
+### Performance
+
+Comparable latency and throughput (1000 requests, 10 concurrent clients):
+
+| File Size | Baseline Latency | BakedFileSystem Latency | Throughput Baseline | Throughput Baked |
+|-----------|------------------|-------------------------|---------------------|------------------|
+| Small (1KB)   | 0.17 ms      | 0.17 ms                 | 56,034 req/s        | 55,790 req/s     |
+| Medium (100KB) | 0.17 ms     | 0.17 ms                 | 56,588 req/s        | 55,457 req/s     |
+| Large (1MB)   | 0.17 ms      | 0.17 ms                 | 56,575 req/s        | 54,922 req/s     |
+
+### Summary
+
+**Use BakedFileSystem when:**
+- Deploying small to medium static assets (< 10 MB)
+- Single-binary deployment is preferred
+- Assets don't change frequently
+
+**Benefits:**
+- ✅ Single binary with embedded assets
+- ✅ Automatic gzip compression (12% size reduction)
+- ✅ Minimal memory overhead
+- ✅ Comparable performance to file I/O
+
+**Trade-offs:**
+- ⚠️ +3.7s compilation time
+- ⚠️ +1 MB binary size per 1 MB of assets
+- ⚠️ Assets fixed at compile time
+
+## Development
+
+TODO: Write development instructions here
+
+## Contributing
+
+1. Fork it ( https://github.com/schovi/baked_file_system/fork )
+2. Create your feature branch (git checkout -b my-new-feature)
+3. Commit your changes (git commit -am 'Add some feature')
+4. Push to the branch (git push origin my-new-feature)
+5. Create a new Pull Request
+
+## Contributors
+
+- [schovi](https://github.com/schovi) David Schovanec
+- [straight-shoota](https://github.com/straight-shoota) Johannes Müller

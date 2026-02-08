@@ -1,0 +1,480 @@
+require "stumpy_core"
+
+module Mosaic
+  VERSION = "0.1.0"
+
+  # Symbol represents the symbol type to use when rendering the image.
+  enum Symbol
+    All
+    Half
+    Quarter
+  end
+
+  # Block represents different Unicode block characters.
+  struct Block
+    property char : Char
+    property coverage : Tuple(Bool, Bool, Bool, Bool) # TL, TR, BL, BR (top-left, top-right, bottom-left, bottom-right)
+    property coverage_map : String                    # Visual representation of coverage for debugging.
+
+    def initialize(@char : Char, @coverage : Tuple(Bool, Bool, Bool, Bool), @coverage_map : String)
+    end
+  end
+
+  # Half blocks (▀, ▄, space, █)
+  HALF_BLOCKS = [
+    Block.new('▀', {true, true, false, false}, "██\n  "),   # Upper half block.
+    Block.new('▄', {false, false, true, true}, "  \n██"),   # Lower half block.
+    Block.new(' ', {false, false, false, false}, "  \n  "), # Space.
+    Block.new('█', {true, true, true, true}, "██\n██"),     # Full block.
+  ]
+
+  # Quarter blocks
+  QUARTER_BLOCKS = [
+    Block.new('▘', {true, false, false, false}, "█ \n  "), # Quadrant upper left.
+    Block.new('▝', {false, true, false, false}, " █\n  "), # Quadrant upper right.
+    Block.new('▖', {false, false, true, false}, "  \n█ "), # Quadrant lower left.
+    Block.new('▗', {false, false, false, true}, "  \n █"), # Quadrant lower right.
+    Block.new('▌', {true, false, true, false}, "█ \n█ "),  # Left half block.
+    Block.new('▐', {false, true, false, true}, " █\n █"),  # Right half block.
+    Block.new('▀', {true, true, false, false}, "██\n  "),  # Upper half block (already added).
+    Block.new('▄', {false, false, true, true}, "  \n██"),  # Lower half block (already added).
+  ]
+
+  # Complex blocks
+  COMPLEX_BLOCKS = [
+    Block.new('▙', {true, false, true, true}, "█ \n██"),  # Quadrant upper left and lower half.
+    Block.new('▟', {false, true, true, true}, " █\n██"),  # Quadrant upper right and lower half.
+    Block.new('▛', {true, true, true, false}, "██\n█ "),  # Quadrant upper half and lower left.
+    Block.new('▜', {true, true, false, true}, "██\n █"),  # Quadrant upper half and lower right.
+    Block.new('▚', {true, false, false, true}, "█ \n █"), # Quadrant upper left and lower right.
+    Block.new('▞', {false, true, true, false}, " █\n█ "), # Quadrant upper right and lower left.
+  ]
+
+  # In many contexts, a default threshold level is often set to 0.5 (or 50%),
+  # which means that values above this threshold are considered positive,
+  # while those below are considered negative.
+  # The value 128 represents the 0.5 of 0..255.
+  MIDDLE_THRESHOLD_LEVEL = 128_u8
+
+  # Represents 255.
+  U8_MAX_VALUE = 0xff_u32
+
+  # Shift scales 16-bit color values (0-65535) down to 8-bit (0-255).
+  # If value > 255, shift right by 8 bits.
+  def self.shift(value : UInt32) : UInt32
+    value > U8_MAX_VALUE ? value >> 8 : value
+  end
+
+  # rgba_to_luminance converts RGBA color to luminance (brightness).
+  # Weighted RGB to account for human perception
+  # source: https://www.w3.org/TR/AERT/#color-contrast
+  # context: https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color
+  def self.rgba_to_luminance(color : StumpyCore::RGBA) : UInt8
+    r = shift(color.r.to_u32).to_f64
+    g = shift(color.g.to_u32).to_f64
+    b = shift(color.b.to_u32).to_f64
+    (r * 0.299 + g * 0.587 + b * 0.114).to_u8
+  end
+
+  # PixelBlock represents a 2x2 pixel block from the image.
+  class PixelBlock
+    property pixels : Array(Array(StumpyCore::RGBA))
+    property avg_fg : StumpyCore::RGBA
+    property avg_bg : StumpyCore::RGBA
+    property best_symbol : Char
+    property best_fg_color : StumpyCore::RGBA
+    property best_bg_color : StumpyCore::RGBA
+
+    def initialize
+      @pixels = Array.new(2) { Array.new(2, StumpyCore::RGBA.new(0, 0, 0, 255)) }
+      @avg_fg = StumpyCore::RGBA.new(0, 0, 0, 255)
+      @avg_bg = StumpyCore::RGBA.new(0, 0, 0, 255)
+      @best_symbol = ' '
+      @best_fg_color = StumpyCore::RGBA.new(0, 0, 0, 255)
+      @best_bg_color = StumpyCore::RGBA.new(0, 0, 0, 255)
+    end
+  end
+
+  # Mosaic represents a Unicode image renderer.
+  #
+  # Example:
+  #
+  # ```
+  # art = Mosaic::Renderer.new.width(100) # Limit to 100 cells
+  #   .scale(2)                           # Scale factor
+  #   .render(image)
+  # ```
+  class Renderer
+    property output_width : Int32    # Output width.
+    property output_height : Int32   # Output height (0 for auto).
+    property threshold_level : UInt8 # Threshold for considering a pixel as set (0-255).
+    property? dither : Bool          # Enable Dithering (false as default).
+    property? use_fg_bg_only : Bool  # Use only foreground/background colors (no block symbols).
+    property? invert_colors : Bool   # Invert colors.
+    property scale : Int32           # Scale level
+    property symbols : Symbol        # Which symbols to use: "half", "quarter", "all".
+
+    # New creates and returns a [Renderer].
+    def initialize
+      @output_width = 0                         # Override width.
+      @output_height = 0                        # Override height.
+      @threshold_level = MIDDLE_THRESHOLD_LEVEL # Middle threshold.
+      @dither = false                           # Enable dithering.
+      @use_fg_bg_only = false                   # Use block symbols.
+      @invert_colors = false                    # Don't invert.
+      @scale = 1                                # Don't scale.
+      @symbols = Symbol::Half                   # Use half blocks.
+    end
+
+    # Scale sets the scale level on [Renderer].
+    def scale(scale : Int) : self
+      @scale = scale.to_i32
+      self
+    end
+
+    # IgnoreBlockSymbols set UseFgBgOnly on [Renderer].
+    def ignore_block_symbols(fg_only : Bool) : self
+      @use_fg_bg_only = fg_only
+      self
+    end
+
+    # Dither sets the dither level on [Renderer].
+    def dither(dither : Bool) : self
+      @dither = dither
+      self
+    end
+
+    # Threshold sets the threshold level on [Renderer].
+    # It expects a value between 0-255, anything else will be ignored.
+    def threshold(threshold : Int) : self
+      if threshold >= 0 && threshold <= U8_MAX_VALUE
+        @threshold_level = threshold.to_u8
+      end
+      self
+    end
+
+    # InvertColors whether to invert the colors of the mosaic image.
+    def invert_colors(invert : Bool) : self
+      @invert_colors = invert
+      self
+    end
+
+    # Width sets the maximum width the image can have. Defaults to the image width.
+    def width(width : Int) : self
+      @output_width = width.to_i32
+      self
+    end
+
+    # Height sets the maximum height the image can have. Defaults to the image height.
+    def height(height : Int) : self
+      @output_height = height.to_i32
+      self
+    end
+
+    # Symbol sets the mosaic symbol type.
+    def symbol(symbol : Symbol) : self
+      @symbols = symbol
+      self
+    end
+
+    # Render renders the image to a string.
+    def render(canvas : StumpyCore::Canvas) : String
+      # Calculate dimensions.
+      src_width = canvas.width
+      src_height = canvas.height
+
+      # Determine output dimensions.
+      out_width = src_width
+      out_width = @output_width if @output_width > 0
+
+      out_height = src_height
+      out_height = @output_height if @output_height > 0
+
+      if out_height <= 0
+        # Calculate height based on aspect ratio and character cell proportions.
+        # Terminal characters are roughly twice as tall as wide, so we divide by 2.
+        divider = 2
+        out_height = (out_width.to_f * src_height.to_f / src_width.to_f / divider).to_i
+        out_height = 1 if out_height < 1
+      end
+
+      # Scale image according to the scale.
+      scaled_canvas = apply_scaling(canvas, out_width * @scale, out_height * @scale)
+
+      # Apply dithering if enabled.
+      scaled_canvas = apply_dithering(scaled_canvas) if dither?
+
+      # Invert colors if needed.
+      scaled_canvas = invert_image(scaled_canvas) if invert_colors?
+
+      # Generate terminal output.
+      output = String::Builder.new
+
+      # Set initial blocks based on symbols value (initial/default is half)
+      blocks = HALF_BLOCKS
+
+      # Quarter blocks.
+      if @symbols == Symbol::Quarter || @symbols == Symbol::All
+        blocks += QUARTER_BLOCKS
+      end
+
+      # All block elements (including complex combinations).
+      if @symbols == Symbol::All
+        blocks += COMPLEX_BLOCKS
+      end
+
+      # Process the image by 2x2 blocks (representing one character cell).
+      height = scaled_canvas.height
+      width = scaled_canvas.width
+
+      0.step(to: height - 1, by: 2) do |y|
+        0.step(to: width - 1, by: 2) do |x|
+          # Create and analyze the 2x2 pixel block.
+          block = create_pixel_block(scaled_canvas, x, y)
+
+          # Determine best symbol and colors.
+          find_best_representation(block, blocks)
+
+          # Append to output.
+          if (fg = block.best_fg_color) && (bg = block.best_bg_color)
+            output << ansi_style(fg, bg, block.best_symbol)
+          else
+            # Fallback to space if colors are nil
+            output << ' '
+          end
+        end
+        output << "\n"
+      end
+
+      output.to_s
+    end
+
+    # average_colors calculates the average color from a slice of colors.
+    private def average_colors(colors : Array(StumpyCore::RGBA)) : StumpyCore::RGBA
+      return StumpyCore::RGBA.new(0, 0, 0, 255) if colors.empty?
+
+      sum_r = 0_u32
+      sum_g = 0_u32
+      sum_b = 0_u32
+      sum_a = 0_u32
+
+      colors.each do |color|
+        sum_r += Mosaic.shift(color.r.to_u32)
+        sum_g += Mosaic.shift(color.g.to_u32)
+        sum_b += Mosaic.shift(color.b.to_u32)
+        sum_a += Mosaic.shift(color.a.to_u32)
+      end
+
+      count = colors.size.to_u32
+      StumpyCore::RGBA.new(
+        (sum_r // count).to_u8,
+        (sum_g // count).to_u8,
+        (sum_b // count).to_u8,
+        (sum_a // count).to_u8
+      )
+    end
+
+    # ansi_style generates an ANSI truecolor escape sequence for foreground and background colors.
+    private def ansi_style(fg : StumpyCore::RGBA, bg : StumpyCore::RGBA, char : Char) : String
+      # Format: \x1b[38;2;R;G;B;48;2;R;G;Bm<char>\x1b[0m
+      String.build do |str|
+        str << "\x1b[38;2;"
+        str << fg.r
+        str << ';'
+        str << fg.g
+        str << ';'
+        str << fg.b
+        str << ";48;2;"
+        str << bg.r
+        str << ';'
+        str << bg.g
+        str << ';'
+        str << bg.b
+        str << 'm'
+        str << char
+        str << "\x1b[0m"
+      end
+    end
+
+    # get_pixel_safe returns the color at (x,y) or black if out of bounds.
+    private def get_pixel_safe(canvas : StumpyCore::Canvas, x : Int32, y : Int32) : StumpyCore::RGBA
+      if x >= 0 && x < canvas.width && y >= 0 && y < canvas.height
+        canvas[x, y]
+      else
+        StumpyCore::RGBA.new(0, 0, 0, 255)
+      end
+    end
+
+    # apply_scaling resizes an image to the specified dimensions.
+    # Uses nearest-neighbor interpolation for simplicity.
+    private def apply_scaling(canvas : StumpyCore::Canvas, width : Int32, height : Int32) : StumpyCore::Canvas
+      scaled = StumpyCore::Canvas.new(width, height)
+      x_ratio = canvas.width.to_f / width.to_f
+      y_ratio = canvas.height.to_f / height.to_f
+
+      height.times do |y|
+        src_y = (y * y_ratio).to_i
+        width.times do |x|
+          src_x = (x * x_ratio).to_i
+          scaled[x, y] = canvas[src_x, src_y]
+        end
+      end
+
+      scaled
+    end
+
+    # apply_dithering applies Floyd-Steinberg dithering (placeholder - returns image unchanged for now).
+    private def apply_dithering(canvas : StumpyCore::Canvas) : StumpyCore::Canvas
+      # TODO: Implement proper Floyd-Steinberg dithering with Plan9 palette
+      # For now, return the image unchanged to unblock main render implementation.
+      canvas
+    end
+
+    # invert_image inverts the colors of an image.
+    private def invert_image(canvas : StumpyCore::Canvas) : StumpyCore::Canvas
+      inverted = StumpyCore::Canvas.new(canvas.width, canvas.height)
+      canvas.width.times do |x|
+        canvas.height.times do |y|
+          pixel = canvas[x, y]
+          inverted[x, y] = StumpyCore::RGBA.new(
+            255_u8 - pixel.r,
+            255_u8 - pixel.g,
+            255_u8 - pixel.b,
+            pixel.a
+          )
+        end
+      end
+      inverted
+    end
+
+    # create_pixel_block extracts a 2x2 block of pixels from the image.
+    private def create_pixel_block(canvas : StumpyCore::Canvas, x : Int32, y : Int32) : PixelBlock
+      block = PixelBlock.new
+
+      # Extract the 2x2 pixel grid.
+      2.times do |row|
+        2.times do |col|
+          block.pixels[row][col] = get_pixel_safe(canvas, x + col, y + row)
+        end
+      end
+
+      block
+    end
+
+    # find_best_representation finds the best block character and colors for a 2x2 pixel block.
+    private def find_best_representation(block : PixelBlock, available_blocks : Array(Block))
+      # Simple case: use only foreground/background colors.
+      if use_fg_bg_only?
+        # Just use the upper half block with top pixels as background and bottom as foreground.
+        block.best_symbol = '▀'
+        block.best_bg_color = average_colors(block.pixels[0][0], block.pixels[0][1])
+        block.best_fg_color = average_colors(block.pixels[1][0], block.pixels[1][1])
+        return
+      end
+
+      # Determine which pixels are "set" based on threshold.
+      pixel_mask = Array.new(2) { Array.new(2, false) }
+
+      2.times do |y|
+        2.times do |x|
+          if pixel = block.pixels[y][x]
+            # Calculate luminance.
+            luma = Mosaic.rgba_to_luminance(pixel)
+            pixel_mask[y][x] = luma >= @threshold_level
+          else
+            pixel_mask[y][x] = false
+          end
+        end
+      end
+
+      # Find the best matching block character.
+      best_char = ' '
+      best_score = Float64::MAX
+
+      available_blocks.each do |block_char|
+        score = 0.0
+        4.times do |i|
+          y = i // 2
+          x = i % 2
+          if block_char.coverage[y*2 + x] != pixel_mask[y][x]
+            score += 1.0
+          end
+        end
+
+        if score < best_score
+          best_score = score
+          best_char = block_char.char
+        end
+      end
+
+      # Get the coverage pattern for the selected character.
+      coverage = {false, false, false, false}
+      available_blocks.each do |b|
+        if b.char == best_char
+          coverage = b.coverage
+          break
+        end
+      end
+
+      # Assign pixels to foreground or background based on the character's coverage.
+      fg_pixels = [] of StumpyCore::RGBA
+      bg_pixels = [] of StumpyCore::RGBA
+
+      4.times do |i|
+        y = i // 2
+        x = i % 2
+        if pixel = block.pixels[y][x]
+          if coverage[y*2 + x]
+            fg_pixels << pixel
+          else
+            bg_pixels << pixel
+          end
+        end
+      end
+
+      # Calculate average colors.
+      if fg_pixels.empty?
+        block.best_fg_color = StumpyCore::RGBA.new(0, 0, 0, 255)
+      else
+        block.best_fg_color = average_colors(fg_pixels)
+      end
+
+      if bg_pixels.empty?
+        block.best_bg_color = StumpyCore::RGBA.new(0, 0, 0, 255)
+      else
+        block.best_bg_color = average_colors(bg_pixels)
+      end
+
+      block.best_symbol = best_char
+    end
+
+    # average_colors calculates the average color from colors (variadic or array).
+    private def average_colors(*colors : StumpyCore::RGBA) : StumpyCore::RGBA
+      average_colors(colors.to_a)
+    end
+
+    private def average_colors(colors : Array(StumpyCore::RGBA)) : StumpyCore::RGBA
+      return StumpyCore::RGBA.new(0, 0, 0, 255) if colors.empty?
+
+      sum_r = 0_u32
+      sum_g = 0_u32
+      sum_b = 0_u32
+      sum_a = 0_u32
+
+      colors.each do |color|
+        sum_r += Mosaic.shift(color.r.to_u32)
+        sum_g += Mosaic.shift(color.g.to_u32)
+        sum_b += Mosaic.shift(color.b.to_u32)
+        sum_a += Mosaic.shift(color.a.to_u32)
+      end
+
+      count = colors.size.to_u32
+      StumpyCore::RGBA.new(
+        (sum_r // count).to_u8,
+        (sum_g // count).to_u8,
+        (sum_b // count).to_u8,
+        (sum_a // count).to_u8
+      )
+    end
+  end
+end

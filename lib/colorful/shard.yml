@@ -1,0 +1,14 @@
+name: colorful
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+crystal: '>= 1.19.1'
+
+license: MIT
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.0

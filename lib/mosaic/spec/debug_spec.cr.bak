@@ -1,0 +1,26 @@
+require "./spec_helper"
+require "stumpy_png"
+
+class DebugRenderer < Mosaic::Renderer
+  @@block_count = 0
+
+  private def find_best_representation(block : Mosaic::PixelBlock, available_blocks : Array(Mosaic::Block))
+    @@block_count += 1
+    if @@block_count <= 5
+      puts "=== Block #{@@block_count} ==="
+      puts "Pixels:"
+      2.times do |y|
+        2.times do |x|
+          pixel = block.pixels[y][x]
+          puts "  (#{x},#{y}): rgba(#{pixel.r},#{pixel.g},#{pixel.b},#{pixel.a})"
+        end
+      end
+      # call super
+    end
+    super
+  end
+end
+
+canvas = StumpyPNG.read("temp/charm-wish.png")
+renderer = DebugRenderer.new.width(80).height(40)
+result = renderer.render(canvas)
