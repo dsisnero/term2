@@ -11,6 +11,7 @@ require "./osc"
 require "./renderer"
 require "./cursed_renderer"
 require "./environ"
+require "./color_profile"
 require "lipgloss"
 require "./components/*"
 
@@ -694,6 +695,9 @@ module Term2
         @renderer.color_profile = detected_profile
       end
 
+      # Detect dark/light mode from environment
+      ColorProfile.update_dark_mode_from_env
+
       # Send environment message
       dispatch(EnvMsg.new(@environment))
 
@@ -975,6 +979,11 @@ module Term2
           dispatch(ColorProfileMsg.new(Environ.color_profile))
         end
         # fall through to update
+      when BackgroundColorMsg
+        Environ.update_dark_mode_from_background(filtered_msg.color)
+        # fall through to update
+      when ForegroundColorMsg, CursorColorMsg
+        # fall through to update (user may handle these)
       when PrintMsg
         @render_mailbox.send(filtered_msg)
         return

@@ -969,6 +969,18 @@ module Term2
     Cmds.request_capability(capability)
   end
 
+  def self.request_background_color : Cmd
+    Cmds.request_background_color
+  end
+
+  def self.request_foreground_color : Cmd
+    Cmds.request_foreground_color
+  end
+
+  def self.request_cursor_color : Cmd
+    Cmds.request_cursor_color
+  end
+
   # Alias for request_capability to match Bubble Tea's naming convention.
   # Note: Crystal method names are typically lowercase; use request_capability.
   # RequestCapability = ->request_capability(String)

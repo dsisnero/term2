@@ -148,5 +148,31 @@ module Term2
         "mouse"                 => mouse?,
       }
     end
+
+    # Calculate relative luminance (0.0 to 1.0) of a color using the WCAG formula.
+    # Uses sRGB gamma-compressed values (0-255) for simplicity.
+    def color_luminance(color : Lipgloss::Color) : Float64
+      r, g, b = color.to_rgb
+      # Normalize to 0-1 range
+      r_norm = r / 255.0
+      g_norm = g / 255.0
+      b_norm = b / 255.0
+      # Relative luminance coefficients (without linearization, good enough for dark/light detection)
+      0.2126 * r_norm + 0.7152 * g_norm + 0.0722 * b_norm
+    end
+
+    # Determine if a color is dark based on luminance threshold.
+    # Returns true if luminance < 0.5 (midpoint).
+    def has_dark_background?(color : Lipgloss::Color) : Bool
+      color_luminance(color) < 0.5
+    end
+
+    # Update global dark/light mode setting based on background color.
+    # This should be called when a BackgroundColorMsg is received.
+    def update_dark_mode_from_background(color : Lipgloss::Color) : Nil
+      dark = has_dark_background?(color)
+      Lipgloss.has_dark_background = dark
+      Lipgloss::StyleRenderer.default.has_dark_background = dark
+    end
   end
 end
