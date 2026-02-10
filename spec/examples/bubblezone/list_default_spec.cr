@@ -16,11 +16,11 @@ describe "Bubblezone example: list-default", tags: "interactive" do
 
     model.list.index.should eq 0
 
-    click = Term2::MouseEvent.new(
+    click = Term2::TestHelpers.mouse_event(
       x: zone.start_x,
       y: zone.start_y,
-      button: Term2::MouseEvent::Button::Left,
-      action: Term2::MouseEvent::Action::Release,
+      button: UV::MouseButton::Left,
+      action: :release,
     )
 
     model, _ = model.update(click)
@@ -37,11 +37,11 @@ describe "Bubblezone example: list-default", tags: "interactive" do
     model = model.as(BubblezoneListDefaultExample::Model)
 
     model.list.index.should eq 0
-    wheel = Term2::MouseEvent.new(
+    wheel = Term2::TestHelpers.mouse_event(
       x: 0,
       y: 0,
-      button: Term2::MouseEvent::Button::WheelDown,
-      action: Term2::MouseEvent::Action::Press,
+      button: UV::MouseButton::WheelDown,
+      action: :press,
     )
     model, _ = model.update(wheel)
     model = model.as(BubblezoneListDefaultExample::Model)

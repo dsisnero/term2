@@ -10,9 +10,9 @@ describe "Bubbletea example: chat" do
     model.init
 
     "hello there".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
     end
-    model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Enter)))
+    model, _ = model.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("enter")))
 
     model.messages.join(" ").should contain("hello there")
   end

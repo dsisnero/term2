@@ -88,7 +88,7 @@ describe Term2::Components::Help do
     bindings = Term2::Components::Help::KeyMap.bindings(entries)
     bindings.size.should eq 2
     bindings.first.help_desc.should eq "alpha"
-    bindings.first.matches?(Term2::KeyMsg.new(Term2::Key.new("a"))).should be_true
+    bindings.first.matches?(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))).should be_true
   end
 
   it "builds bindings from tuples" do

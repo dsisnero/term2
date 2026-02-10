@@ -10,11 +10,12 @@ describe "Example: split-editors", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 20))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
     tm.quit
 
     output = tm.final_output
-    output.should contain("Type something")
+    output.should contain("tab")
+    output.should contain("shift+tab")
   end
 end

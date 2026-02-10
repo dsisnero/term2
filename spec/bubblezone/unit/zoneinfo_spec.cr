@@ -4,7 +4,7 @@
 require "../spec_helper"
 
 def mouse(x : Int32, y : Int32)
-  Term2::MouseEvent.new(x, y, Term2::MouseEvent::Button::None, Term2::MouseEvent::Action::Press)
+  Term2::TestHelpers.mouse_event(x, y, UV::MouseButton::None, :press)
 end
 
 def zero_zone

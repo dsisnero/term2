@@ -14,20 +14,20 @@ describe Term2::Components::TextArea do
     ta.focus
 
     # Insert 'a'
-    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))
     ta, _ = ta.update(msg)
     ta.value.should eq "a"
     ta.cursor_col.should eq 1
 
     # Enter (newline)
-    msg = Term2::KeyMsg.new(Term2::Key.new("enter"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("enter"))
     ta, _ = ta.update(msg)
     ta.value.should eq "a\n"
     ta.cursor_line.should eq 1
     ta.cursor_col.should eq 0
 
     # Insert 'b'
-    msg = Term2::KeyMsg.new(Term2::Key.new("b"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("b"))
     ta, _ = ta.update(msg)
     ta.value.should eq "a\nb"
   end
@@ -42,17 +42,17 @@ describe Term2::Components::TextArea do
     ta.cursor_col.should eq "line2".size
 
     # Down
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     ta, _ = ta.update(msg)
     ta.cursor_line.should eq 1
 
     # Right
-    msg = Term2::KeyMsg.new(Term2::Key.new("right"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("right"))
     ta, _ = ta.update(msg)
     ta.cursor_col.should eq "line2".size
 
     # Up
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     ta, _ = ta.update(msg)
     ta.cursor_line.should eq 0
     ta.cursor_col.should be >= 1

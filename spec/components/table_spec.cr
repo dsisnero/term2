@@ -52,17 +52,17 @@ describe Term2::Components::Table do
     table.cursor.should eq 0
 
     # Down
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     table, _ = table.update(msg)
     table.cursor.should eq 1
 
     # End
-    msg = Term2::KeyMsg.new(Term2::Key.new("end"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("end"))
     table, _ = table.update(msg)
     table.cursor.should eq 2
 
     # Up
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     table, _ = table.update(msg)
     table.cursor.should eq 1
   end

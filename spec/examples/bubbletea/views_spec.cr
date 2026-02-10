@@ -10,7 +10,7 @@ describe "Example: views", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 20))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
+    tm.send(Term2::TestHelpers.uv_key("enter"))
     tm.quit
     output = tm.final_output
     output.should contain("Doing cool stuff")

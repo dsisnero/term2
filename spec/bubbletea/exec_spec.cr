@@ -19,7 +19,7 @@ class TestExecModel
     Term2::Cmds.exec_process(@cmd) { |err| ExecFinishedMsg.new(err) }
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd?}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd?}
     case msg
     when ExecFinishedMsg
       @err = msg.err
@@ -53,7 +53,7 @@ class TestExecErrorModel
     Term2::Cmds.exec_process(@cmd) { |err| ExecErrorMsg.new(err) }
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd?}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd?}
     case msg
     when ExecErrorMsg
       @err = msg.err

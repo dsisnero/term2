@@ -10,7 +10,7 @@ describe "Example: list-default", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 20))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("ctrl+c")))
+    tm.send(Term2::TestHelpers.uv_key("ctrl+c"))
 
     output = tm.final_output
     output.should contain("My Fave Things")
@@ -36,10 +36,10 @@ describe "Example: list-default", tags: "interactive" do
         Term2::Teatest.with_initial_term_size(80, 20),
       )
       tm.send(Term2::WindowSizeMsg.new(80, 20))
-      tm.send(Term2::KeyMsg.new(Term2::Key.new("/")))
+      tm.send(Term2::TestHelpers.uv_key("/"))
       tm.type("pi")
-      tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
-      tm.send(Term2::KeyMsg.new(Term2::Key.new("ctrl+c")))
+      tm.send(Term2::TestHelpers.uv_key("enter"))
+      tm.send(Term2::TestHelpers.uv_key("ctrl+c"))
 
       output = Lipgloss::Text.strip_ansi(tm.final_output)
       output.should contain("Raspberry Pi")

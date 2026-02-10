@@ -10,7 +10,7 @@ describe "Example: pipe", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(50, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlC)))
+    tm.send(Term2::TestHelpers.uv_key("ctrl+c"))
     output = tm.final_output(
       Term2::Teatest.with_final_timeout(1.second),
       Term2::Teatest.with_timeout_fn { tm.quit },

@@ -10,8 +10,8 @@ describe "Example: table", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 15))
 
-    9.times { tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Down))) }
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Enter)))
+    9.times { tm.send(Term2::TestHelpers.uv_key("down")) }
+    tm.send(Term2::TestHelpers.uv_key("enter"))
     tm.quit
 
     output = tm.final_output

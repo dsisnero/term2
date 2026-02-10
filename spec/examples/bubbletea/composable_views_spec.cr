@@ -7,9 +7,9 @@ describe "Example: composable-views", tags: "interactive" do
     tm = Term2::Teatest::TestModel(ComposableModel).new(ComposableModel.new, Term2::Teatest.with_initial_term_size(30, 10))
     tm.send(Term2::WindowSizeMsg.new(30, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("tab")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("n")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
+    tm.send(Term2::TestHelpers.uv_key("n"))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     out = tm.final_output
     out.should contain("tab: focus next")

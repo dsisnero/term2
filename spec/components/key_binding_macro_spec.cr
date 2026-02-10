@@ -14,6 +14,6 @@ describe Term2::Components::Key do
     km.start.help_desc.should eq "start"
     km.stop.help_key.should eq "t"
     km.bindings.size.should eq 2
-    km.start.matches?(Term2::KeyMsg.new(Term2::Key.new("s"))).should be_true
+    km.start.matches?(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("s"))).should be_true
   end
 end

@@ -10,8 +10,8 @@ describe "Example: paginator", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 24))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Right)))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("right"))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     model = tm.final_model
     model.paginator.page.should eq(1)

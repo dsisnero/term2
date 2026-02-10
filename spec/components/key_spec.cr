@@ -9,9 +9,9 @@ describe Term2::Components::Key::Binding do
       help_desc: "quit"
     )
 
-    q_msg = Term2::KeyMsg.new(Term2::Key.new("q"))
-    esc_msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Esc))
-    other_msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    q_msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("q"))
+    esc_msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("esc"))
+    other_msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))
 
     binding.matches?(q_msg).should be_true
     binding.matches?(esc_msg).should be_true
@@ -26,7 +26,7 @@ describe Term2::Components::Key::Binding do
     )
     binding.disabled = true
 
-    q_msg = Term2::KeyMsg.new(Term2::Key.new("q"))
+    q_msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("q"))
     binding.matches?(q_msg).should be_false
   end
 end

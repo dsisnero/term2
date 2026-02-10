@@ -17,7 +17,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -41,7 +41,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -65,7 +65,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -89,7 +89,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -113,7 +113,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -137,7 +137,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -161,7 +161,7 @@ module MouseTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -193,11 +193,11 @@ describe "Term2::Zone mouse handling" do
 
       # Simulate mouse click (position needs to be in zone bounds)
       # This is a conceptual test - actual coordinates depend on implementation
-      mouse_event = Term2::MouseEvent.new(
+      mouse_event = Term2::TestHelpers.mouse_event(
         x: zone.start_x + 1,
         y: zone.start_y,
-        button: Term2::MouseEvent::Button::Left,
-        action: Term2::MouseEvent::Action::Press
+        button: UV::MouseButton::Left,
+        action: :press
       )
 
       model.update(mouse_event)
@@ -218,11 +218,11 @@ describe "Term2::Zone mouse handling" do
       model = MouseTestModels::OutsideTestModel.new
 
       # Mouse event far outside zone
-      mouse_event = Term2::MouseEvent.new(
+      mouse_event = Term2::TestHelpers.mouse_event(
         x: 999,
         y: 999,
-        button: Term2::MouseEvent::Button::Left,
-        action: Term2::MouseEvent::Action::Press
+        button: UV::MouseButton::Left,
+        action: :press
       )
 
       model.update(mouse_event)
@@ -252,11 +252,11 @@ describe "Term2::Zone mouse handling" do
       model = MouseTestModels::MultiZoneTestModel.new
 
       # Simulate click in zone A
-      mouse_in_a = Term2::MouseEvent.new(
+      mouse_in_a = Term2::TestHelpers.mouse_event(
         x: zone_a.start_x + 2,
         y: zone_a.start_y,
-        button: Term2::MouseEvent::Button::Left,
-        action: Term2::MouseEvent::Action::Press
+        button: UV::MouseButton::Left,
+        action: :press
       )
 
       model.update(mouse_in_a)
@@ -293,11 +293,11 @@ describe "Term2::Zone mouse handling" do
 
       # Send mouse event that would hit both zones if they overlapped
       # In reality, with proper positioning, only one would be hit
-      mouse_event = Term2::MouseEvent.new(
+      mouse_event = Term2::TestHelpers.mouse_event(
         x: 5,
         y: 0,
-        button: Term2::MouseEvent::Button::Left,
-        action: Term2::MouseEvent::Action::Press
+        button: UV::MouseButton::Left,
+        action: :press
       )
 
       model.update(mouse_event)
@@ -322,18 +322,18 @@ describe "Term2::Zone mouse handling" do
 
       # Test different buttons
       buttons = [
-        Term2::MouseEvent::Button::Left,
-        Term2::MouseEvent::Button::Right,
-        Term2::MouseEvent::Button::Middle,
-        Term2::MouseEvent::Button::None,
+        UV::MouseButton::Left,
+        UV::MouseButton::Right,
+        UV::MouseButton::Middle,
+        UV::MouseButton::None,
       ]
 
       buttons.each do |button|
-        mouse_event = Term2::MouseEvent.new(
+        mouse_event = Term2::TestHelpers.mouse_event(
           x: zone.start_x + 1,
           y: zone.start_y,
           button: button,
-          action: Term2::MouseEvent::Action::Press
+          action: :press
         )
 
         model.update(mouse_event)
@@ -356,13 +356,13 @@ describe "Term2::Zone mouse handling" do
       model = MouseTestModels::ActionTestModel.new
 
       # Test different actions
-      actions = [Term2::MouseEvent::Action::Press, Term2::MouseEvent::Action::Release, Term2::MouseEvent::Action::Drag, Term2::MouseEvent::Action::Move]
+      actions = [:press, :release, :drag, :move]
 
       actions.each do |action|
-        mouse_event = Term2::MouseEvent.new(
+        mouse_event = Term2::TestHelpers.mouse_event(
           x: zone.start_x + 1,
           y: zone.start_y,
-          button: Term2::MouseEvent::Button::Left,
+          button: UV::MouseButton::Left,
           action: action
         )
 
@@ -390,11 +390,11 @@ describe "Term2::Zone mouse handling" do
 
       # Send many mouse events quickly
       20.times do |i|
-        mouse_event = Term2::MouseEvent.new(
+        mouse_event = Term2::TestHelpers.mouse_event(
           x: zone.start_x + (i % 5),
           y: zone.start_y,
-          button: Term2::MouseEvent::Button::Left,
-          action: Term2::MouseEvent::Action::Press
+          button: UV::MouseButton::Left,
+          action: :press
         )
 
         model.update(mouse_event)

@@ -10,8 +10,8 @@ describe "Example: tabs", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("right")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("right")))
+    tm.send(Term2::TestHelpers.uv_key("right"))
+    tm.send(Term2::TestHelpers.uv_key("right"))
     tm.quit
 
     model = tm.final_model

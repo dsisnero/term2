@@ -15,7 +15,7 @@ private class TimerTestModel
     @timer.init
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::Components::CountdownTimer::Finished
       @finished_count += 1

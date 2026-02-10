@@ -10,7 +10,7 @@ describe "Bubblezone example: full-lipgloss", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(100, 30))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlC)))
+    tm.send(Term2::TestHelpers.uv_key("ctrl+c"))
 
     output = tm.final_output
     output.should contain("eat marmalade?")

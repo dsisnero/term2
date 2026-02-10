@@ -1,14 +1,14 @@
 require "./spec_helper"
 include Term2::Prelude
 
-private class SpecTextMessage < Term2::Msg
+private class SpecTextMessage < Term2::Message
   getter value : String
 
   def initialize(@value : String)
   end
 end
 
-private class SpecTick < Term2::Msg
+private class SpecTick < Term2::Message
 end
 
 private class SpecCounterModel
@@ -118,22 +118,6 @@ describe Term2 do
     end
   end
 
-  describe "KeyPress" do
-    it "initializes with a key" do
-      key_press = Term2::KeyPress.new("a")
-      key_press.key.should eq("a")
-    end
-  end
-
-  describe "MouseEvent" do
-    it "initializes with coordinates and button" do
-      mouse_event = Term2::MouseEvent.new(10, 20, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press)
-      mouse_event.x.should eq(10)
-      mouse_event.y.should eq(20)
-      mouse_event.button.should eq(Term2::MouseEvent::Button::Left)
-    end
-  end
-
   describe "Terminal" do
     it "provides terminal utilities" do
       # These methods should exist and not raise
@@ -163,52 +147,11 @@ describe Term2 do
     end
   end
 
-  describe Term2::KeyReader do
-    it "reads a single character" do
-      input = IO::Memory.new("a")
-      reader = Term2::KeyReader.new
-      key = reader.read_key(input)
-      key.should_not be_nil
-      key.try(&.to_s).should eq("a")
-    end
-
-    it "detects bracketed paste" do
-      # Simulates: paste start + "hello" + paste end
-      paste_sequence = "\e[200~hello\e[201~"
-      input = IO::Memory.new(paste_sequence)
-      reader = Term2::KeyReader.new
-
-      # Need to read multiple times to collect all characters
-      key : Term2::Key? = nil
-      paste_sequence.size.times do
-        result = reader.read_key(input)
-        key = result if result
-      end
-
-      key.should_not be_nil
-      if k = key
-        k.paste?.should be_true
-        k.runes.join.should eq("hello")
-      end
-    end
-
-    it "does not set paste flag for normal input" do
-      input = IO::Memory.new("hello")
-      reader = Term2::KeyReader.new
-
-      key = reader.read_key(input)
-      key.should_not be_nil
-      if k = key
-        k.paste?.should be_false
-      end
-    end
-  end
-
   describe Term2::ProgramOptions do
     it "applies message filter" do
       # Create a filter that transforms messages
       filter_called = false
-      filter = ->(msg : Term2::Message) {
+      filter = ->(msg : Term2::Msg) {
         filter_called = true
         msg
       }

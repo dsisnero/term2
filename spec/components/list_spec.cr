@@ -36,17 +36,17 @@ describe Term2::Components::List do
     list = Term2::Components::List.new(items)
 
     # Down
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     list, _ = list.update(msg)
     list.index.should eq 1
 
     # Down (clamped)
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     list, _ = list.update(msg)
     list.index.should eq 1
 
     # Up
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     list, _ = list.update(msg)
     list.index.should eq 0
   end

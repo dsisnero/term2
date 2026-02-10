@@ -11,9 +11,9 @@ describe "Example: suspend", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("ctrl+z")))
+    tm.send(Term2::TestHelpers.uv_key("ctrl+z"))
     tm.send(Term2::ResumeMsg.new)
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     model = tm.final_model(Term2::Teatest.with_final_timeout(1.second))
     model.suspending?.should be_false

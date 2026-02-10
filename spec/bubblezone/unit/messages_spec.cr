@@ -14,7 +14,7 @@ class TestModel
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when Term2::MouseEvent
+    when Term2::UVMouseEvent
       spawn { Term2::Zone.any_in_bounds(self, msg) }
     when Term2::ZoneInBoundsMsg
       @received << msg
@@ -38,7 +38,7 @@ class TestModelValue
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when Term2::MouseEvent
+    when Term2::UVMouseEvent
       return Term2::Zone.any_in_bounds_and_update(self, msg)
     when Term2::ZoneInBoundsMsg
       @received << msg
@@ -62,7 +62,7 @@ describe "Term2::Zone message functionality" do
       zone.zero?.should be_false
 
       # Simulate mouse click inside zone
-      model.update(Term2::MouseEvent.new(x: 4, y: 2, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      model.update(Term2::TestHelpers.mouse_event(x: 4, y: 2, button: UV::MouseButton::Left, action: :press))
       sleep 100.milliseconds
 
       # Check that ZoneInBoundsMsg was received
@@ -90,7 +90,7 @@ describe "Term2::Zone message functionality" do
       zone.zero?.should be_false
 
       # Simulate mouse click inside zone
-      updated_model, _cmd = model.update(Term2::MouseEvent.new(x: 4, y: 2, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      updated_model, _cmd = model.update(Term2::TestHelpers.mouse_event(x: 4, y: 2, button: UV::MouseButton::Left, action: :press))
       sleep 100.milliseconds
 
       # Check that ZoneInBoundsMsg was received
@@ -118,7 +118,7 @@ describe "Term2::Zone message functionality" do
       zone.zero?.should be_false
 
       # Simulate mouse click outside zone
-      model.update(Term2::MouseEvent.new(x: 0, y: 0, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      model.update(Term2::TestHelpers.mouse_event(x: 0, y: 0, button: UV::MouseButton::Left, action: :press))
       sleep 100.milliseconds
 
       # Should not receive ZoneInBoundsMsg
@@ -134,9 +134,9 @@ describe "Term2::Zone message functionality" do
       zone.zero?.should be_false
 
       # Multiple mouse events - only one inside zone
-      model.update(Term2::MouseEvent.new(x: 0, y: 0, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
-      model.update(Term2::MouseEvent.new(x: 4, y: 2, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
-      model.update(Term2::MouseEvent.new(x: 99, y: 99, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      model.update(Term2::TestHelpers.mouse_event(x: 0, y: 0, button: UV::MouseButton::Left, action: :press))
+      model.update(Term2::TestHelpers.mouse_event(x: 4, y: 2, button: UV::MouseButton::Left, action: :press))
+      model.update(Term2::TestHelpers.mouse_event(x: 99, y: 99, button: UV::MouseButton::Left, action: :press))
       sleep 150.milliseconds
 
       # Should have exactly one ZoneInBoundsMsg

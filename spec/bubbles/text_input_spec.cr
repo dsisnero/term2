@@ -4,13 +4,13 @@ require "../../src/components/text_input"
 # Helper to simulate typing a string into the model
 def type_text(model, text)
   text.each_char do |char|
-    model.update(Term2::KeyMsg.new(Term2::Key.new(char)))
+    model.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(char)))
   end
 end
 
 # Helper to simulate specific key presses
-def press_key(model, key_type : Term2::KeyType)
-  model.update(Term2::KeyMsg.new(Term2::Key.new(key_type)))
+def press_key(model, key : String)
+  model.update(Term2::TestHelpers.key_msg(key))
 end
 
 describe Term2::Components::TextInput do
@@ -31,7 +31,7 @@ describe Term2::Components::TextInput do
     ti.current_suggestion.should eq "test1"
 
     ti.focus
-    press_key(ti, Term2::KeyType::Tab)
+    press_key(ti, "tab")
     ti.value.should eq "test1"
 
     ti.blur

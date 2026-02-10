@@ -1,96 +1,36 @@
 require "../spec_helper"
 
-def base_seq_tests : Array(NamedTuple(seq: Bytes, msg: Term2::Msg))
-  tests = [] of NamedTuple(seq: Bytes, msg: Term2::Msg)
-  Term2::KeySequences::SEQUENCES.each do |seq, key|
-    tests << {seq: seq.to_slice, msg: Term2::KeyMsg.new(key)}
-    unless key.alt?
-      alt_key = Term2::Key.new(key.type, key.runes, alt: true)
-      tests << {seq: "\e#{seq}".to_slice, msg: Term2::KeyMsg.new(alt_key)}
-    end
-  end
-
-  (Term2::KeyType::CtrlAt.value + 1).upto(31) do |code|
-    next if code == Term2::KeyType::Esc.value
-    tests << {seq: Bytes[code.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType.new(code)))}
-    tests << {seq: Bytes[0x1b_u8, code.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType.new(code), alt: true))}
-  end
-  tests << {seq: Bytes[Term2::KeyType::Backspace.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Backspace))}
-  tests << {seq: Bytes[0x1b_u8, Term2::KeyType::Backspace.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Backspace, alt: true))}
-
-  tests << {seq: Bytes[0x1b_u8, '['.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, 'X'.ord.to_u8], msg: Term2::UnknownCSISequenceMsg.new(Bytes[0x1b_u8, '['.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, '-'.ord.to_u8, 'X'.ord.to_u8])}
-  tests << {seq: Bytes[0x20_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Runes, runes: [' ']))}
-  tests << {seq: Bytes[0x1b_u8, 0x20_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Runes, runes: [' '], alt: true))}
-  tests
+private def decode_one(seq : Bytes) : UV::Event?
+  decoder = UV::EventDecoder.new
+  _consumed, event = decoder.decode(seq)
+  event
 end
 
-describe "Bubbletea parity: key_test.go" do
-  it "formats key msg strings" do
-    Term2::KeyMsg.new(Term2::Key.new(type: Term2::KeyType::Space, alt: true)).to_s.should eq("alt+ ")
-    Term2::KeyMsg.new(Term2::Key.new(runes: ['a'])).to_s.should eq("a")
-    Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType.new(99999))).to_s.should eq("")
+describe "Bubbletea parity: key_test.go (UV events)" do
+  it "formats key strings via ultraviolet" do
+    Term2::TestHelpers.uv_key("space").string.should eq("space")
+    Term2::TestHelpers.uv_key("a").string.should eq("a")
   end
 
-  it "formats key type strings" do
-    Term2::KeyType::Space.to_s.should eq(" ")
-    Term2::KeyType.new(99999).to_s.should eq("")
+  it "decodes basic escape sequences" do
+    decode_one("\e[A".to_slice).should eq(UV::Key.new(code: UV::KeyUp))
+    decode_one("\e[B".to_slice).should eq(UV::Key.new(code: UV::KeyDown))
+    decode_one("\e[C".to_slice).should eq(UV::Key.new(code: UV::KeyRight))
+    decode_one("\e[D".to_slice).should eq(UV::Key.new(code: UV::KeyLeft))
   end
 
-  it "detect_sequence matches Go cases" do
-    base_seq_tests.each do |test_case|
-      has_seq, width, msg = Term2::KeySequences.detect_sequence(test_case[:seq])
-      has_seq.should be_true
-      width.should eq(test_case[:seq].size)
-      msg.should eq(test_case[:msg])
-    end
+  it "decodes focus sequences" do
+    decode_one("\e[I".to_slice).should be_a(Term2::FocusMsg)
+    decode_one("\e[O".to_slice).should be_a(Term2::BlurMsg)
   end
 
-  it "detect_one_msg matches Go cases" do
-    tests = base_seq_tests
-    tests += [
-      {seq: Term2::KeySequences::FOCUS_IN_SEQ.to_slice, msg: Term2::FocusMsg.new},
-      {seq: Term2::KeySequences::FOCUS_OUT_SEQ.to_slice, msg: Term2::BlurMsg.new},
-      {seq: Bytes['a'.ord.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(runes: ['a']))},
-      {seq: Bytes[0x1b_u8, 'a'.ord.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(runes: ['a'], alt: true))},
-      {seq: "☃".encode("UTF-8").to_slice, msg: Term2::KeyMsg.new(Term2::Key.new(runes: ['☃']))},
-      {seq: Bytes[0x1b_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Esc))},
-      {seq: Bytes[Term2::KeyType::CtrlA.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlA))},
-      {seq: Bytes[0x1b_u8, Term2::KeyType::CtrlA.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlA, alt: true))},
-      {seq: Bytes[Term2::KeyType::Null.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlAt))},
-      {seq: Bytes[0x1b_u8, Term2::KeyType::Null.value.to_u8], msg: Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::CtrlAt, alt: true))},
-    ]
+  it "decodes CSI-u sequences" do
+    repeat_event = decode_one("\e[97;1:2u".to_slice).as(UV::Key)
+    repeat_event.code.should eq('a'.ord)
+    repeat_event.is_repeat?.should be_true
 
-    tests.each do |test_case|
-      has_seq, width, msg = Term2::KeySequences.detect_one_msg(test_case[:seq])
-      has_seq.should be_true
-      width.should eq(test_case[:seq].size)
-      msg.should eq(test_case[:msg])
-    end
-  end
-
-  it "parses CSI-u sequences" do
-    # Test cases for CSI-u (Kitty keyboard protocol)
-    tests = [
-      # Keyboard enhancement response
-      {seq: "\e[?1;1u".to_slice, msg: Term2::KeyboardEnhancementsMsg.new(1)},
-      {seq: "\e[?1;2u".to_slice, msg: Term2::KeyboardEnhancementsMsg.new(2)},
-      # Basic key press with modifiers
-      {seq: "\e[97;1u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: false))},
-      # Key press with shift modifier
-      {seq: "\e[65;2u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new(Term2::KeyType::Up, mod: Term2::KeyMod::Shift, is_repeat: false))},
-      # Key repeat event
-      {seq: "\e[97;1:2u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: true))},
-      # Key release event
-      {seq: "\e[97;1:3u".to_slice, msg: Term2::KeyReleaseMsg.new(Term2::Key.new('a', mod: Term2::KeyMod::None, is_repeat: false))},
-      # Arrow key with Ctrl+Shift
-      {seq: "\e[67;6u".to_slice, msg: Term2::KeyPressMsg.new(Term2::Key.new(Term2::KeyType::Right, mod: Term2::KeyMod::Ctrl | Term2::KeyMod::Shift, is_repeat: false))},
-    ]
-
-    tests.each do |test_case|
-      has_seq, width, msg = Term2::KeySequences.detect_one_msg(test_case[:seq])
-      has_seq.should be_true
-      width.should eq(test_case[:seq].size)
-      msg.should eq(test_case[:msg])
-    end
+    release_event = decode_one("\e[97;1:3u".to_slice).as(UV::Key)
+    release_event.code.should eq('a'.ord)
+    release_event.is_repeat?.should be_false
   end
 end

@@ -13,16 +13,16 @@ describe Term2::Components::TextInput do
     input.focus
 
     %w[h i].each do |char|
-      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(char))
       input, _ = input.update(msg)
     end
 
     # Move left
-    msg_left = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Left))
+    msg_left = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("left"))
     input, _ = input.update(msg_left)
 
     # Backspace
-    msg_bs = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Backspace))
+    msg_bs = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("backspace"))
     input, _ = input.update(msg_bs)
 
     input.value.should eq("i")

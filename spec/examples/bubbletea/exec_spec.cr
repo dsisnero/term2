@@ -7,8 +7,8 @@ describe "Example: exec", tags: "interactive" do
     tm = Term2::Teatest::TestModel(ExecModel).new(ExecModel.new, Term2::Teatest.with_initial_term_size(40, 10))
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("a")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("a"))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     model = tm.final_model
     model.alt_screen_active?.should be_true

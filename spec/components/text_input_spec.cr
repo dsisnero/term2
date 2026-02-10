@@ -14,13 +14,13 @@ describe Term2::Components::TextInput do
     ti.focus
 
     # Insert 'a'
-    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))
     ti, _ = ti.update(msg)
     ti.value.should eq "a"
     ti.cursor_pos.should eq 1
 
     # Insert 'b'
-    msg = Term2::KeyMsg.new(Term2::Key.new("b"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("b"))
     ti, _ = ti.update(msg)
     ti.value.should eq "ab"
     ti.cursor_pos.should eq 2
@@ -33,22 +33,22 @@ describe Term2::Components::TextInput do
     ti.cursor_pos = 3
 
     # Left
-    msg = Term2::KeyMsg.new(Term2::Key.new("left"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("left"))
     ti, _ = ti.update(msg)
     ti.cursor_pos.should eq 2
 
     # Home
-    msg = Term2::KeyMsg.new(Term2::Key.new("home"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("home"))
     ti, _ = ti.update(msg)
     ti.cursor_pos.should eq 0
 
     # Right
-    msg = Term2::KeyMsg.new(Term2::Key.new("right"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("right"))
     ti, _ = ti.update(msg)
     ti.cursor_pos.should eq 1
 
     # End
-    msg = Term2::KeyMsg.new(Term2::Key.new("end"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("end"))
     ti, _ = ti.update(msg)
     ti.cursor_pos.should eq 3
   end
@@ -60,7 +60,7 @@ describe Term2::Components::TextInput do
     ti.cursor_pos = 3
 
     # Backspace
-    msg = Term2::KeyMsg.new(Term2::Key.new("backspace"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("backspace"))
     ti, _ = ti.update(msg)
     ti.value.should eq "ab"
     ti.cursor_pos.should eq 2
@@ -69,7 +69,7 @@ describe Term2::Components::TextInput do
     ti.cursor_pos = 1
 
     # Delete (forward)
-    msg = Term2::KeyMsg.new(Term2::Key.new("delete"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("delete"))
     ti, _ = ti.update(msg)
     ti.value.should eq "a"
     ti.cursor_pos.should eq 1
@@ -103,18 +103,18 @@ describe Term2::Components::TextInput do
     ti.focus
 
     # Insert 'a'
-    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))
     ti, _ = ti.update(msg)
     ti.value.should eq "a"
 
     # Insert space (Bubble Tea parity: space is a rune key)
-    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(' '))
     ti, _ = ti.update(msg)
     ti.value.should eq "a "
     ti.cursor_pos.should eq 2
 
     # Insert 'b'
-    msg = Term2::KeyMsg.new(Term2::Key.new("b"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("b"))
     ti, _ = ti.update(msg)
     ti.value.should eq "a b"
     ti.cursor_pos.should eq 3
@@ -126,17 +126,17 @@ describe Term2::Components::TextInput do
 
     # Insert "hello world" with a space
     "hello".each_char do |char|
-      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(char))
       ti, _ = ti.update(msg)
     end
 
     # Insert space
-    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(' '))
     ti, _ = ti.update(msg)
 
     # Insert "world"
     "world".each_char do |char|
-      msg = Term2::KeyMsg.new(Term2::Key.new(char))
+      msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(char))
       ti, _ = ti.update(msg)
     end
 
@@ -149,13 +149,13 @@ describe Term2::Components::TextInput do
     ti.focus
 
     # Insert space as first character
-    msg = Term2::KeyMsg.new(Term2::Key.new(' '))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(' '))
     ti, _ = ti.update(msg)
     ti.value.should eq " "
     ti.cursor_pos.should eq 1
 
     # Insert 'a' after space
-    msg = Term2::KeyMsg.new(Term2::Key.new("a"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("a"))
     ti, _ = ti.update(msg)
     ti.value.should eq " a"
     ti.cursor_pos.should eq 2

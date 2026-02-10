@@ -17,7 +17,7 @@ module DisabledTestModels
 
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when Term2::MouseEvent
+      when Term2::UVMouseEvent
         spawn { Term2::Zone.any_in_bounds(self, msg) }
       when Term2::ZoneInBoundsMsg
         @received << msg
@@ -230,7 +230,7 @@ describe "Term2::Zone disabled functionality" do
       sleep 50.milliseconds
 
       # Mouse event in zone
-      model.update(Term2::MouseEvent.new(x: 5, y: 0, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      model.update(Term2::TestHelpers.mouse_event(x: 5, y: 0, button: UV::MouseButton::Left, action: :press))
       sleep 50.milliseconds
 
       # Should receive zone message (normal behavior)
@@ -245,7 +245,7 @@ describe "Term2::Zone disabled functionality" do
       sleep 50.milliseconds
 
       # Mouse event in zone
-      model.update(Term2::MouseEvent.new(x: 5, y: 0, button: Term2::MouseEvent::Button::Left, action: Term2::MouseEvent::Action::Press))
+      model.update(Term2::TestHelpers.mouse_event(x: 5, y: 0, button: UV::MouseButton::Left, action: :press))
       sleep 50.milliseconds
 
       # Should NOT receive zone message when disabled

@@ -10,8 +10,8 @@ describe "Example: stopwatch", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("s")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("r")))
+    tm.send(Term2::TestHelpers.uv_key("s"))
+    tm.send(Term2::TestHelpers.uv_key("r"))
     tm.quit
 
     model = tm.final_model

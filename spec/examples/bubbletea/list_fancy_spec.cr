@@ -10,9 +10,9 @@ describe "Example: list-fancy", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(80, 20))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("a")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("T")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("a"))
+    tm.send(Term2::TestHelpers.uv_key("T"))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     model = tm.final_model(
       Term2::Teatest.with_final_timeout(1.second),

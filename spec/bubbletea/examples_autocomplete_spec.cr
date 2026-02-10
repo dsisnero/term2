@@ -10,8 +10,8 @@ describe "Bubbletea example: autocomplete" do
 
     # Type a prefix and cycle suggestions
     tm.type("bub")
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("ctrl+n")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("tab"))) # accept current suggestion
+    tm.send(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("ctrl+n")))
+    tm.send(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("tab"))) # accept current suggestion
 
     tm.quit
 

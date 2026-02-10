@@ -10,7 +10,7 @@ describe "Example: spinner", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("q"))
     model = tm.final_model
     model.quitting?.should be_true
   end

@@ -37,7 +37,7 @@ class TestDelegate
     end
   end
 
-  def update(msg : Term2::Message, model : Term2::Components::List) : Term2::Cmd
+  def update(msg : Term2::Msg, model : Term2::Components::List) : Term2::Cmd
     Term2::Cmds.none
   end
 end
@@ -71,7 +71,7 @@ describe Term2::Components::List do
   it "toggles filter state via keybinding" do
     list = Term2::Components::List.new(["foo"], 10, 10)
     list.filter_state.should eq Term2::Components::List::FilterState::Unfiltered
-    msg = Term2::KeyMsg.new(Term2::Key.new("/"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("/"))
     list, _ = list.update(msg)
     list.filter_state.should eq Term2::Components::List::FilterState::Filtering
   end
@@ -201,7 +201,7 @@ describe Term2::Components::List do
     list.filter_state = Term2::Components::List::FilterState::FilterApplied
     list.visible_items.size.should eq 1
 
-    esc = Term2::KeyMsg.new(Term2::Key.new("esc"))
+    esc = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("esc"))
     list, _ = list.update(esc)
     list.filter_state.should eq Term2::Components::List::FilterState::Unfiltered
     list.visible_items.size.should eq 2
@@ -214,7 +214,7 @@ describe Term2::Components::List do
     list.filter_state = Term2::Components::List::FilterState::Filtering
     list.filter_input.value = "ba"
 
-    enter = Term2::KeyMsg.new(Term2::Key.new("enter"))
+    enter = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("enter"))
     list, _ = list.update(enter)
     list.filter_state.should eq Term2::Components::List::FilterState::FilterApplied
     list.visible_items.size.should eq 1
@@ -222,7 +222,7 @@ describe Term2::Components::List do
 
   it "exits via quit binding" do
     list = Term2::Components::List.new(["foo"], 10, 10)
-    q = Term2::KeyMsg.new(Term2::Key.new("q"))
+    q = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("q"))
     _, cmd = list.update(q)
     cmd.should_not be_nil
     cmd.try(&.call).should be_a(Term2::QuitMsg)

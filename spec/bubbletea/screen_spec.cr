@@ -89,9 +89,10 @@ class TestViewModel
   end
 end
 
-# Helper to read golden files from bubbletea/testdata
+# Helper to read golden files from spec/testdata
 def read_golden(test_name : String, subtest : String) : String
-  golden_path = File.join("..", "..", "bubbletea", "testdata", test_name, "#{subtest}.golden")
+  golden_dir = Golden.spec_test_data_dir || File.join("..", "testdata")
+  golden_path = File.join(golden_dir, test_name, "#{subtest}.golden")
   File.read(golden_path)
 rescue ex
   raise "Failed to read golden file #{golden_path}: #{ex}"
@@ -205,7 +206,11 @@ describe "Bubbletea parity: screen_test.go" do
 
         program.run
 
-        Golden.require_equal("TestViewModel/#{tc[:name]}", io.to_s, File.join(__DIR__, "..", "..", "bubbletea", "testdata"))
+        if spec_testdata = Golden.spec_test_data_dir
+          Golden.require_equal("TestViewModel/#{tc[:name]}", io.to_s, test_data_dir: spec_testdata)
+        else
+          Golden.require_equal("TestViewModel/#{tc[:name]}", io.to_s)
+        end
       end
     end
   end
@@ -261,7 +266,11 @@ describe "Bubbletea parity: screen_test.go" do
 
         program.run
 
-        Golden.require_equal("TestClearMsg/#{tc[:name]}", io.to_s, File.join(__DIR__, "..", "..", "bubbletea", "testdata"))
+        if spec_testdata = Golden.spec_test_data_dir
+          Golden.require_equal("TestClearMsg/#{tc[:name]}", io.to_s, test_data_dir: spec_testdata)
+        else
+          Golden.require_equal("TestClearMsg/#{tc[:name]}", io.to_s)
+        end
       end
     end
   end

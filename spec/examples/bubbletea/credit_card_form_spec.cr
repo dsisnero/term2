@@ -9,17 +9,17 @@ describe "Example: credit-card-form", tags: "interactive" do
 
     # Fill CCN with valid grouping
     "4505 1234 5678 9012".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
     # Tab to EXP
-    model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    model, _ = model.update(Term2::TestHelpers.uv_key("tab"))
     "12/34".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
     # Tab to CVV
-    model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    model, _ = model.update(Term2::TestHelpers.uv_key("tab"))
     "123".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
 
     model.inputs[Field::CCN.value].value.should eq("4505 1234 5678 9012")
@@ -33,23 +33,23 @@ describe "Example: credit-card-form", tags: "interactive" do
 
     # Invalid CCN (too long)
     "4505 1234 5678 9012 9999".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
     model.inputs[Field::CCN.value].value.should_not eq("4505 1234 5678 9012 9999")
     model.inputs[Field::CCN.value].err.should_not be_nil
 
     # Move to EXP and try invalid slash placement
-    model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    model, _ = model.update(Term2::TestHelpers.uv_key("tab"))
     "1/234".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
     model.inputs[Field::EXP.value].value.should eq("1/234")
     model.inputs[Field::EXP.value].err.should_not be_nil
 
     # Move to CVV and try letters
-    model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    model, _ = model.update(Term2::TestHelpers.uv_key("tab"))
     "12a".each_char do |ch|
-      model, _ = model.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      model, _ = model.update(Term2::TestHelpers.uv_key(ch))
     end
     model.inputs[Field::CVV.value].value.should eq("12a")
     model.inputs[Field::CVV.value].err.should_not be_nil
@@ -61,10 +61,10 @@ describe "Example: credit-card-form", tags: "interactive" do
 
     # Too-long CCN should be clipped/ignored by validator
     tm.type("4505 1234 5678 9012 9999")
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
     # Invalid EXP slash placement
     tm.type("1/234")
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Tab)))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
     # Non-numeric CVV
     tm.type("12a")
     tm.quit

@@ -10,7 +10,7 @@ describe "Example: textinput", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Enter)))
+    tm.send(Term2::TestHelpers.uv_key("enter"))
     tm.final_output
   end
 end

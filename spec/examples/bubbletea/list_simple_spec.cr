@@ -10,7 +10,7 @@ describe "Example: list-simple", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 15))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
+    tm.send(Term2::TestHelpers.uv_key("enter"))
 
     model = tm.final_model
     model.choice.should eq("Ramen")

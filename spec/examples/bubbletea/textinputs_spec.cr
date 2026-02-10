@@ -10,10 +10,10 @@ describe "Example: textinputs", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(50, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("tab")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("tab")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("enter")))
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
+    tm.send(Term2::TestHelpers.uv_key("tab"))
+    tm.send(Term2::TestHelpers.uv_key("enter"))
+    tm.send(Term2::TestHelpers.uv_key("q"))
 
     output = tm.final_output
     output.should contain("Submit")

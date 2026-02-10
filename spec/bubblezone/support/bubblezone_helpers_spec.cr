@@ -15,7 +15,26 @@ module BubbleZoneHelpers
   end
 
   def self.create_mouse_event(x = 0, y = 0, button = :left, action = :press)
-    Term2::MouseEvent.new(x: x, y: y, button: button, action: action)
+    uv_button = case button
+                when Symbol
+                  case button
+                  when :left      then UV::MouseButton::Left
+                  when :right     then UV::MouseButton::Right
+                  when :middle    then UV::MouseButton::Middle
+                  when :wheel_up  then UV::MouseButton::WheelUp
+                  when :wheel_down then UV::MouseButton::WheelDown
+                  when :wheel_left then UV::MouseButton::WheelLeft
+                  when :wheel_right then UV::MouseButton::WheelRight
+                  else
+                    UV::MouseButton::None
+                  end
+                when UV::MouseButton
+                  button
+                else
+                  UV::MouseButton::None
+                end
+
+    Term2::TestHelpers.mouse_event(x: x, y: y, button: uv_button, action: action)
   end
 
   # Helper to wait for async zone processing

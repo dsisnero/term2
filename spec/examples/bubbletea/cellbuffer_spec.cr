@@ -13,7 +13,7 @@ describe "Example: cellbuffer", tags: "interactive" do
     # Force a frame render without waiting for tick
     tm.send(CellbufferFrameMsg.new)
 
-    Term2::Teatest.wait_for(tm.output_reader, duration: 1.second) do |txt|
+    Term2::Teatest.wait_for(tm.output_reader, Term2::Teatest.with_duration(1.second)) do |txt|
       txt.includes?(ASTERISK)
     end
 

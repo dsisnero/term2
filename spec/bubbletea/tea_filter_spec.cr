@@ -30,7 +30,7 @@ describe "Bubbletea parity: filter" do
       shutdowns = Atomic(Int32).new(0)
 
       # Updated Filter Signature: (Model, Message) -> Message?
-      filter = ->(_m : Term2::Model, msg : Term2::Message) {
+      filter = ->(_m : Term2::Model, msg : Term2::Msg) {
         if msg.is_a?(Term2::QuitMsg)
           if shutdowns.get < prevent_count
             shutdowns.add(1)
@@ -39,7 +39,7 @@ describe "Bubbletea parity: filter" do
           end
         end
         # Return the message as a nullable type
-        msg.as(Term2::Message?)
+        msg.as(Term2::Msg?)
       }
 
       # No casting needed if the lambda signature matches

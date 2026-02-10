@@ -45,19 +45,19 @@ describe Term2::Components::FilePicker do
 
     # Move to subdir
     subdir_idx.times do
-      msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+      msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
       fp, _ = fp.update(msg)
     end
 
     # Open directory (enter or 'l' or 'right')
-    msg = Term2::KeyMsg.new(Term2::Key.new("enter"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("enter"))
     fp, _ = fp.update(msg)
 
     fp.current_directory.should end_with "subdir"
     fp.files.should contain "subfile.txt"
 
     # Back (h, backspace, left, esc)
-    msg = Term2::KeyMsg.new(Term2::Key.new("h"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("h"))
     fp, _ = fp.update(msg)
 
     fp.current_directory.should end_with "filepicker_spec"
@@ -72,12 +72,12 @@ describe Term2::Components::FilePicker do
 
     # Move to file
     idx.times do
-      msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+      msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
       fp, _ = fp.update(msg)
     end
 
     # Select with enter (select key binding)
-    msg = Term2::KeyMsg.new(Term2::Key.new("enter"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("enter"))
     fp, _ = fp.update(msg)
 
     # Path should be set
@@ -92,33 +92,33 @@ describe Term2::Components::FilePicker do
 
     # Test go to top (g)
     fp.selected = 3
-    msg = Term2::KeyMsg.new(Term2::Key.new("g"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("g"))
     fp, _ = fp.update(msg)
     fp.selected.should eq 0
 
     # Test go to last (G)
-    msg = Term2::KeyMsg.new(Term2::Key.new("G"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("G"))
     fp, _ = fp.update(msg)
     fp.selected.should eq(file_count - 1)
 
     # Test page down (J, pgdown, space) - should move by height, clamped to file count
     fp.selected = 0
-    msg = Term2::KeyMsg.new(Term2::Key.new("J"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("J"))
     fp, _ = fp.update(msg)
     expected = Math.min(fp.height, file_count - 1)
     fp.selected.should eq(expected)
 
     # Test page up (K, pgup) - should move up by height, clamped to 0
-    msg = Term2::KeyMsg.new(Term2::Key.new("K"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("K"))
     fp, _ = fp.update(msg)
     fp.selected.should eq(0)
 
     # Test down (j) and up (k)
-    msg = Term2::KeyMsg.new(Term2::Key.new("j"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("j"))
     fp, _ = fp.update(msg)
     fp.selected.should eq(1)
 
-    msg = Term2::KeyMsg.new(Term2::Key.new("k"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("k"))
     fp, _ = fp.update(msg)
     fp.selected.should eq(0)
   end

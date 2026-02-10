@@ -23,17 +23,17 @@ describe Term2::Components::Viewport do
     vp.content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
 
     # Scroll down one line
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 1
 
     # Scroll down two lines
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 2
 
     # Try to scroll down past the end
-    msg = Term2::KeyMsg.new(Term2::Key.new("down"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 2 # Clamped
   end
@@ -47,17 +47,17 @@ describe Term2::Components::Viewport do
     vp.y_offset.should eq 2
 
     # Scroll up one line
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 1
 
     # Scroll up two lines
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 0
 
     # Try to scroll up past the top
-    msg = Term2::KeyMsg.new(Term2::Key.new("up"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 0 # Clamped
   end
@@ -67,22 +67,22 @@ describe Term2::Components::Viewport do
     vp.content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
 
     # Page down (Space is also bound to page down)
-    msg = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("space"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 2
 
     # Page down again (clamped)
-    msg = Term2::KeyMsg.new(Term2::Key.new("pgdn"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("pgdn"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 2
 
     # Page up
-    msg = Term2::KeyMsg.new(Term2::Key.new("pgup"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("pgup"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 0
 
     # Page up again (clamped)
-    msg = Term2::KeyMsg.new(Term2::Key.new("pgup"))
+    msg = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("pgup"))
     vp, _ = vp.update(msg)
     vp.y_offset.should eq 0
   end

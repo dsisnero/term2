@@ -10,7 +10,7 @@ describe "Example: mouse", tags: "interactive" do
     )
     tm.send(Term2::WindowSizeMsg.new(40, 10))
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new("q")))
+    tm.send(Term2::TestHelpers.uv_key("q"))
     tm.final_output
   end
 end
