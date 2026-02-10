@@ -1,8 +1,6 @@
 require "../spec_helper"
 require "../../src/components/text_area"
 
-# TODO: Port full coverage from bubbles/textarea/textarea_test.go (very large suite).
-# Each pending block mirrors a Go test we still need to implement.
 describe Term2::Components::TextArea do
   it "vertical scrolling wraps and scrolls (TestVerticalScrolling)" do
     textarea = Term2::Components::TextArea.new
@@ -15,7 +13,7 @@ describe Term2::Components::TextArea do
 
     input = "This is a really long line that should wrap around the text area."
     input.each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
     end
 
     view = textarea.view.content
@@ -34,7 +32,7 @@ describe Term2::Components::TextArea do
 
     input = "Testing Testing Testing Testing Testing Testing Testing Testing"
     input.each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
       textarea.view.content
     end
 
@@ -42,7 +40,7 @@ describe Term2::Components::TextArea do
     textarea.cursor_col = 0
 
     "Testing".each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
       textarea.view.content
     end
 
@@ -59,7 +57,7 @@ describe Term2::Components::TextArea do
 
     input = "Testing Testing Testing Testing Testing Testing Testing Testing"
     input.each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
       textarea.view.content
     end
 
@@ -78,7 +76,7 @@ describe Term2::Components::TextArea do
     textarea.focus
     input = "foo baz"
     input.each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
     end
     textarea.cursor_col = 4
     textarea.insert_string("bar ")
@@ -89,12 +87,13 @@ describe Term2::Components::TextArea do
     textarea.focus
     input = "🧋"
     input.each_char do |ch|
-      textarea, _ = textarea.update(Term2::KeyMsg.new(Term2::Key.new(ch)))
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
     end
     textarea.value.should eq input
     textarea.value = "🧋🧋🧋"
     textarea.value.should eq "🧋🧋🧋"
     textarea.cursor_col.should eq 3
+    textarea.line_info.char_offset.should eq 6
   end
   it "vertical navigation keeps visual column (TestVerticalNavigationKeepsCursorHorizontalPosition)" do
     textarea = Term2::Components::TextArea.new
@@ -108,7 +107,7 @@ describe Term2::Components::TextArea do
     info.char_offset.should eq 4
     info.column_offset.should eq 2
 
-    down = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Down))
+    down = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     textarea, _ = textarea.update(down)
     info = textarea.line_info
     info.char_offset.should eq 4
@@ -123,7 +122,7 @@ describe Term2::Components::TextArea do
     textarea.cursor_col.should eq 20
     textarea.cursor_line.should eq 2
 
-    up = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Up))
+    up = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("up"))
     textarea, _ = textarea.update(up)
     textarea.cursor_col.should eq 5
     textarea.cursor_line.should eq 1
@@ -132,14 +131,14 @@ describe Term2::Components::TextArea do
     textarea.cursor_col.should eq 5
     textarea.cursor_line.should eq 0
 
-    down = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Down))
+    down = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("down"))
     textarea, _ = textarea.update(down)
     textarea, _ = textarea.update(down)
     textarea.cursor_col.should eq 20
     textarea.cursor_line.should eq 2
 
     textarea, _ = textarea.update(up)
-    left = Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Left))
+    left = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("left"))
     textarea, _ = textarea.update(left)
     textarea.cursor_col.should eq 4
     textarea.cursor_line.should eq 1
@@ -166,7 +165,7 @@ describe Term2::Components::TextArea do
     # Page up should snap to first visible line (line 0) since cursor is at line 4
     # Actually cursor_line_number = 4, viewport.y_offset = 0, offset = -4 < 0
     # So should snap to first visible line (line 0)
-    page_up = Term2::KeyMsg.new(Term2::Key.new("pgup"))
+    page_up = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("pgup"))
     textarea, _ = textarea.update(page_up)
     textarea.cursor_line.should eq 0
 
@@ -176,9 +175,39 @@ describe Term2::Components::TextArea do
 
     # Page down should snap to last visible line (line 2) since cursor is at line 2
     # and viewport shows lines 0-2 (last visible is line 2)
-    page_down = Term2::KeyMsg.new(Term2::Key.new("pgdown"))
+    page_down = Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key("pgdown"))
     textarea, _ = textarea.update(page_down)
     # Should move to line 5 (2 + 3 height)
     textarea.cursor_line.should eq 5
+  end
+
+  it "returns the word at the cursor and updates after navigation and deletes (TestWord)" do
+    textarea = Term2::Components::TextArea.new
+    textarea.height = 3
+    textarea.width = 20
+    textarea.char_limit = 500
+    textarea.focus
+
+    input = "Word1 Word2 Word3 Word4"
+    input.each_char do |ch|
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key(ch)))
+      textarea.view.content
+    end
+
+    textarea.word.should eq "Word4"
+
+    ["alt+left", "alt+left", "right"].each do |key|
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(key))
+      textarea.view.content
+    end
+
+    textarea.word.should eq "Word3"
+
+    ["end", "alt+backspace", "alt+backspace", "backspace"].each do |key|
+      textarea, _ = textarea.update(Term2::TestHelpers.key_msg(key))
+      textarea.view.content
+    end
+
+    textarea.word.should eq "Word2"
   end
 end

@@ -6,6 +6,7 @@ require "uniwidth"
 require "./memoization"
 require "./rune_util"
 require "easyclip"
+require "cellwrap"
 
 module Term2
   module Components
@@ -246,6 +247,31 @@ module Term2
         @value.map(&.join).join("\n")
       end
 
+      # Word returns the word at the cursor position.
+      # A word is delimited by spaces or line-breaks.
+      def word : String
+        return "" if @cursor_line < 0 || @cursor_line >= @value.size
+
+        line = @value[@cursor_line]
+        col = @cursor_col - 1
+        return "" if col < 0
+        return "" if col >= line.size
+
+        return "" if line[col].whitespace?
+
+        start = col
+        while start > 0 && !line[start - 1].whitespace?
+          start -= 1
+        end
+
+        finish = col
+        while finish < line.size && !line[finish].whitespace?
+          finish += 1
+        end
+
+        line[start...finish].join
+      end
+
       property cursor_line : Int32 = 0
       property cursor_col : Int32 = 0
 
@@ -268,12 +294,12 @@ module Term2
       end
 
       property? show_line_numbers : Bool = true
-      property prompt : String = "┃ "
+      getter prompt : String = "┃ "
       property placeholder : String = ""
 
       # End-of-buffer marker, rendered on otherwise blank lines.
       # Allows ANSI styling like the Go textarea's `Lipgloss::Style.EndOfBuffer`.
-      property end_of_buffer_char : String = "~"
+      property end_of_buffer_char : String = " "
 
       property char_limit : Int32 = 0
       getter max_height : Int32 = 99
@@ -305,12 +331,14 @@ module Term2
       @preferred_x : Int32 = 0
       @last_char_offset : Int32 = 0
       @last_move_vertical : Bool = false
+      @prompt_width : Int32 = 0
 
       def initialize(@id : String = "")
         @viewport = Viewport.new(40, 6)
         @cursor = Cursor.new
         @cursor.mode = Cursor::Mode::Blink
         @key_map = TextArea.default_key_map
+        @prompt_width = Lipgloss::Text.width(@prompt)
         update_cursor_style
       end
 
@@ -348,7 +376,24 @@ module Term2
       # Alias for Go-style setters
       # ameba:disable Naming/AccessorMethodName
       def set_width(w : Int32)
-        self.width = w
+        @prompt_width = Lipgloss::Text.width(@prompt)
+
+        reserved_outer = active_style.base.get_horizontal_frame_size
+        reserved_inner = @prompt_width
+
+        if @show_line_numbers
+          reserved_inner += num_digits(@max_height) + 2
+        end
+
+        min_width = reserved_inner + reserved_outer + 1
+        input_width = [w, min_width].max
+
+        if @max_width > 0
+          input_width = [input_width, @max_width].min
+        end
+
+        @viewport.width = input_width - reserved_outer
+        @width = input_width - reserved_outer - reserved_inner
       end
 
       # ameba:disable Naming/AccessorMethodName
@@ -374,13 +419,18 @@ module Term2
         @focus
       end
 
+      def prompt=(value : String)
+        @prompt = value
+        @prompt_width = Lipgloss::Text.width(@prompt)
+      end
+
       # Update logic
       def update(msg : Msg) : {TextArea, Cmd}
         new_cursor, cmd = @cursor.update(msg)
         @cursor = new_cursor
 
         case msg
-        when KeyMsg
+        when UV::Key
           if focused?
             handle_key(msg)
             update_viewport
@@ -391,7 +441,7 @@ module Term2
         {self, cmd}
       end
 
-      def handle_key(msg : KeyMsg)
+      def handle_key(msg : UV::Key)
         lines = @value.map(&.join)
 
         # Ensure we always have at least one line
@@ -538,11 +588,11 @@ module Term2
           @last_move_vertical = false
         else
           # Check for regular typing
-          if msg.key.type == KeyType::Runes && !msg.key.alt? && !msg.key.type.control?
+          if !msg.text.empty? && !UV.mod_contains?(msg.mod, UV::ModAlt) && !UV.mod_contains?(msg.mod, UV::ModCtrl)
             if @char_limit > 0 && value.size >= @char_limit
               return
             end
-            insert_char(lines, msg.key.to_s)
+            insert_char(lines, msg.text)
             @last_char_offset = 0
             @last_move_vertical = false
           end
@@ -851,7 +901,7 @@ module Term2
         line ||= ""
 
         # Available width for text (after prompt and line numbers)
-        available = [@width - visible_prefix_width, 1].max
+        available = [@width, 1].max
 
         # Get wrapped segments for this line
         grid = memoized_wrap(line.chars.to_a, available)
@@ -978,7 +1028,7 @@ module Term2
         lines = [""] if lines.empty?
 
         total = 0
-        available = [@width - visible_prefix_width, 1].max
+        available = [@width, 1].max
 
         # For rows before current cursor line
         @cursor_line.times do |i|
@@ -1025,77 +1075,23 @@ module Term2
         lines = @value.map(&.join)
         lines = [""] if lines.empty?
 
-        styles = active_style
         rendered_lines = [] of String
 
         lines.each_with_index do |line, i|
-          # Determine line style: cursor line or normal text
-          line_style = i == @cursor_line ? styles.computed_cursor_line : styles.computed_text
-
-          # Compute prefix strings (without styling)
-          line_number_str = if @show_line_numbers
-                              sprintf("%3d ", i + 1)
-                            else
-                              ""
-                            end
-          prompt_str = @prompt
-
-          # Available width for text after prefix
-          prefix_width = Lipgloss::Text.width(line_number_str + prompt_str)
-          available = [@width - prefix_width, 1].max
-
-          # Wrap line (or placeholder)
-          wrapped =
-            if @value.empty? && i == 0 && !@placeholder.empty? && line.empty?
-              # Placeholder
-              [Lipgloss::Text.truncate(@placeholder, available)]
-            else
-              memoized_wrap(line.chars.to_a, available).map(&.join)
-            end
+          wrapped = memoized_wrap(line.chars.to_a, @width).map(&.join)
 
           wrapped.each_with_index do |wrapped_line, wl_idx|
-            # Build line parts with appropriate styles
-            # Line number style depends on whether this is cursor line
-            line_number_style = if i == @cursor_line
-                                  styles.computed_cursor_line_number
-                                else
-                                  styles.computed_line_number
-                                end
-
-            # Render line number (if shown)
-            line_number_rendered = if @show_line_numbers
-                                     # For soft-wrapped lines after the first, use empty line number
-                                     if wl_idx == 0
-                                       line_number_style.render(line_number_str)
-                                     else
-                                       line_number_style.render("    ") # same width as "123 "
-                                     end
-                                   else
-                                     ""
-                                   end
-
-            # Render prompt with its own style, then apply line style
-            prompt_rendered = styles.computed_prompt.render(prompt_str)
-
-            # Render wrapped line text
-            text_rendered = line_style.render(wrapped_line)
-
-            # Combine: apply line style to prompt and line number? Go applies line style after rendering prompt with its style.
-            # We'll follow Go: prompt is rendered with computed_prompt, then line_style applied on top.
-            # Actually Go does: prompt = styles.computedPrompt().Render(prompt); s.WriteString(style.Render(prompt))
-            # That means they nest styles. We'll do the same.
-            prompt_styled = line_style.render(prompt_rendered)
-            line_number_styled = line_style.render(line_number_rendered)
-
-            # Build the line
-            rendered = line_number_styled + prompt_styled + text_rendered
-
-            # Cursor at end of logical line: append cursor to the end of the last wrapped line.
-            if i == @cursor_line && focused? && @cursor_col >= line.size && wl_idx == wrapped.size - 1
-              @cursor.char = " "
-              rendered += @cursor.view.content
+            prompt = prompt_view(rendered_lines.size)
+            line_number = ""
+            if @show_line_numbers
+              number = wl_idx == 0 ? i + 1 : 0
+              line_number = line_number_view(number, i == @cursor_line)
             end
 
+            padding = @width - Lipgloss::Text.width(wrapped_line)
+            padding = 0 if padding < 0
+
+            rendered = prompt + line_number + wrapped_line + (" " * padding)
             rendered_lines << rendered
           end
         end
@@ -1103,17 +1099,9 @@ module Term2
         # Add End of Buffer markers for empty space
         visible_lines = rendered_lines.size
         if visible_lines < @height
-          styles = active_style
           (visible_lines...@height).each do
-            # End of buffer line: prompt + end-of-buffer char + padding
-            prompt_str = @prompt
-            prompt_rendered = styles.computed_prompt.render(prompt_str)
-            prompt_styled = styles.computed_end_of_buffer.render(prompt_rendered)
-            left_gutter = @end_of_buffer_char
-            right_gap_width = @width - Lipgloss::Text.width(left_gutter)
-            right_gap = " " * [right_gap_width, 0].max
-            end_of_buffer_rendered = styles.computed_end_of_buffer.render(left_gutter + right_gap)
-            rendered_lines << prompt_styled + end_of_buffer_rendered
+            prompt = prompt_view(rendered_lines.size)
+            rendered_lines << prompt + @end_of_buffer_char
           end
         end
 
@@ -1214,11 +1202,14 @@ module Term2
       end
 
       def view : View
-        # Force an update if value changed externally?
-        # Usually update_viewport happens in update loop, but for simple tests:
-        update_viewport if @viewport.content.empty? && !@value.empty?
+        if @value.all?(&.empty?) && !@placeholder.empty?
+          @viewport.content = placeholder_lines.join("\n")
+        else
+          update_viewport
+        end
 
-        @viewport.view
+        content = active_style.base.render(@viewport.view.content)
+        View.new(content: content)
       end
 
       private def string_to_lines(s : String) : Array(Array(Char))
@@ -1247,10 +1238,68 @@ module Term2
       end
 
       private def visible_prefix_width : Int32
-        prefix = ""
-        prefix = sprintf("%3d ", @cursor_line + 1) if @show_line_numbers
-        prefix += @prompt
-        Lipgloss::Text.width(prefix)
+        line_number_width = @show_line_numbers ? num_digits(@max_height) + 2 : 0
+        line_number_width + @prompt_width
+      end
+
+      private def num_digits(value : Int32) : Int32
+        v = value.abs
+        return 1 if v == 0
+        v.to_s.size
+      end
+
+      private def prompt_view(display_line : Int32) : String
+        prompt = @prompt
+        width = Lipgloss::Text.width(prompt)
+        if @prompt_width > width
+          prompt = (" " * (@prompt_width - width)) + prompt
+        end
+        prompt
+      end
+
+      private def line_number_view(n : Int32, is_cursor_line : Bool) : String
+        return "" unless @show_line_numbers
+
+        str = n <= 0 ? " " : n.to_s
+        digits = num_digits(@max_height)
+        sprintf(" %*s ", digits, str)
+      end
+
+      private def placeholder_lines : Array(String)
+        wrapped = Cellwrap.wrap(@placeholder, @width)
+        plines = wrapped.strip.split("\n")
+
+        rendered = [] of String
+        @height.times do |i|
+          prompt = prompt_view(i)
+          line_number = ""
+
+          if @show_line_numbers
+            ln = 0
+            if i == 0
+              ln = 1
+            end
+            if plines.size > i
+              line_number = line_number_view(ln, plines.size > i)
+            end
+          end
+
+          if i == 0
+            line_text = plines[0]? || ""
+            gap = @width - Lipgloss::Text.width(line_text)
+            gap = 0 if gap < 0
+            rendered << prompt + line_number + line_text + (" " * gap)
+          elsif plines.size > i
+            line_text = plines[i]
+            gap = @width - Lipgloss::Text.width(line_text)
+            gap = 0 if gap < 0
+            rendered << prompt + line_number + line_text + (" " * gap)
+          else
+            rendered << prompt + @end_of_buffer_char
+          end
+        end
+
+        rendered
       end
     end
   end

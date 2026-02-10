@@ -60,4 +60,12 @@ describe Term2::Components::Tree do
     tree = Term2::Components::Tree.new("Root").hide(true)
     tree.render.should be_empty
   end
+
+  it "returns a view wrapper" do
+    tree = Term2::Components::Tree.new("Root")
+      .child("Child")
+
+    view = tree.view
+    view.content.should eq(tree.render)
+  end
 end

@@ -5,9 +5,7 @@ require "./zone"
 require "./terminal"
 require "./program_context"
 require "./program_options"
-require "./key_sequences"
 require "./mouse"
-require "./osc"
 require "./renderer"
 require "./cursed_renderer"
 require "./environ"
@@ -33,250 +31,6 @@ module Term2
 
     # Get the first character (Crystal handles UTF-8 correctly)
     str[0].to_s
-  end
-
-  # KeyReader handles reading and parsing key sequences from input
-  class KeyReader
-    @buffer : String = ""
-    @mouse_reader : MouseReader = MouseReader.new
-    @osc_reader : OSCReader = OSCReader.new
-    @in_paste : Bool = false
-    @paste_buffer : String = ""
-    @last_mouse_event : MouseEvent? = nil
-    @last_osc_event : Message? = nil
-    @last_key_msg : Message? = nil
-
-    getter last_mouse_event : MouseEvent?
-    getter last_osc_event : Message?
-    getter last_key_msg : Message?
-
-    # Bracketed paste escape sequences
-    PASTE_START = "\e[200~"
-    PASTE_END   = "\e[201~"
-
-    def read_key(io : IO) : Key?
-      char = nil
-      timeout = false
-      eof = false
-
-      begin
-        # Try to read a character
-        if @buffer.empty?
-          char = io.read_char
-          raise IO::EOFError.new unless char
-        else
-          # Buffer has data, try to read more with timeout
-          if io.responds_to?(:read_timeout=)
-            old_timeout = io.read_timeout
-            begin
-              io.read_timeout = 0.05.seconds
-              char = io.read_char
-              raise IO::EOFError.new unless char
-            rescue IO::TimeoutError
-              timeout = true
-            ensure
-              io.read_timeout = old_timeout
-            end
-          else
-            # For non-FileDescriptor IOs
-            begin
-              char = io.read_char
-              raise IO::EOFError.new unless char
-            rescue IO::EOFError
-              # Treat end-of-stream as EOF, not a timeout. We'll resolve the
-              # current buffer so callers don't spin forever.
-              eof = true
-              timeout = true
-            end
-          end
-        end
-      rescue IO::EOFError
-        if !@buffer.empty?
-          return resolve_current_buffer
-        else
-          raise IO::EOFError.new
-        end
-      end
-
-      if timeout
-        # Mouse escape sequences can arrive in multiple chunks. If we time out
-        # mid-sequence, keep buffering instead of interpreting it as Esc.
-        #
-        # This also applies to CSI-prefixed key sequences (e.g. arrows) which
-        # can arrive chunked under read timeouts.
-        if !eof && @buffer != "\e" && (mouse_sequence_prefix?(@buffer) || KeySequences.prefix?(@buffer))
-          return
-        end
-        return resolve_current_buffer
-      end
-
-      # If we're in paste mode, collect until we hit the end sequence
-      if @in_paste
-        @paste_buffer += char.to_s
-        if @paste_buffer.ends_with?(PASTE_END)
-          pasted_content = @paste_buffer[0...-PASTE_END.size]
-          @in_paste = false
-          @paste_buffer = ""
-          @buffer = ""
-          return Key.new(pasted_content.chars, alt: false, paste: true)
-        end
-        return
-      end
-
-      # Add to buffer
-      @buffer += char.to_s
-
-      if @buffer.ends_with?(PASTE_START)
-        @in_paste = true
-        @paste_buffer = ""
-        @buffer = ""
-        return
-      end
-
-      if PASTE_START.starts_with?(@buffer) && @buffer.size < PASTE_START.size
-        return # Need more characters
-      end
-
-      # Check for mouse events first
-      if @buffer.starts_with?("\e[")
-        mouse_event = @mouse_reader.check_mouse_event(@buffer)
-        if mouse_event
-          @buffer = ""
-          @last_mouse_event = mouse_event
-          return Key.new(KeyType::Null)
-        end
-
-        # If this looks like the start of a mouse sequence (SGR/X10), keep
-        # buffering until we can parse the full sequence. These aren't part of
-        # KeySequences and would otherwise be misinterpreted as an Esc key.
-        return if mouse_sequence_prefix?(@buffer)
-      end
-
-      @last_mouse_event = nil
-      @last_osc_event = nil
-
-      # Check for OSC events
-      if @buffer.starts_with?("\e]") || (@buffer.bytesize > 0 && @buffer.to_slice[0] == 0x9D_u8)
-        osc_event, consumed = @osc_reader.check_osc_event(@buffer)
-        if osc_event && consumed > 0
-          @buffer = @buffer[consumed..] || ""
-          @last_osc_event = osc_event
-          return Key.new(KeyType::Null)
-        elsif consumed == 0
-          # Partial OSC sequence, wait for more data
-          return
-        else
-          # Unknown OSC command, consume and ignore
-          @buffer = @buffer[consumed..] || ""
-          return
-        end
-      end
-
-      # Try to detect a complete message using the enhanced parser
-      if !@buffer.empty?
-        buffer_bytes = @buffer.to_slice
-        has_msg, width, msg = KeySequences.detect_one_msg(buffer_bytes)
-        if has_msg && width > 0
-          # Consume the parsed bytes from buffer
-          @buffer = @buffer[width..] || ""
-
-          case msg
-          when KeyPressMsg, KeyReleaseMsg
-            # Store enhanced key messages for dispatch
-            @last_key_msg = msg
-            return Key.new(KeyType::Null)
-          when KeyMsg
-            # For KeyMsg (non-enhanced), return the key directly
-            @last_key_msg = nil
-            return msg.key
-          else
-            # For other message types, store and return sentinel
-            @last_key_msg = msg
-            return Key.new(KeyType::Null)
-          end
-        elsif has_msg
-          # Should not happen, but handle gracefully
-          @buffer = ""
-          return Key.new(KeyType::Null)
-        end
-        # If has_msg is false, continue with normal parsing
-      end
-
-      # Check for escape sequences
-      if @buffer.starts_with?("\e")
-        # If we only have a bare escape so far, wait briefly for the rest of the
-        # sequence (CSI, mouse, etc.). We'll resolve it to Esc on timeout if no
-        # additional bytes arrive.
-        return if @buffer == "\e"
-
-        exact_match = KeySequences.find(@buffer)
-        is_prefix = KeySequences.prefix?(@buffer)
-
-        if exact_match && !is_prefix
-          @buffer = ""
-          return exact_match
-        elsif is_prefix
-          return
-        end
-
-        resolve_current_buffer
-      else
-        key = parse_single_char(@buffer)
-        @buffer = ""
-        key
-      end
-    rescue InvalidByteSequenceError
-      Key.new('\uFFFD')
-    end
-
-    private def mouse_sequence_prefix?(buffer : String) : Bool
-      # SGR mouse: "\e[<...". X10 mouse: "\e[M" followed by 3 bytes.
-      buffer.starts_with?("\e[<") || buffer.starts_with?("\e[M")
-    end
-
-    private def resolve_current_buffer : Key
-      if key = KeySequences.find(@buffer)
-        @buffer = ""
-        return key
-      end
-
-      if @buffer.size > 1 && @buffer[1] != '['
-        key_char = @buffer[1]
-        @buffer = ""
-        return Key.new(key_char, alt: true)
-      end
-
-      @buffer = ""
-      Key.new(KeyType::Esc)
-    end
-
-    private def parse_single_char(str : String) : Key?
-      return if str.empty?
-
-      char = str[0]
-      case char.ord
-      when 0
-        Key.new(KeyType::Null)
-      when 1..26
-        Key.new(KeyType.new(char.ord))
-      when 27
-        Key.new(KeyType::Esc)
-      when 127
-        Key.new(KeyType::Backspace)
-      when 9
-        Key.new(KeyType::Tab)
-      when 13
-        Key.new(KeyType::Enter)
-      when 32
-        Key.new(' ')
-      else
-        if char.control?
-          Key.new(KeyType.new(char.ord))
-        else
-          Key.new(char)
-        end
-      end
-    end
   end
 
   # Dispatcher bridges commands to the program's message mailbox.
@@ -414,16 +168,16 @@ module Term2
       cleanup
     end
 
-    def dispatch(msg : Message) : Nil
+    def dispatch(msg : Msg) : Nil
       @dispatcher.dispatch(msg.as(Msg))
     end
 
     # Directly process a message (synchronous). Useful for tests.
-    def process_message(msg : Message) : Nil
+    def process_message(msg : Msg) : Nil
       handle_message(msg)
     end
 
-    def send(msg : Message) : Nil
+    def send(msg : Msg) : Nil
       return if @shutdown_ch.closed?
       dispatch(msg)
     end
@@ -554,19 +308,19 @@ module Term2
       @renderer.color_profile = profile
     end
 
-    def filter=(filter : Proc(Message, Message?)) : Nil
+    def filter=(filter : Proc(Msg, Msg?)) : Nil
       @filter = filter
     end
 
-    def filter=(filter : Proc(Model, Message, Message?)) : Nil
+    def filter=(filter : Proc(Model, Msg, Msg?)) : Nil
       @filter = filter
     end
 
-    def filter=(filter : Proc(Message, Message)) : Nil
+    def filter=(filter : Proc(Msg, Msg)) : Nil
       @filter = filter
     end
 
-    def filter=(filter : Proc(Model, Message, Message)) : Nil
+    def filter=(filter : Proc(Model, Msg, Msg)) : Nil
       @filter = filter
     end
 
@@ -651,7 +405,7 @@ module Term2
       # Bubble Tea parity: send an initial window size message before the first render.
       if Terminal.tty?(@output_io)
         width, height = window_size
-        new_model, cmd = @model.update(WindowSizeMsg.new(width, height))
+        new_model, cmd = @model.update(UV::WindowSizeEvent.new(width, height))
         @model = new_model.as(M)
         run_cmd(cmd)
       end
@@ -716,53 +470,36 @@ module Term2
     end
 
     private def read_input(io : IO)
-      key_reader = KeyReader.new
+      stop : Channel(Nil)? = nil
+      reader = UV::TerminalReader.new(io, Environ.terminal_type)
+      eventc = Channel(UV::Event).new
+      stop = Channel(Nil).new
+
+      spawn do
+        reader.stream_events(eventc, stop)
+      end
+
       while running?
-        CML.trace "read_input.iteration", tag: "term2" if ENV["TERM2_TRACE"]?
-        begin
-          result = key_reader.read_key(io)
-          next unless result
+        event = eventc.receive
 
-          if mouse_event = key_reader.last_mouse_event
-            @log_file.try { |f| f.puts("in mouse #{mouse_event} x=#{mouse_event.x} y=#{mouse_event.y} button=#{mouse_event.button} action=#{mouse_event.action}") }
-            dispatch(mouse_event)
-            next
-          end
-
-          if osc_event = key_reader.last_osc_event
-            dispatch(osc_event)
-            next
-          end
-
-          if key_msg = key_reader.last_key_msg
-            dispatch(key_msg)
-            next
-          end
-
-          key = result
-          @log_file.try(&.puts("in key #{key.to_s} type=#{key.type}"))
-          if key.type == KeyType::FocusIn
-            dispatch(FocusMsg.new)
-          elsif key.type == KeyType::FocusOut
-            dispatch(BlurMsg.new)
-          elsif key.type == KeyType::Tab
-            if next_id = Zone.focus_next
-              dispatch(ZoneFocusMsg.new(next_id))
+        MsgAdapter.each(event) do |msg|
+          if msg.is_a?(UV::Key)
+            if msg.match_string("shift+tab")
+              if prev_id = Zone.focus_prev
+                dispatch(ZoneFocusMsg.new(prev_id))
+              end
+            elsif msg.match_string("tab")
+              if next_id = Zone.focus_next
+                dispatch(ZoneFocusMsg.new(next_id))
+              end
             end
-            dispatch(KeyMsg.new(key))
-          elsif key.type == KeyType::ShiftTab
-            if prev_id = Zone.focus_prev
-              dispatch(ZoneFocusMsg.new(prev_id))
-            end
-            dispatch(KeyMsg.new(key))
-          else
-            dispatch(KeyMsg.new(key))
-            dispatch(KeyPress.new(key.to_s))
           end
-        rescue IO::EOFError
-          break
+
+          dispatch(msg)
         end
       end
+    ensure
+      stop.try &.close rescue nil
     end
 
     private def running? : Bool
@@ -819,7 +556,7 @@ module Term2
       CML.choose(events)
     end
 
-    private def handle_message(msg : Message)
+    private def handle_message(msg : Msg)
       if ENV["TERM2_DEBUG"]?
         STDERR.puts "handle #{msg.class}"
       end
@@ -899,7 +636,7 @@ module Term2
         return
       when RequestWindowSizeMsg
         width, height = window_size
-        dispatch(WindowSizeMsg.new(width, height))
+        dispatch(UV::WindowSizeEvent.new(width, height))
         return
       when ReadClipboardMsg
         if @bootstrapping
@@ -973,21 +710,24 @@ module Term2
           Terminal.request_capability(@output_io, filtered_msg.capability)
         end
         return
-      when CapabilityMsg
+      when UV::CapabilityEvent
         if Environ.process_capability(filtered_msg.content)
           # Profile upgraded, send notification
           dispatch(ColorProfileMsg.new(Environ.color_profile))
         end
         # fall through to update
-      when BackgroundColorMsg
-        Environ.update_dark_mode_from_background(filtered_msg.color)
+      when UV::BackgroundColorEvent
+        uv_color = filtered_msg.color
+        Environ.update_dark_mode_from_background(
+          Lipgloss::Color.rgb(uv_color.r.to_i, uv_color.g.to_i, uv_color.b.to_i)
+        )
         # fall through to update
-      when ForegroundColorMsg, CursorColorMsg
+      when UV::ForegroundColorEvent, UV::CursorColorEvent
         # fall through to update (user may handle these)
       when PrintMsg
         @render_mailbox.send(filtered_msg)
         return
-      when FocusMsg, BlurMsg, WindowSizeMsg
+      when UV::FocusEvent, UV::BlurEvent, UV::WindowSizeEvent
       when EnableMouseCellMotionMsg
         enable_mouse_cell_motion
         return
@@ -1019,13 +759,13 @@ module Term2
         t0 = Time.instant if @profile
 
         # Bubble Tea parity: a single mouse report is one logical input event.
-        # We still surface both `MouseEvent` and derived `ZoneClickMsg` to the
+        # We still surface both the UV mouse event and derived ZoneClickMsg to the
         # model, but we apply both updates in one pass so we only render once.
-        if filtered_msg.is_a?(MouseEvent)
-          mouse_event = filtered_msg
+        if uv_mouse_event?(filtered_msg)
+          mouse_event = filtered_msg.as(UVMouseEvent)
           if last_view = @last_view
             if handler = last_view.on_mouse
-              relative_event = mouse_event.relative_to(last_view)
+              relative_event = relative_uv_mouse_event(mouse_event, last_view)
               run_cmd(handler.call(relative_event))
             end
           end
@@ -1045,7 +785,7 @@ module Term2
 
           # Also send ZoneClickMsg for backward compatibility
           if zone_click = Zone.handle_mouse(mouse_event)
-            if mouse_event.action == MouseEvent::Action::Press
+            if mouse_event.is_a?(UV::MouseClickEvent)
               Zone.focus(zone_click.id)
             end
             @log_file.try { |f| f.puts("in zone_click id=#{zone_click.id} x=#{zone_click.x} y=#{zone_click.y} button=#{zone_click.button} action=#{zone_click.action}") }
@@ -1094,6 +834,32 @@ module Term2
           raise ProgramPanic.new(ex.message, cause: ex)
         end
         raise ex
+      end
+    end
+
+    private def uv_mouse_event?(msg : Msg) : Bool
+      msg.is_a?(UV::MouseClickEvent) || msg.is_a?(UV::MouseReleaseEvent) ||
+        msg.is_a?(UV::MouseWheelEvent) || msg.is_a?(UV::MouseMotionEvent)
+    end
+
+    private def relative_uv_mouse_event(event : UVMouseEvent, view : View) : UVMouseEvent
+      mouse = event.mouse
+      rel = UV::Mouse.new(
+        x: mouse.x - view.offset_x,
+        y: mouse.y - view.offset_y,
+        button: mouse.button,
+        mod: mouse.mod
+      )
+
+      case event
+      when UV::MouseClickEvent
+        UV::MouseClickEvent.new(rel)
+      when UV::MouseReleaseEvent
+        UV::MouseReleaseEvent.new(rel)
+      when UV::MouseWheelEvent
+        UV::MouseWheelEvent.new(rel)
+      else
+        UV::MouseMotionEvent.new(rel)
       end
     end
 
@@ -1392,7 +1158,7 @@ module Term2
       Process.on_terminate { dispatch(QuitMsg.new) }
       Signal::WINCH.trap do
         width, height = window_size
-        dispatch(WindowSizeMsg.new(width, height))
+        dispatch(UV::WindowSizeEvent.new(width, height))
       end
     end
 
@@ -1409,8 +1175,8 @@ module Term2
       keys.includes?(key)
     end
 
-    def matches?(key : Key) : Bool
-      keys.includes?(key.to_s)
+    def matches?(key : UV::Key) : Bool
+      keys.includes?(key.string)
     end
   end
 
@@ -1419,11 +1185,9 @@ module Term2
     alias Cmds = Term2::Cmds
     alias Model = Term2::Model
     alias TC = Term2::Components
-    alias Message = Term2::Message
+    alias ControlMsg = Term2::ControlMsg
     alias Terminal = Term2::Terminal
     alias Program = Term2::Program
-    alias KeyPress = Term2::KeyPress
-    alias MouseEvent = Term2::MouseEvent
     alias QuitMsg = Term2::QuitMsg
     alias Dispatcher = Term2::Dispatcher
     alias KeyBinding = Term2::KeyBinding
@@ -1440,11 +1204,7 @@ module Term2
     alias HideCursorMsg = Term2::HideCursorMsg
     alias ClearScreenMsg = Term2::ClearScreenMsg
     alias SetWindowTitleMsg = Term2::SetWindowTitleMsg
-    alias FocusMsg = Term2::FocusMsg
-    alias BlurMsg = Term2::BlurMsg
-    alias WindowSizeMsg = Term2::WindowSizeMsg
-    alias KeyMsg = Term2::KeyMsg
-    alias Key = Term2::Key
-    alias KeyType = Term2::KeyType
+    alias UV = Term2::UV
+    alias UVMouseEvent = Term2::UVMouseEvent
   end
 end

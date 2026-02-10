@@ -4,7 +4,7 @@
 #
 #   Go (Bubble Tea)              Crystal (Term2)
 #   ---------------              ---------------
-#   type Msg interface{}         alias Msg = Message
+#   type Msg interface{}         alias Msg = Ultraviolet::Event | ControlMsg
 #   type Cmd func() Msg          alias Cmd = (-> Msg)?
 #   type Model interface {       module Model
 #     Init() Cmd                   def init : Cmd
@@ -15,15 +15,67 @@
 require "cml"
 require "./view"
 require "lipgloss"
+require "../lib/ultraviolet/src/ultraviolet"
 
 module Term2
+  alias UV = Ultraviolet
+
   # Msg is any message that can be sent to the update function.
   # In Go this is `interface{}` (any type). In Crystal we use
-  # a base class that all messages inherit from.
-  abstract class Message
+  # a union of ultraviolet input events and message-like types.
+  #
+  # For user-defined messages, include `Term2::MsgLike` to opt in.
+  module MsgLike
   end
 
-  alias Msg = Message
+  abstract class ControlMsg
+    include MsgLike
+  end
+
+  # Legacy message base class for user-defined messages.
+  abstract class Message < ControlMsg
+  end
+
+  alias Msg = UV::Event | MsgLike
+  alias UVMouseEvent = UV::MouseClickEvent | UV::MouseReleaseEvent | UV::MouseWheelEvent | UV::MouseMotionEvent
+  alias KeyMsg = UV::Key
+  alias KeyPressMsg = UV::Key
+  alias KeyReleaseMsg = UV::Key
+  alias WindowSizeMsg = UV::WindowSizeEvent
+  alias FocusMsg = UV::FocusEvent
+  alias BlurMsg = UV::BlurEvent
+  alias MouseMsg = UVMouseEvent
+  alias MouseClickMsg = UV::MouseClickEvent
+  alias MouseReleaseMsg = UV::MouseReleaseEvent
+  alias MouseWheelMsg = UV::MouseWheelEvent
+  alias MouseMotionMsg = UV::MouseMotionEvent
+  alias BackgroundColorMsg = UV::BackgroundColorEvent
+  alias ForegroundColorMsg = UV::ForegroundColorEvent
+  alias CursorColorMsg = UV::CursorColorEvent
+  alias CapabilityMsg = UV::CapabilityEvent
+  alias KeyboardEnhancementsMsg = UV::KeyboardEnhancementsEvent
+  alias PasteMsg = UV::PasteEvent
+  alias PasteStartMsg = UV::PasteStartEvent
+  alias PasteEndMsg = UV::PasteEndEvent
+
+  # Adapters for Ultraviolet events to Term2 messages.
+  module MsgAdapter
+    def self.each(event : UV::Event, &block : Msg ->) : Nil
+      case event
+      when Array(UV::EventSingle)
+        event.each { |evt| block.call(evt.as(Msg)) }
+      else
+        block.call(event.as(Msg))
+      end
+    end
+
+    def self.to_messages(event : UV::Event) : Array(Msg)
+      messages = [] of Msg
+      each(event) { |msg| messages << msg }
+      messages
+    end
+  end
+
 
   # Cmd is an IO operation that returns a message when it's complete.
   # If it's nil it's considered a no-op.
@@ -51,7 +103,7 @@ module Term2
   #
   #   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
   #     case msg
-  #     when Term2::KeyMsg
+  #     when UV::Key
   #       case msg.key.to_s
   #       when "q" then {self, Term2.quit}
   #       when "+" then {Counter.new(@count + 1), nil}
@@ -115,7 +167,7 @@ module Term2
   end
 
   # BatchMsg is used internally to run commands concurrently.
-  class BatchMsg < Message
+  class BatchMsg < ControlMsg
     getter cmds : Array(-> Msg?)
 
     def initialize(@cmds)
@@ -123,496 +175,59 @@ module Term2
   end
 
   # SequenceMsg is used internally to run commands in order.
-  class SequenceMsg < Message
+  class SequenceMsg < ControlMsg
     getter cmds : Array(-> Msg?)
 
     def initialize(@cmds)
     end
   end
 
-  # Key contains information about a keypress.
-  #
-  # Keys can represent:
-  # - Regular characters (type == KeyType::Runes)
-  # - Special keys like arrows, function keys (type == KeyType::Up, etc.)
-  # - Control combinations (type == KeyType::CtrlC, etc.)
-  # - Alt combinations (alt? == true)
-  # - Pasted text (paste? == true)
-  #
-  # ```
-  # case msg
-  # when Term2::KeyMsg
-  #   key = msg.key
-  #   case key.to_s
-  #   when "q" # quit
-  #  then
-  #   when "ctrl+c" # also quit
-  #  then
-  #   when "up" # move up
-  #  then
-  #   end
-  # end
-  # ```
-  struct Key
-    # The type of key (special key or Runes for regular characters)
-    getter type : KeyType
-    # The characters for this key (for KeyType::Runes)
-    getter runes : Array(Char)
-    # Whether Alt was held
-    getter? alt : Bool
-    # Whether this key came from a paste operation
-    getter? paste : Bool
-    # Modifier keys bitmask
-    getter mod : KeyMod = KeyMod::None
-    # Whether this is a repeated key event
-    getter? is_repeat : Bool = false
-    # Shifted key code (if available)
-    getter shifted_code : Char? = nil
-    # Base key code according to PC‑101 layout (if available)
-    getter base_code : Char? = nil
-
-    def initialize(@type : KeyType, @runes : Array(Char) = [] of Char, @alt : Bool = false, @paste : Bool = false, @mod : KeyMod = KeyMod::None, @is_repeat : Bool = false, @shifted_code : Char? = nil, @base_code : Char? = nil)
-      @mod |= KeyMod::Alt if @alt
-    end
-
-    def initialize(char : Char, alt : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
-      @type = KeyType::Runes
-      @runes = [char]
-      @alt = alt
-      @paste = false
-      @mod = mod
-      @is_repeat = is_repeat
-      @shifted_code = shifted_code
-      @base_code = base_code
-      @mod |= KeyMod::Alt if @alt
-    end
-
-    def initialize(str : String, alt : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
-      @type = KeyType::Runes
-      @runes = str.chars
-      @alt = alt
-      @paste = false
-      @mod = mod
-      @is_repeat = is_repeat
-      @shifted_code = shifted_code
-      @base_code = base_code
-      @mod |= KeyMod::Alt if @alt
-    end
-
-    def initialize(runes : Array(Char), alt : Bool = false, paste : Bool = false, mod : KeyMod = KeyMod::None, is_repeat : Bool = false, shifted_code : Char? = nil, base_code : Char? = nil)
-      @type = KeyType::Runes
-      @runes = runes
-      @alt = alt
-      @paste = paste
-      @mod = mod
-      @is_repeat = is_repeat
-      @shifted_code = shifted_code
-      @base_code = base_code
-      @mod |= KeyMod::Alt if @alt
-    end
-
-    # Returns a friendly string representation for a key
-    def to_s : String
-      String.build do |str|
-        str << "alt+" if @alt
-        if @type == KeyType::Runes
-          if @paste
-            str << '['
-            @runes.each { |rune| str << rune }
-            str << ']'
-          else
-            @runes.each { |rune| str << rune }
-          end
-        else
-          str << KEY_NAMES[@type]?
-        end
-      end
-    end
-
-    # Check if this key matches a given string representation
-    def matches?(pattern : String) : Bool
-      to_s == pattern
-    end
-
-    def ==(other : Key)
-      @type == other.@type &&
-        @runes == other.@runes &&
-        @alt == other.@alt &&
-        @paste == other.@paste &&
-        @mod == other.@mod &&
-        @is_repeat == other.@is_repeat &&
-        @shifted_code == other.@shifted_code &&
-        @base_code == other.@base_code
-    end
-
-    # Check if this is a specific key type
-    def type?(key_type : KeyType) : Bool
-      @type == key_type
-    end
-
-    # Get the first rune (for single character keys)
-    def rune : Char?
-      @runes.first?
-    end
-  end
-
-  # KeyType indicates the type of key pressed.
-  #
-  # Most key types represent special keys (arrows, function keys, etc.).
-  # For regular character input, `KeyType::Runes` is used and the actual
-  # characters are stored in `Key#runes`.
-  #
-  # ### Control Keys
-  # Control key combinations (Ctrl+A through Ctrl+Z) have their own types
-  # and numeric values corresponding to ASCII control codes.
-  #
-  # ### Navigation Keys
-  # - Arrow keys: `Up`, `Down`, `Left`, `Right`
-  # - With modifiers: `CtrlUp`, `ShiftUp`, `CtrlShiftUp`, etc.
-  # - Page navigation: `PgUp`, `PgDown`, `Home`, `End`
-  #
-  # ### Function Keys
-  # F1 through F20 are supported.
-  #
-  # ### Focus Events
-  # `FocusIn` and `FocusOut` represent terminal focus changes when
-  # focus reporting is enabled.
-  enum KeyType
-    # Control keys
-    Null      =   0 # null, \0
-    Break     =   3 # break, ctrl+c
-    Enter     =  13 # carriage return, \r
-    Backspace = 127 # delete/backspace
-    Tab       =   9 # horizontal tabulation, \t
-    Esc       =  27 # escape, \e
-    Escape    =  27 # alias for Esc
-
-    # Control key aliases
-    CtrlAt           =   0 # ctrl+@ (same as Null)
-    CtrlA            =   1
-    CtrlB            =   2
-    CtrlC            =   3
-    CtrlD            =   4
-    CtrlE            =   5
-    CtrlF            =   6
-    CtrlG            =   7
-    CtrlH            =   8
-    CtrlI            =   9
-    CtrlJ            =  10
-    CtrlK            =  11
-    CtrlL            =  12
-    CtrlM            =  13
-    CtrlN            =  14
-    CtrlO            =  15
-    CtrlP            =  16
-    CtrlQ            =  17
-    CtrlR            =  18
-    CtrlS            =  19
-    CtrlT            =  20
-    CtrlU            =  21
-    CtrlV            =  22
-    CtrlW            =  23
-    CtrlX            =  24
-    CtrlY            =  25
-    CtrlZ            =  26
-    CtrlOpenBracket  =  27 # ctrl+[
-    CtrlBackslash    =  28 # ctrl+\
-    CtrlCloseBracket =  29 # ctrl+]
-    CtrlCaret        =  30 # ctrl+^
-    CtrlUnderscore   =  31 # ctrl+_
-    CtrlQuestionMark = 127 # ctrl+?
-
-    # Other keys
-    Runes
-    Up
-    Down
-    Right
-    Left
-    ShiftTab
-    Home
-    End
-    PgUp
-    PgDown
-    CtrlPgUp
-    CtrlPgDown
-    Delete
-    Insert
-    Space
-    CtrlUp
-    CtrlDown
-    CtrlRight
-    CtrlLeft
-    CtrlHome
-    CtrlEnd
-    ShiftUp
-    ShiftDown
-    ShiftRight
-    ShiftLeft
-    ShiftHome
-    ShiftEnd
-    CtrlShiftUp
-    CtrlShiftDown
-    CtrlShiftLeft
-    CtrlShiftRight
-    CtrlShiftHome
-    CtrlShiftEnd
-    F1
-    F2
-    F3
-    F4
-    F5
-    F6
-    F7
-    F8
-    F9
-    F10
-    F11
-    F12
-    F13
-    F14
-    F15
-    F16
-    F17
-    F18
-    F19
-    F20
-    FocusIn
-    FocusOut
-
-    def control?
-      val = value
-      (val >= 0 && val <= 31) || val == 127
-    end
-
-    def to_s(io : IO) : Nil
-      if name = Term2::KEY_NAMES[self]?
-        io << name
-      else
-        # Unknown key type
-      end
-    end
-
-    def to_s : String
-      if name = Term2::KEY_NAMES[self]?
-        name
-      else
-        ""
-      end
-    end
-  end
-
-  @[Flags]
-  enum KeyMod
-    None       = 0
-    Shift      = 1 << 0
-    Alt        = 1 << 1
-    Ctrl       = 1 << 2
-    Meta       = 1 << 3
-    Hyper      = 1 << 4
-    Super      = 1 << 5
-    CapsLock   = 1 << 6
-    NumLock    = 1 << 7
-    ScrollLock = 1 << 8
-
-    def contains?(mods : KeyMod) : Bool
-      (self & mods) == mods
-    end
-  end
-
-  # Human-readable names for key types.
-  #
-  # Maps `KeyType` enum values to their string representations used
-  # in `Key#to_s` and for matching in `Key#matches?`.
-  #
-  # ```
-  # Term2::KEY_NAMES[KeyType::CtrlC] # => "ctrl+c"
-  # Term2::KEY_NAMES[KeyType::Up]    # => "up"
-  # Term2::KEY_NAMES[KeyType::F1]    # => "f1"
-  # ```
-  KEY_NAMES = {
-    # Control keys
-    KeyType::Null             => "ctrl+@",
-    KeyType::CtrlA            => "ctrl+a",
-    KeyType::CtrlB            => "ctrl+b",
-    KeyType::CtrlC            => "ctrl+c",
-    KeyType::CtrlD            => "ctrl+d",
-    KeyType::CtrlE            => "ctrl+e",
-    KeyType::CtrlF            => "ctrl+f",
-    KeyType::CtrlG            => "ctrl+g",
-    KeyType::CtrlH            => "ctrl+h",
-    KeyType::Tab              => "tab",
-    KeyType::CtrlJ            => "ctrl+j",
-    KeyType::CtrlK            => "ctrl+k",
-    KeyType::CtrlL            => "ctrl+l",
-    KeyType::Enter            => "enter",
-    KeyType::CtrlN            => "ctrl+n",
-    KeyType::CtrlO            => "ctrl+o",
-    KeyType::CtrlP            => "ctrl+p",
-    KeyType::CtrlQ            => "ctrl+q",
-    KeyType::CtrlR            => "ctrl+r",
-    KeyType::CtrlS            => "ctrl+s",
-    KeyType::CtrlT            => "ctrl+t",
-    KeyType::CtrlU            => "ctrl+u",
-    KeyType::CtrlV            => "ctrl+v",
-    KeyType::CtrlW            => "ctrl+w",
-    KeyType::CtrlX            => "ctrl+x",
-    KeyType::CtrlY            => "ctrl+y",
-    KeyType::CtrlZ            => "ctrl+z",
-    KeyType::Esc              => "esc",
-    KeyType::CtrlBackslash    => "ctrl+\\",
-    KeyType::CtrlCloseBracket => "ctrl+]",
-    KeyType::CtrlCaret        => "ctrl+^",
-    KeyType::CtrlUnderscore   => "ctrl+_",
-    KeyType::Backspace        => "backspace",
-
-    # Other keys
-    KeyType::Runes          => "runes",
-    KeyType::Up             => "up",
-    KeyType::Down           => "down",
-    KeyType::Right          => "right",
-    KeyType::Left           => "left",
-    KeyType::ShiftTab       => "shift+tab",
-    KeyType::Home           => "home",
-    KeyType::End            => "end",
-    KeyType::CtrlHome       => "ctrl+home",
-    KeyType::CtrlEnd        => "ctrl+end",
-    KeyType::ShiftHome      => "shift+home",
-    KeyType::ShiftEnd       => "shift+end",
-    KeyType::CtrlShiftHome  => "ctrl+shift+home",
-    KeyType::CtrlShiftEnd   => "ctrl+shift+end",
-    KeyType::PgUp           => "pgup",
-    KeyType::PgDown         => "pgdown",
-    KeyType::CtrlPgUp       => "ctrl+pgup",
-    KeyType::CtrlPgDown     => "ctrl+pgdown",
-    KeyType::Delete         => "delete",
-    KeyType::Insert         => "insert",
-    KeyType::Space          => " ",
-    KeyType::CtrlUp         => "ctrl+up",
-    KeyType::CtrlDown       => "ctrl+down",
-    KeyType::CtrlRight      => "ctrl+right",
-    KeyType::CtrlLeft       => "ctrl+left",
-    KeyType::ShiftUp        => "shift+up",
-    KeyType::ShiftDown      => "shift+down",
-    KeyType::ShiftRight     => "shift+right",
-    KeyType::ShiftLeft      => "shift+left",
-    KeyType::CtrlShiftUp    => "ctrl+shift+up",
-    KeyType::CtrlShiftDown  => "ctrl+shift+down",
-    KeyType::CtrlShiftLeft  => "ctrl+shift+left",
-    KeyType::CtrlShiftRight => "ctrl+shift+right",
-    KeyType::F1             => "f1",
-    KeyType::F2             => "f2",
-    KeyType::F3             => "f3",
-    KeyType::F4             => "f4",
-    KeyType::F5             => "f5",
-    KeyType::F6             => "f6",
-    KeyType::F7             => "f7",
-    KeyType::F8             => "f8",
-    KeyType::F9             => "f9",
-    KeyType::F10            => "f10",
-    KeyType::F11            => "f11",
-    KeyType::F12            => "f12",
-    KeyType::F13            => "f13",
-    KeyType::F14            => "f14",
-    KeyType::F15            => "f15",
-    KeyType::F16            => "f16",
-    KeyType::F17            => "f17",
-    KeyType::F18            => "f18",
-    KeyType::F19            => "f19",
-    KeyType::F20            => "f20",
-    KeyType::FocusIn        => "focus_in",
-    KeyType::FocusOut       => "focus_out",
-  }
+  # Key events are represented directly by Ultraviolet::Key.
 
   # Internal message that signals the program should terminate.
   # Use `Cmds.quit` to send this message.
-  class QuitMsg < Message
+  class QuitMsg < ControlMsg
   end
 
-  # Message to enter alternate screen mode.
+  # ControlMsg to enter alternate screen mode.
   # Use `Cmds.enter_alt_screen` to send this message.
-  class EnterAltScreenMsg < Message
+  class EnterAltScreenMsg < ControlMsg
   end
 
-  # Message to exit alternate screen mode.
+  # ControlMsg to exit alternate screen mode.
   # Use `Cmds.exit_alt_screen` to send this message.
-  class ExitAltScreenMsg < Message
+  class ExitAltScreenMsg < ControlMsg
   end
 
-  # Message to show the cursor.
+  # ControlMsg to show the cursor.
   # Use `Cmds.show_cursor` to send this message.
-  class ShowCursorMsg < Message
+  class ShowCursorMsg < ControlMsg
   end
 
-  # Message to hide the cursor.
+  # ControlMsg to hide the cursor.
   # Use `Cmds.hide_cursor` to send this message.
-  class HideCursorMsg < Message
-  end
-
-  # Message sent when the terminal window gains focus.
-  # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
-  class FocusMsg < Message
-    def ==(other : self)
-      true
-    end
-  end
-
-  # Message sent when the terminal window loses focus.
-  # Only received if focus reporting is enabled via `program.enable_focus_reporting`.
-  class BlurMsg < Message
-    def ==(other : self)
-      true
-    end
+  class HideCursorMsg < ControlMsg
   end
 
   # Message sent when a suspended program should resume.
-  class ResumeMsg < Message
+  class ResumeMsg < ControlMsg
   end
 
   # Message sent to request program suspension.
-  class SuspendMsg < Message
-  end
-
-  # ADD THIS CLASS:
-  # Message sent when an unknown ANSI/CSI sequence is received.
-  # Useful for debugging or handling proprietary terminal extensions.
-  class UnknownCSISequenceMsg < Message
-    getter sequence : Bytes
-
-    def initialize(@sequence : Bytes)
-    end
-
-    def ==(other : self)
-      sequence == other.sequence
-    end
-
-    def to_s
-      "Unknown CSI Sequence: #{@sequence}"
-    end
+  class SuspendMsg < ControlMsg
   end
 
   # Message sent when a zone receives focus via tab navigation.
   # Contains the zone ID that should receive focus.
-  class ZoneFocusMsg < Message
+  class ZoneFocusMsg < ControlMsg
     getter zone_id : String
 
     def initialize(@zone_id : String)
     end
   end
 
-  # Message sent when the terminal window is resized.
-  # Contains the new width and height in characters.
-  class WindowSizeMsg < Message
-    # The new terminal width in characters
-    getter width : Int32
-    # The new terminal height in characters
-    getter height : Int32
-
-    def initialize(@width : Int32, @height : Int32)
-    end
-  end
-
   # PrintMsg signals a request to print text to the output
-  class PrintMsg < Message
+  class PrintMsg < ControlMsg
     getter text : String
 
     def initialize(@text : String)
@@ -620,11 +235,11 @@ module Term2
   end
 
   # ClearScreenMsg signals a request to clear the screen
-  class ClearScreenMsg < Message
+  class ClearScreenMsg < ControlMsg
   end
 
   # SetWindowTitleMsg signals a request to set the terminal window title
-  class SetWindowTitleMsg < Message
+  class SetWindowTitleMsg < ControlMsg
     getter title : String
 
     def initialize(@title : String)
@@ -632,19 +247,19 @@ module Term2
   end
 
   # RequestWindowSizeMsg signals a request for the current window size
-  class RequestWindowSizeMsg < Message
+  class RequestWindowSizeMsg < ControlMsg
   end
 
   # ReadClipboardMsg signals a request to read the clipboard
-  class ReadClipboardMsg < Message
+  class ReadClipboardMsg < ControlMsg
   end
 
   # ReadPrimaryClipboardMsg signals a request to read the primary clipboard
-  class ReadPrimaryClipboardMsg < Message
+  class ReadPrimaryClipboardMsg < ControlMsg
   end
 
   # SetClipboardMsg signals a request to set the clipboard
-  class SetClipboardMsg < Message
+  class SetClipboardMsg < ControlMsg
     getter text : String
 
     def initialize(@text : String)
@@ -652,7 +267,7 @@ module Term2
   end
 
   # SetPrimaryClipboardMsg signals a request to set the primary clipboard
-  class SetPrimaryClipboardMsg < Message
+  class SetPrimaryClipboardMsg < ControlMsg
     getter text : String
 
     def initialize(@text : String)
@@ -660,137 +275,46 @@ module Term2
   end
 
   # RequestForegroundColorMsg signals a request for the terminal's foreground color
-  class RequestForegroundColorMsg < Message
+  class RequestForegroundColorMsg < ControlMsg
   end
 
   # RequestBackgroundColorMsg signals a request for the terminal's background color
-  class RequestBackgroundColorMsg < Message
+  class RequestBackgroundColorMsg < ControlMsg
   end
 
   # RequestCursorColorMsg signals a request for the terminal's cursor color
-  class RequestCursorColorMsg < Message
-  end
-
-  # ForegroundColorMsg signals the terminal's foreground color response
-  class ForegroundColorMsg < Message
-    getter color : Lipgloss::Color
-
-    def initialize(@color : Lipgloss::Color)
-    end
-  end
-
-  # BackgroundColorMsg signals the terminal's background color response
-  class BackgroundColorMsg < Message
-    getter color : Lipgloss::Color
-
-    def initialize(@color : Lipgloss::Color)
-    end
-  end
-
-  # CursorColorMsg signals the terminal's cursor color response
-  class CursorColorMsg < Message
-    getter color : Lipgloss::Color
-
-    def initialize(@color : Lipgloss::Color)
-    end
-  end
-
-  # ClipboardMsg signals a clipboard read response
-  class ClipboardMsg < Message
-    getter content : String
-    getter selection : UInt8
-
-    def initialize(@content : String, @selection : UInt8)
-    end
+  class RequestCursorColorMsg < ControlMsg
   end
 
   # EnableMouseCellMotionMsg signals enabling mouse cell motion tracking
-  class EnableMouseCellMotionMsg < Message
+  class EnableMouseCellMotionMsg < ControlMsg
   end
 
   # EnableMouseAllMotionMsg signals enabling mouse all motion tracking
-  class EnableMouseAllMotionMsg < Message
+  class EnableMouseAllMotionMsg < ControlMsg
   end
 
   # DisableMouseTrackingMsg signals disabling mouse tracking
-  class DisableMouseTrackingMsg < Message
+  class DisableMouseTrackingMsg < ControlMsg
   end
 
   # EnableBracketedPasteMsg signals enabling bracketed paste mode
-  class EnableBracketedPasteMsg < Message
+  class EnableBracketedPasteMsg < ControlMsg
   end
 
   # DisableBracketedPasteMsg signals disabling bracketed paste mode
-  class DisableBracketedPasteMsg < Message
+  class DisableBracketedPasteMsg < ControlMsg
   end
 
   # EnableReportFocusMsg signals enabling focus reporting
-  class EnableReportFocusMsg < Message
+  class EnableReportFocusMsg < ControlMsg
   end
 
   # DisableReportFocusMsg signals disabling focus reporting
-  class DisableReportFocusMsg < Message
+  class DisableReportFocusMsg < ControlMsg
   end
 
-  # Keyboard events emitted by the default input reader.
-  # DEPRECATED: Use KeyMsg instead for richer key information
-  class KeyPress < Message
-    getter key : String
-
-    def initialize(@key : String)
-    end
-  end
-
-  # KeyMsg contains information about a keypress
-  class KeyMsg < Message
-    getter key : Key
-
-    def initialize(@key : Key)
-    end
-
-    def ==(other : KeyMsg)
-      @key == other.key
-    end
-
-    def to_s : String
-      @key.to_s
-    end
-  end
-
-  # KeyPressMsg represents a key press message with enhanced keyboard protocol support.
-  class KeyPressMsg < KeyMsg
-  end
-
-  # KeyReleaseMsg represents a key release message with enhanced keyboard protocol support.
-  class KeyReleaseMsg < KeyMsg
-  end
-
-  # KeyboardEnhancementsMsg is a message that gets sent when the terminal
-  # supports keyboard enhancements.
-  class KeyboardEnhancementsMsg < Message
-    getter flags : Int32
-
-    def initialize(@flags : Int32)
-    end
-
-    # Returns whether the terminal supports key disambiguation
-    # (e.g., distinguishing between different modifier keys).
-    def supports_key_disambiguation? : Bool
-      @flags > 0
-    end
-
-    # Returns whether the terminal supports reporting
-    # different types of key events (press, release, and repeat).
-    def supports_event_types? : Bool
-      @flags & 2 != 0 # ansi.KittyReportEventTypes = 2
-    end
-
-    def ==(other : KeyboardEnhancementsMsg)
-      @flags == other.flags
-    end
-  end
-
-  # EnvMsg represents the environment variables of the program.
+# EnvMsg represents the environment variables of the program.
   # This is useful for getting environment variables of programs
   # running in a remote session like SSH. In that case, using ENV[] would
   # return the server's environment variables, not the client's.
@@ -802,7 +326,7 @@ module Term2
   #   case msg
   #   when Term2::EnvMsg
   #     term = msg.getenv("TERM")
-  class EnvMsg < Message
+  class EnvMsg < ControlMsg
     getter env : Hash(String, String)
 
     def initialize(@env : Hash(String, String))
@@ -833,7 +357,7 @@ module Term2
   # ColorProfileMsg is a message that describes the terminal's color profile.
   #
   # To upgrade the terminal color profile, use the `RequestCapability` command.
-  class ColorProfileMsg < Message
+  class ColorProfileMsg < ControlMsg
     getter profile : Lipgloss::ColorProfile
 
     def initialize(@profile : Lipgloss::ColorProfile)
@@ -845,7 +369,7 @@ module Term2
   end
 
   # Internal message that requests the terminal to send its Termcap/Terminfo response.
-  class RequestCapabilityMsg < Message
+  class RequestCapabilityMsg < ControlMsg
     getter capability : String
 
     def initialize(@capability : String)
@@ -856,26 +380,6 @@ module Term2
     end
   end
 
-  # CapabilityMsg represents a Termcap/Terminfo response event.
-  # Termcap responses are generated by the terminal in response to
-  # RequestCapability (XTGETTCAP) requests.
-  #
-  # See: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands
-  class CapabilityMsg < Message
-    getter content : String
-
-    def initialize(@content : String)
-    end
-
-    def ==(other : CapabilityMsg)
-      @content == other.content
-    end
-
-    # Returns the capability content as a string.
-    def to_s : String
-      @content
-    end
-  end
 
   class Dispatcher
     def initialize(@mailbox : CML::Mailbox(Msg), parent : Dispatcher? = nil, mapper : Proc(Msg, Msg)? = nil)

@@ -6,16 +6,22 @@ This guide helps developers familiar with BubbleTea migrate their knowledge and 
 
 Term2 is a Crystal port of [BubbleTea](https://github.com/charmbracelet/bubbletea), implementing the Elm Architecture (Model-Update-View) for terminal applications. While the core concepts are the same, there are syntactic and idiomatic differences due to language differences.
 
+## v2‑exp Notes
+
+- `Term2::Msg` is a union of Ultraviolet input events and any type that includes `Term2::MsgLike`.
+- `Term2::MsgLike` gives you a Go‑style “interface{}” message experience; use it for custom messages.
+- `view` can return either a `String` or a `Term2::View` in v2‑exp.
+
 ## Quick Comparison
 
-| Concept | BubbleTea (Go) | Term2 (Crystal) |
+| Concept | BubbleTea (Go) | Term2 (Crystal, v2‑exp) |
 |---------|----------------|-----------------|
 | Model | `type model struct` | `class MyModel; include Model; end` |
-| Message | `type myMsg struct` | `class MyMsg < Message` |
-| Command | `func() tea.Msg` | `Cmd` (alias for `Proc(Message?)`) |
-| Update | `func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd)` | `def update(msg, model) : {Model, Cmd?}` |
-| View | `func (m model) View() string` | `def view(model) : String` |
-| Init | `func (m model) Init() tea.Cmd` | `def init : Model` or `def init : {Model, Cmd?}` |
+| Message | `type myMsg struct` | `struct MyMsg; include Term2::MsgLike; end` |
+| Command | `func() tea.Msg` | `Cmd` (alias for `Proc(Msg?)?`) |
+| Update | `func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd)` | `def update(msg : Term2::Msg) : {Model, Cmd}` |
+| View | `func (m model) View() string` | `def view : String | Term2::View` |
+| Init | `func (m model) Init() tea.Cmd` | `def init : Cmd` |
 
 ## Model Definition
 
@@ -29,7 +35,7 @@ type model struct {
 }
 ```
 
-### Term2 (Crystal)
+### Term2 (Crystal, v2‑exp)
 
 ```crystal
 class AppModel
@@ -64,20 +70,23 @@ type statusMsg struct {
 }
 ```
 
-### Term2 (Crystal)
+### Term2 (Crystal, v2‑exp)
 
 ```crystal
-class TickMsg < Term2::Message
+struct TickMsg
+  include Term2::MsgLike
   getter time : Time
   def initialize(@time); end
 end
 
-class ErrMsg < Term2::Message
+struct ErrMsg
+  include Term2::MsgLike
   getter error : Exception
   def initialize(@error); end
 end
 
-class StatusMsg < Term2::Message
+struct StatusMsg
+  include Term2::MsgLike
   getter code : Int32
   getter text : String
   def initialize(@code, @text); end
@@ -86,8 +95,9 @@ end
 
 **Key Differences:**
 
-- Messages must inherit from `Term2::Message`
-- Crystal requires explicit class definitions
+- Messages include `Term2::MsgLike` (works for structs or classes)
+- `Term2::Message` is still supported for legacy class-based messages
+- Crystal requires explicit type definitions
 
 ## Application Structure
 
@@ -143,7 +153,7 @@ class CounterModel
     Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Model, Cmd}
     case msg
     when KeyMsg
       case msg.key.to_s
@@ -159,7 +169,7 @@ class CounterModel
     end
   end
 
-  def view : String
+  def view : String | Term2::View
     "Count: #{@count}\n"
   end
 end
@@ -413,7 +423,8 @@ end
 ### Error Handling
 
 ```crystal
-class ErrorMsg < Message
+struct ErrorMsg
+  include Term2::MsgLike
   getter error : Exception
   def initialize(@error); end
 end
@@ -439,7 +450,7 @@ include Term2::Prelude
 # Now you can use:
 # - Application instead of Term2::Application
 # - Model instead of Term2::Model
-# - Message instead of Term2::Message
+# - Message instead of Term2::Message (legacy)
 # - KeyPress instead of Term2::KeyMsg
 # - Cmd instead of Term2::Cmd
 # - etc.
@@ -448,5 +459,6 @@ include Term2::Prelude
 ## Further Resources
 
 - [Term2 API Documentation](./api.md)
+- [Term2 v2‑exp Notes](./v2-exp.md)
 - [Example Applications](../examples/)
 - [BubbleTea Documentation](https://github.com/charmbracelet/bubbletea)

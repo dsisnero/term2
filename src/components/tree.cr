@@ -250,6 +250,10 @@ module Term2
           end.chomp
         end
 
+        def view : View
+          View.new(content: render)
+        end
+
         # Alias for render (matches Lipgloss API)
         def to_s : String
           render
