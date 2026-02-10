@@ -26,7 +26,7 @@ describe "Term2::Zone mouse handling (v2‑exp)" do
 
   it "sends no ZoneInBoundsMsg when no zone exists at the mouse position" do
     model = ZoneMouseTestModel.new
-    event = Term2::MouseEvent.new(0, 0, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press)
+    event = Term2::TestHelpers.mouse_event(0, 0, UV::MouseButton::Left, :press)
     updated, cmd = Term2::Zone.any_in_bounds_and_update(model, event)
     updated.received.select(Term2::ZoneInBoundsMsg).should be_empty
     cmd.should be_nil
@@ -38,15 +38,15 @@ describe "Term2::Zone mouse handling (v2‑exp)" do
     sleep 10.milliseconds
 
     model = ZoneMouseTestModel.new
-    event = Term2::MouseEvent.new(0, 0, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press)
+    event = Term2::TestHelpers.mouse_event(0, 0, UV::MouseButton::Left, :press)
     updated, cmd = Term2::Zone.any_in_bounds_and_update(model, event)
 
     msgs = updated.received.select(Term2::ZoneInBoundsMsg)
     msgs.size.should eq(1)
     msg = msgs.first.as(Term2::ZoneInBoundsMsg)
     msg.zone.id.should eq("demo")
-    msg.event.x.should eq(0)
-    msg.event.y.should eq(0)
+    msg.event.mouse.x.should eq(0)
+    msg.event.mouse.y.should eq(0)
     cmd.should be_nil
   end
 end

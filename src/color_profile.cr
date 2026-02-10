@@ -13,15 +13,15 @@ module Term2
     # Returns a Lipgloss::Color if detection succeeds, nil otherwise.
     def detect_background_color_from_env : Lipgloss::Color?
       colorfg = ENV["COLORFGBG"]?
-      return nil unless colorfg
+      return unless colorfg
 
       # Format is "foreground;background" or "foreground;background;something"
       parts = colorfg.split(';')
-      return nil if parts.size < 2
+      return if parts.size < 2
 
       bg_str = parts[1].strip
       bg_index = bg_str.to_i? rescue nil
-      return nil unless bg_index
+      return unless bg_index
 
       # COLORFGBG uses ANSI color indices (0-15 for standard colors)
       # Some terminals may use 0-255 for indexed colors.
@@ -33,7 +33,7 @@ module Term2
     # Returns true if background is dark, false if light, nil if unknown.
     def dark_background_from_env? : Bool?
       bg_color = detect_background_color_from_env
-      return nil unless bg_color
+      return unless bg_color
 
       # Use existing luminance detection from Environ
       Environ.has_dark_background?(bg_color)

@@ -14,7 +14,7 @@ module Term2
   # ExecMsg is sent to the update loop to request running an external process
   # in a blocking fashion. The terminal will be released (raw mode disabled,
   # cursor shown) while the process runs, and restored afterwards.
-  class ExecMsg < Message
+  class ExecMsg < ControlMsg
     getter cmd : String
     getter args : Array(String)
     getter env : Hash(String, String)?

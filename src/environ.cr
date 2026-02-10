@@ -168,7 +168,7 @@ module Term2
     end
 
     # Update global dark/light mode setting based on background color.
-    # This should be called when a BackgroundColorMsg is received.
+    # This should be called when a UV::BackgroundColorEvent is received.
     def update_dark_mode_from_background(color : Lipgloss::Color) : Nil
       dark = has_dark_background?(color)
       Lipgloss.has_dark_background = dark

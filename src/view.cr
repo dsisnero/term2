@@ -71,13 +71,12 @@ module Term2
 
   # KeyboardEnhancements describes the requested keyboard enhancement features.
   # If the terminal supports any of them, it will respond with a
-  # KeyboardEnhancementsMsg that indicates which features are supported.
+  # UV::KeyboardEnhancementsEvent that indicates which features are supported.
   struct KeyboardEnhancements
     # ReportEventTypes requests the terminal to report key repeat and release
     # events.
-    # If supported, your program will receive KeyReleaseMsgs and
-    # KeyPressMsgs with the Key.IsRepeat field set indicating that this is
-    # part of a key repeat sequence.
+    # If supported, your program will receive UV::Key events with the
+    # `is_repeat?` flag set indicating that this is part of a repeat sequence.
     property report_event_types : Bool = false
 
     def initialize(@report_event_types = false)
@@ -160,7 +159,7 @@ module Term2
     property alt_screen : Bool = false
 
     # ReportFocus enables reporting when the terminal gains and loses focus.
-    # When this is enabled FocusMsg and BlurMsg messages will be sent to
+    # When this is enabled UV::FocusEvent and UV::BlurEvent messages will be sent to
     # your Update method.
     #
     # Note that while most terminals and multiplexers support focus reporting,
@@ -182,7 +181,7 @@ module Term2
     # intercept mouse messages that depends on view content from last render.
     # It can be useful for implementing view-specific behavior without
     # breaking the unidirectional data flow of Bubble Tea.
-    property on_mouse : Proc(MouseMsg, Cmd)?
+    property on_mouse : Proc(UVMouseEvent, Cmd)?
 
     def initialize(
       @content : String = "",
@@ -198,7 +197,7 @@ module Term2
       @disable_bracketed_paste_mode : Bool = false,
       @mouse_mode : MouseMode = MouseMode::None,
       @keyboard_enhancements : KeyboardEnhancements = KeyboardEnhancements.new,
-      @on_mouse : Proc(MouseMsg, Cmd)? = nil,
+      @on_mouse : Proc(UVMouseEvent, Cmd)? = nil,
     )
     end
 

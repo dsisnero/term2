@@ -10,7 +10,7 @@ private class RenderOnceModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
       @count += 1
@@ -34,9 +34,9 @@ describe "Program rendering" do
       Term2::Teatest.with_initial_term_size(20, 5),
     )
 
-    tm.send(Term2::KeyMsg.new(Term2::Key.new('a')))
+    tm.send(Term2::TestHelpers.key_msg(Term2::TestHelpers.uv_key('a')))
 
-    Term2::Teatest.wait_for(tm.output_reader, duration: 500.milliseconds) do |text|
+    Term2::Teatest.wait_for(tm.output_reader, Term2::Teatest.with_duration(500.milliseconds)) do |text|
       text.includes?("count=1")
     end
 

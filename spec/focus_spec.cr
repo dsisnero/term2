@@ -13,7 +13,7 @@ private class FocusSpecModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::FocusMsg
       {FocusSpecModel.new(focused: true, blurred: blurred?), Term2::Cmds.none}

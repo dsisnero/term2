@@ -154,13 +154,13 @@ module Term2
   # The filter receives each message before it reaches update()
   # and can transform or replace it.
   struct WithFilter < ProgramOption
-    def initialize(@filter : Proc(Message, Message?)) : Nil; end
+    def initialize(@filter : Proc(Msg, Msg?)) : Nil; end
 
-    def initialize(@filter : Proc(Model, Message, Message?)) : Nil; end
+    def initialize(@filter : Proc(Model, Msg, Msg?)) : Nil; end
 
-    def initialize(@filter : Proc(Message, Message)) : Nil; end
+    def initialize(@filter : Proc(Msg, Msg)) : Nil; end
 
-    def initialize(@filter : Proc(Model, Message, Message)) : Nil; end
+    def initialize(@filter : Proc(Model, Msg, Msg)) : Nil; end
 
     def apply(program : Program) : Nil
       program.filter = @filter

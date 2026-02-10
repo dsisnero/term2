@@ -16,11 +16,11 @@ private class MessageCounterModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      key_str = msg.key.to_s
-      if key_str == "q" || msg.key.type == Term2::KeyType::CtrlC
+      key_str = msg.string
+      if key_str == "q" || msg.match_string("ctrl+c")
         {MessageCounterModel.new(messages + [key_str], quit_requested: true), Term2::Cmds.quit}
       else
         {MessageCounterModel.new(messages + [key_str]), Term2::Cmds.none}
@@ -49,7 +49,7 @@ private class ResizeModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::WindowSizeMsg
       {ResizeModel.new(msg.width, msg.height), Term2::Cmds.quit}
@@ -79,7 +79,7 @@ private class CommandModel
     Term2::Cmds.tick(10.milliseconds) { CommandTickMsg.new }
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when CommandTickMsg
       new_count = tick_count + 1
@@ -120,7 +120,7 @@ private class BatchCommandModel
     )
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when BatchMsgA
       new_received = received + ["A"]
@@ -166,7 +166,7 @@ private class FilterModel
     Term2::Cmds.message(FilteredMsg.new("original"))
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when FilteredMsg
       new_values = values + [msg.value]
@@ -326,7 +326,7 @@ private class FocusTestModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::FocusMsg
       {FocusTestModel.new(focused: true, blurred: blurred?), Term2::Cmds.none}

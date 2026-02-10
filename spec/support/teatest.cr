@@ -8,16 +8,29 @@ module Term2
       property check_interval : Time::Span = 50.milliseconds
     end
 
+    alias WaitForOption = Proc(WaitingForContext, Nil)
+
+    def self.with_check_interval(duration : Time::Span) : WaitForOption
+      ->(wf : WaitingForContext) { wf.check_interval = duration }
+    end
+
+    def self.with_duration(duration : Time::Span) : WaitForOption
+      ->(wf : WaitingForContext) { wf.duration = duration }
+    end
+
     # Wait for the given condition to be true for the IO contents.
-    def self.wait_for(io : IO, *, duration : Time::Span = 1.second, check_interval : Time::Span = 50.milliseconds, & : String -> Bool) : Nil
+    def self.wait_for(io : IO, *options : WaitForOption, &condition : String -> Bool) : Nil
+      ctx = WaitingForContext.new
+      options.each(&.call(ctx))
+
       start = Time.instant
       last = ""
-      while Time.instant - start <= duration
+      while Time.instant - start <= ctx.duration
         last = io.to_s
-        return if yield last
-        sleep check_interval
+        return if condition.call(last)
+        sleep ctx.check_interval
       end
-      raise "condition not met after #{duration}, last output:\n#{last}"
+      raise "condition not met after #{ctx.duration}, last output:\n#{last}"
     end
 
     # Final wait options for model/output retrieval
@@ -39,12 +52,17 @@ module Term2
     # Options for constructing a test model
     struct TestModelOptions
       property size : Term2::WindowSizeMsg? = nil
+      property program_opts : Array(ProgramOption) = [] of ProgramOption
     end
 
     alias TestOption = Proc(TestModelOptions, Nil)
 
     def self.with_initial_term_size(width : Int32, height : Int32) : TestOption
       ->(opts : TestModelOptions) { opts.size = Term2::WindowSizeMsg.new(width, height) }
+    end
+
+    def self.with_program_options(*options : ProgramOption) : TestOption
+      ->(opts : TestModelOptions) { opts.program_opts.concat(options) }
     end
 
     # A harness for driving Term2 programs in specs (similar to charm-x teatest).
@@ -61,43 +79,44 @@ module Term2
         @input = IO::Memory.new
         @output = IO::Memory.new
         opts = TestModelOptions.new
-        options.each(&.call(opts))
+        default_opts = [Term2::Teatest.with_initial_term_size(80, 24)]
+        (default_opts + options.to_a).each(&.call(opts))
 
-        program_options = Term2::ProgramOptions.new(
-          Term2::WithoutSignalHandler.new,
-          Term2::WithoutRenderer.new,
-        )
+        program_opts = [] of ProgramOption
+        program_opts << Term2::WithoutSignalHandler.new
+        program_opts.concat(opts.program_opts)
+        if size_msg = opts.size
+          program_opts << Term2::WithWindowSize.new(size_msg.width, size_msg.height)
+        end
+
+        program_options = Term2::ProgramOptions.new
+        program_opts.each { |opt| program_options.add(opt) }
 
         @program = Term2::Program(M).new(@model, input: @input, output: @output, options: program_options)
 
         @model_channel = Channel(M).new(1)
         @done = Channel(Nil).new(1)
 
-        if size_msg = opts.size
-          @program.dispatch(size_msg)
-        end
-
         spawn do
           result = @program.run
           @model_channel.send(result)
           @done.send(nil)
         end
+
+        if size_msg = opts.size
+          @program.send(size_msg)
+        end
       end
 
       # Send a message directly to the program.
       def send(msg : Term2::Msg) : Nil
-        @program.dispatch(msg.as(Term2::Message))
+        @program.send(msg)
       end
 
       # Type raw text into the program as KeyMsg runes.
       def type(str : String) : Nil
         str.each_char do |char|
-          if char == ' '
-            send(Term2::KeyMsg.new(Term2::Key.new(Term2::KeyType::Space)))
-          else
-            key = Term2::Key.new(char)
-            send(Term2::KeyMsg.new(key))
-          end
+          send(Term2::TestHelpers.uv_key(char))
         end
       end
 

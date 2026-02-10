@@ -47,8 +47,8 @@ module Term2
       @id.empty?
     end
 
-    def in_bounds?(event : MouseEvent) : Bool
-      in_bounds?(event.x, event.y)
+    def in_bounds?(event : UVMouseEvent) : Bool
+      in_bounds?(event.mouse.x, event.mouse.y)
     end
 
     def in_bounds?(x : Int32, y : Int32) : Bool
@@ -67,8 +67,8 @@ module Term2
       {x - @start_x, y - @start_y}
     end
 
-    def pos(event : MouseEvent) : Tuple(Int32, Int32)
-      pos(event.x, event.y)
+    def pos(event : UVMouseEvent) : Tuple(Int32, Int32)
+      pos(event.mouse.x, event.mouse.y)
     end
 
     def width : Int32
@@ -80,7 +80,7 @@ module Term2
     end
   end
 
-  class ZoneClickMsg < Message
+  class ZoneClickMsg < ControlMsg
     getter id : String
     getter x : Int32 # relative to zone
     getter y : Int32 # relative to zone
@@ -91,11 +91,11 @@ module Term2
     end
   end
 
-  class ZoneInBoundsMsg < Message
+  class ZoneInBoundsMsg < ControlMsg
     getter zone : ZoneInfo
-    getter event : MouseEvent
+    getter event : UVMouseEvent
 
-    def initialize(@zone : ZoneInfo, @event : MouseEvent)
+    def initialize(@zone : ZoneInfo, @event : UVMouseEvent)
     end
   end
 
@@ -413,26 +413,28 @@ module Term2
     end
 
     # Handle mouse event (legacy method - use any_in_bounds instead)
-    def self.handle_mouse(event : MouseEvent) : ZoneClickMsg?
+    def self.handle_mouse(event : UVMouseEvent) : ZoneClickMsg?
       return unless @@enabled
 
-      if zone = find_at(event.x, event.y)
-        rel_x = event.x - zone.start_x
-        rel_y = event.y - zone.start_y
+      if zone = find_at(event.mouse.x, event.mouse.y)
+        rel_x = event.mouse.x - zone.start_x
+        rel_y = event.mouse.y - zone.start_y
 
-        # Convert MouseEvent button/action to ZoneMouseButton/ZoneMouseAction
-        button = case event.button
-                 when MouseEvent::Button::Left   then ZoneMouseButton::Left
-                 when MouseEvent::Button::Right  then ZoneMouseButton::Right
-                 when MouseEvent::Button::Middle then ZoneMouseButton::Middle
-                 else                                 ZoneMouseButton::None
+        # Convert UV mouse event to ZoneMouseButton/ZoneMouseAction
+        button = case event.mouse.button
+                 when UV::MouseButton::Left   then ZoneMouseButton::Left
+                 when UV::MouseButton::Right  then ZoneMouseButton::Right
+                 when UV::MouseButton::Middle then ZoneMouseButton::Middle
+                 else                             ZoneMouseButton::None
                  end
 
-        action = case event.action
-                 when MouseEvent::Action::Press                          then ZoneMouseAction::Press
-                 when MouseEvent::Action::Release                        then ZoneMouseAction::Release
-                 when MouseEvent::Action::Drag, MouseEvent::Action::Move then ZoneMouseAction::Motion
-                 else                                                         ZoneMouseAction::Press
+        action = case event
+                 when UV::MouseClickEvent
+                   ZoneMouseAction::Press
+                 when UV::MouseReleaseEvent
+                   ZoneMouseAction::Release
+                 else
+                   ZoneMouseAction::Motion
                  end
 
         ZoneClickMsg.new(zone.id, rel_x, rel_y, button, action)
@@ -495,19 +497,19 @@ module Term2
     # `Model` directly. Calling abstract methods on a module-typed value can
     # fail to compile in some contexts; using a generic receiver keeps the
     # dispatch concrete.
-    def self.any_in_bounds(model : M, event : MouseEvent) : Nil forall M
+    def self.any_in_bounds(model : M, event : UVMouseEvent) : Nil forall M
       return unless @@enabled
-      find_all_at(event.x, event.y).each do |zone|
+      find_all_at(event.mouse.x, event.mouse.y).each do |zone|
         model.update(ZoneInBoundsMsg.new(zone, event))
       end
     end
 
-    def self.any_in_bounds_and_update(model : M, event : MouseEvent) : {M, Cmd} forall M
+    def self.any_in_bounds_and_update(model : M, event : UVMouseEvent) : {M, Cmd} forall M
       return {model, nil} unless @@enabled
       current = model
       last_cmd = nil.as(Cmd)
 
-      find_all_at(event.x, event.y).each do |zone|
+      find_all_at(event.mouse.x, event.mouse.y).each do |zone|
         updated, last_cmd = current.update(ZoneInBoundsMsg.new(zone, event))
         current = updated.as(M)
       end

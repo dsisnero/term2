@@ -11,7 +11,7 @@ class ZoneTestModel
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when Term2::MouseEvent
+    when Term2::UVMouseEvent
       spawn { Term2::Zone.any_in_bounds(self, msg) }
     when Term2::ZoneInBoundsMsg
       @received << msg
@@ -35,7 +35,7 @@ class ZoneTestModelValue
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when Term2::MouseEvent
+    when Term2::UVMouseEvent
       Term2::Zone.any_in_bounds_and_update(self, msg)
     when Term2::ZoneInBoundsMsg
       @received << msg
@@ -60,7 +60,7 @@ describe "Term2::Zone in-bounds messaging" do
     zone = Term2::Zone.get("foo")
     zone.zero?.should be_false
 
-    model.update(Term2::MouseEvent.new(4, 2, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press))
+    model.update(Term2::TestHelpers.mouse_event(4, 2, UV::MouseButton::Left, :press))
     sleep 50.milliseconds
 
     model.received.any? { |m| m.is_a?(Term2::ZoneInBoundsMsg) && m.as(Term2::ZoneInBoundsMsg).zone.id == zone.id }.should be_true
@@ -73,7 +73,7 @@ describe "Term2::Zone in-bounds messaging" do
     zone = Term2::Zone.get("foo")
     zone.zero?.should be_false
 
-    updated, _cmd = model.update(Term2::MouseEvent.new(4, 2, Term2::MouseEvent::Button::Left, Term2::MouseEvent::Action::Press))
+    updated, _cmd = model.update(Term2::TestHelpers.mouse_event(4, 2, UV::MouseButton::Left, :press))
     sleep 50.milliseconds
 
     updated.as(ZoneTestModelValue).received.any? { |m| m.is_a?(Term2::ZoneInBoundsMsg) && m.as(Term2::ZoneInBoundsMsg).zone.id == zone.id }.should be_true

@@ -92,37 +92,34 @@ module Term2
   describe "terminal messages" do
     it "creates EnterAltScreenMsg" do
       msg = EnterAltScreenMsg.new
-      msg.should be_a(Message)
+      msg.should be_a(ControlMsg)
     end
 
     it "creates ExitAltScreenMsg" do
       msg = ExitAltScreenMsg.new
-      msg.should be_a(Message)
+      msg.should be_a(ControlMsg)
     end
 
     it "creates ShowCursorMsg" do
       msg = ShowCursorMsg.new
-      msg.should be_a(Message)
+      msg.should be_a(ControlMsg)
     end
 
     it "creates HideCursorMsg" do
       msg = HideCursorMsg.new
-      msg.should be_a(Message)
+      msg.should be_a(ControlMsg)
     end
 
-    it "creates FocusMsg" do
-      msg = FocusMsg.new
-      msg.should be_a(Message)
+    it "creates UV focus/blur events" do
+      focus = Term2::FocusMsg.new
+      blur = Term2::BlurMsg.new
+      focus.should be_a(UV::Event)
+      blur.should be_a(UV::Event)
     end
 
-    it "creates BlurMsg" do
-      msg = BlurMsg.new
-      msg.should be_a(Message)
-    end
-
-    it "creates WindowSizeMsg with dimensions" do
-      msg = WindowSizeMsg.new(80, 24)
-      msg.should be_a(Message)
+    it "creates UV window size events with dimensions" do
+      msg = Term2::WindowSizeMsg.new(80, 24)
+      msg.should be_a(UV::Event)
       msg.width.should eq(80)
       msg.height.should eq(24)
     end
