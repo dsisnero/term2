@@ -115,22 +115,22 @@ module Term2
         ->(p : Progress) { p.show_percentage = false; nil }
       end
 
-      # --- Messages ---
+      # --- ControlMsgs ---
 
-      class FrameMsg < Message
+      class FrameMsg < ControlMsg
         getter id : Int32
         getter tag : Int32
 
         def initialize(@id : Int32, @tag : Int32); end
       end
 
-      class SetPercentMsg < Message
+      class SetPercentMsg < ControlMsg
         getter value : Float64
 
         def initialize(@value : Float64); end
       end
 
-      class IncrementMsg < Message
+      class IncrementMsg < ControlMsg
         getter delta : Float64
 
         def initialize(@delta : Float64); end

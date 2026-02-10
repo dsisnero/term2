@@ -183,14 +183,14 @@ module Term2
         read_dir
       end
 
-      class ErrorMsg < Message
+      class ErrorMsg < ControlMsg
         getter error : Exception
 
         def initialize(@error)
         end
       end
 
-      class ReadDirMsg < Message
+      class ReadDirMsg < ControlMsg
         getter id : Int32
         getter entries : Array(String)
 
@@ -262,12 +262,12 @@ module Term2
             @files = msg.entries
             @max = Math.max(@max, @height - 1)
           end
-        when WindowSizeMsg
+        when UV::WindowSizeEvent
           if @auto_height
             @height = msg.height - MARGIN_BOTTOM
           end
           @max = @height - 1
-        when KeyMsg
+        when UV::Key
           if @focus
             handle_key(msg)
           end
@@ -275,7 +275,7 @@ module Term2
         {self, Cmds.none}
       end
 
-      def handle_key(msg : KeyMsg)
+      def handle_key(msg : UV::Key)
         case
         when @key_map.go_to_top.matches?(msg)
           @selected = 0
@@ -470,7 +470,7 @@ module Term2
         end
 
         case msg
-        when KeyMsg
+        when UV::Key
           # If the msg does not match the Select keymap then this could not have been a selection.
           unless @key_map.select.matches?(msg)
             return {false, ""}

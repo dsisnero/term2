@@ -62,7 +62,7 @@ module Term2
         @id = Random.rand(Int32)
       end
 
-      class TickMsg < Message
+      class TickMsg < ControlMsg
         getter id : Int32
         getter tag : Int32
         getter time : Time

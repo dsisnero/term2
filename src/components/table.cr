@@ -258,7 +258,7 @@ module Term2
 
       def update(msg : Msg) : {Table, Cmd}
         case msg
-        when KeyMsg
+        when UV::Key
           if focused?
             handle_key(msg)
           end
@@ -266,7 +266,7 @@ module Term2
         {self, nil}
       end
 
-      def handle_key(msg : KeyMsg)
+      def handle_key(msg : UV::Key)
         case
         when @key_map.line_up.matches?(msg)
           move_cursor(-1)

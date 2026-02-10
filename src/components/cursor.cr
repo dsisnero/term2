@@ -12,11 +12,11 @@ module Term2
       end
 
       # InitialBlinkMsg initializes cursor blinking.
-      class InitialBlinkMsg < Message; end
+      class InitialBlinkMsg < ControlMsg; end
 
       # BlinkMsg signals that the cursor should blink.
       # It contains metadata to tell if the blink message is the one we're expecting.
-      class BlinkMsg < Message
+      class BlinkMsg < ControlMsg
         getter tag : Int32
 
         def initialize(@tag : Int32)
@@ -24,7 +24,7 @@ module Term2
       end
 
       # BlinkCanceled is sent when a blink operation is canceled/ignored.
-      class BlinkCanceled < Message; end
+      class BlinkCanceled < ControlMsg; end
 
       property blink_speed : Time::Span = 530.milliseconds
       property style : Lipgloss::Style = Lipgloss::Style.new.reverse(true)
@@ -65,9 +65,9 @@ module Term2
             return {self, nil}
           end
           return {self, blink_cmd}
-        when FocusMsg
+        when UV::FocusEvent
           return {self, focus}
-        when BlurMsg
+        when UV::BlurEvent
           blur
           return {self, nil}
         when BlinkMsg

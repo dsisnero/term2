@@ -67,9 +67,9 @@ module Term2
         end
 
         # Check if the given message matches this binding
-        def matches?(msg : Term2::KeyMsg) : Bool
+        def matches?(msg : UV::Key) : Bool
           return false if @disabled
-          @keys.includes?(msg.key.to_s)
+          @keys.any? { |key| msg.match_string(key) || msg.string == key }
         end
       end
     end

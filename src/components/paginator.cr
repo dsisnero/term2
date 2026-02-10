@@ -35,8 +35,8 @@ module Term2
       end
 
       def update(msg : Msg) : {Paginator, Cmd}
-        if msg.is_a?(KeyMsg)
-          key = msg.key.to_s
+        if msg.is_a?(UV::Key)
+          key = msg.string
           case key
           when "left", "h", "pgup"
             prev_page

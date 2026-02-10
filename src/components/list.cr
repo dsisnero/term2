@@ -811,7 +811,7 @@ module Term2
         end
 
         # Handle key bindings
-        if msg.is_a?(KeyMsg)
+        if msg.is_a?(UV::Key)
           if @key_map.force_quit.matches?(msg)
             return {self, Term2.quit}
           end
@@ -852,7 +852,7 @@ module Term2
       private def handle_browsing(msg : Msg) : Cmd
         cmd : Cmd = nil
 
-        if msg.is_a?(KeyMsg)
+        if msg.is_a?(UV::Key)
           case true
           when @key_map.cursor_up.matches?(msg)
             cursor_up_internal
@@ -882,7 +882,7 @@ module Term2
       end
 
       private def handle_filtering(msg : Msg) : Cmd
-        if msg.is_a?(KeyMsg)
+        if msg.is_a?(UV::Key)
           case true
           when @key_map.cancel_while_filtering.matches?(msg)
             reset_filtering

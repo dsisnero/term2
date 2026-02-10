@@ -11,19 +11,19 @@ module Term2
       getter last_tick : Time?
       getter interval : Time::Span
 
-      class Start < Term2::Message
+      class Start < Term2::ControlMsg
         getter duration : Time::Span
 
         def initialize(@duration : Time::Span); end
       end
 
-      class Tick < Term2::Message
+      class Tick < Term2::ControlMsg
         getter time : Time
 
         def initialize(@time : Time); end
       end
 
-      class Finished < Term2::Message
+      class Finished < Term2::ControlMsg
         getter finished_at : Time
 
         def initialize(@finished_at : Time); end

@@ -346,7 +346,7 @@ module Term2
         return {self, nil} unless @focus
 
         # Check for suggestion acceptance first (tab)
-        if msg.is_a?(KeyMsg) && @key_map.accept_suggestion.matches?(msg)
+        if msg.is_a?(UV::Key) && @key_map.accept_suggestion.matches?(msg)
           if can_accept_suggestion?
             suggestion = @matched_suggestions[@current_suggestion_index]
             # Append the rest of the suggestion
@@ -364,7 +364,7 @@ module Term2
         old_pos = @pos
 
         case msg
-        when KeyMsg
+        when UV::Key
           # Match key bindings
           if @key_map.character_forward.matches?(msg)
             set_cursor(@pos + 1) if @pos < @value.size
@@ -407,8 +407,8 @@ module Term2
           elsif @key_map.prev_suggestion.matches?(msg)
             prev_suggestion
             # Explicitly check for Runes type to insert text
-          elsif msg.key.type == Term2::KeyType::Runes && !msg.key.runes.empty?
-            insert_runes(msg.key.runes)
+          elsif !msg.text.empty?
+            insert_runes(msg.text.chars)
           end
 
           update_suggestions

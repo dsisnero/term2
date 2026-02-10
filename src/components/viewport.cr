@@ -88,9 +88,9 @@ module Term2
         end
       end
 
-      def update(msg : Message) : {Viewport, Cmd}
+      def update(msg : Msg) : {Viewport, Cmd}
         case msg
-        when KeyMsg
+        when UV::Key
           case
           when @key_map.up.matches?(msg)
             line_up

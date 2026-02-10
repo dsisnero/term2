@@ -13,16 +13,16 @@ module Term2
       def initialize
       end
 
-      class StartMsg < Message
+      class StartMsg < ControlMsg
       end
 
-      class StopMsg < Message
+      class StopMsg < ControlMsg
       end
 
-      class ResetMsg < Message
+      class ResetMsg < ControlMsg
       end
 
-      class TickMsg < Message
+      class TickMsg < ControlMsg
       end
 
       def update(msg : Msg) : {Stopwatch, Cmd}

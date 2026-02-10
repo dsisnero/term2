@@ -18,7 +18,7 @@ module Term2
         @running = true
       end
 
-      class TickMsg < Message
+      class TickMsg < ControlMsg
         getter id : Int32
         getter tag : Int32
         getter? timeout : Bool
@@ -27,14 +27,14 @@ module Term2
         end
       end
 
-      class TimeoutMsg < Message
+      class TimeoutMsg < ControlMsg
         getter id : Int32
 
         def initialize(@id)
         end
       end
 
-      class StartStopMsg < Message
+      class StartStopMsg < ControlMsg
         getter id : Int32
         getter? running : Bool
 
