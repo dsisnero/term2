@@ -58,12 +58,12 @@ module BuildExamples
 
   class Config
     property output_dir = "build"
-    property clean = false
-    property build_all = false
-    property list = false
-    property verbose = false
+    property? clean = false
+    property? build_all = false
+    property? list = false
+    property? verbose = false
     property target_dirs = [] of String
-    property fix_go_mod = true
+    property? fix_go_mod = true
   end
 
   def self.run(args)
@@ -120,17 +120,17 @@ module BuildExamples
     # Ensure output directory exists
     Dir.mkdir_p(config.output_dir) unless Dir.exists?(config.output_dir)
 
-    if config.clean
+    if config.clean?
       clean_binaries(config)
       return
     end
 
-    if config.list
+    if config.list?
       list_examples(config)
       return
     end
 
-    if config.build_all || !config.target_dirs.empty?
+    if config.build_all? || !config.target_dirs.empty?
       build_examples(config)
     else
       STDERR.puts "ERROR: No action specified. Use --all, --dir, --clean, or --list."
@@ -139,16 +139,16 @@ module BuildExamples
   end
 
   def self.clean_binaries(config)
-    puts "Cleaning binaries in #{config.output_dir}/" if config.verbose
+    puts "Cleaning binaries in #{config.output_dir}/" if config.verbose?
     Dir.glob("#{config.output_dir}/*-go").each do |path|
       File.delete(path) if File.file?(path)
-      puts "Deleted #{path}" if config.verbose
+      puts "Deleted #{path}" if config.verbose?
     end
     Dir.glob("#{config.output_dir}/*-cr").each do |path|
       File.delete(path) if File.file?(path)
-      puts "Deleted #{path}" if config.verbose
+      puts "Deleted #{path}" if config.verbose?
     end
-    puts "Cleaned binaries." if config.verbose
+    puts "Cleaned binaries." if config.verbose?
   end
 
   def self.list_examples(config)
@@ -197,7 +197,7 @@ module BuildExamples
     go_mod_path = File.join(go_mod_dir, "go.mod")
     return unless File.exists?(go_mod_path)
 
-    puts "  Fixing go.mod replace directives in #{go_mod_path}" if config.verbose
+    puts "  Fixing go.mod replace directives in #{go_mod_path}" if config.verbose?
 
     content = File.read(go_mod_path)
     lines = content.lines
@@ -267,7 +267,7 @@ module BuildExamples
         # Check if vendor directory exists
         vendor_path = vendor_root.join(vendor_subdir)
         unless Dir.exists?(vendor_path.to_s)
-          puts "  WARN: Vendor directory not found: #{vendor_path}" if config.verbose
+          puts "  WARN: Vendor directory not found: #{vendor_path}" if config.verbose?
           next
         end
 
@@ -276,7 +276,7 @@ module BuildExamples
 
         # Update or add replace directive
         if replace_map[module_name]? != rel_path
-          puts "    Adding replace #{module_name} => #{rel_path}" if config.verbose
+          puts "    Adding replace #{module_name} => #{rel_path}" if config.verbose?
           replace_map[module_name] = rel_path
           updated = true
         end
@@ -334,12 +334,12 @@ module BuildExamples
     end
 
     File.write(go_mod_path, new_lines.join("\n"))
-    puts "  Updated #{go_mod_path}" if config.verbose
+    puts "  Updated #{go_mod_path}" if config.verbose?
 
     # Run go mod tidy to update go.sum
     if updated
-      puts "  Running go mod tidy" if config.verbose
-      Process.run("go", ["mod", "tidy"], chdir: go_mod_dir, output: config.verbose ? Process::Redirect::Inherit : Process::Redirect::Close, error: config.verbose ? Process::Redirect::Inherit : Process::Redirect::Close)
+      puts "  Running go mod tidy" if config.verbose?
+      Process.run("go", ["mod", "tidy"], chdir: go_mod_dir, output: config.verbose? ? Process::Redirect::Inherit : Process::Redirect::Close, error: config.verbose? ? Process::Redirect::Inherit : Process::Redirect::Close)
     end
   end
 
@@ -352,63 +352,78 @@ module BuildExamples
       end
     end
 
-    puts "Building #{examples.size} example directories..." if config.verbose
+    puts "Building #{examples.size} example directories..."
 
-    examples.each do |dir|
-      build_example_dir(dir, config)
+    go_success = 0
+    go_failed = 0
+    cr_success = 0
+    cr_failed = 0
+
+    examples.each_with_index do |dir, idx|
+      rel_path = dir.sub(/^examples\//, "").gsub("/", "-")
+      puts "[#{idx + 1}/#{examples.size}] Building #{rel_path}..."
+
+      go_files = Dir.glob("#{dir}/*.go")
+      cr_files = Dir.glob("#{dir}/*.cr")
+
+      if !go_files.empty?
+        if build_go_example(dir, rel_path, go_files, config)
+          go_success += 1
+        else
+          go_failed += 1
+        end
+      end
+
+      if !cr_files.empty?
+        if build_crystal_example(dir, rel_path, cr_files, config)
+          cr_success += 1
+        else
+          cr_failed += 1
+        end
+      end
     end
 
-    puts "Done." if config.verbose
-  end
+    puts "\nBuild complete:"
+    puts "  Go:      #{go_success} succeeded, #{go_failed} failed"
+    puts "  Crystal: #{cr_success} succeeded, #{cr_failed} failed"
+    puts "  Total:   #{go_success + cr_success} binaries built"
 
-  def self.build_example_dir(dir, config)
-    # Determine base name for output binary
-    # Convert path like examples/bubbletea/tabs to bubbletea-tabs
-    rel_path = dir.sub(/^examples\//, "").gsub("/", "-")
-
-    go_files = Dir.glob("#{dir}/*.go")
-    cr_files = Dir.glob("#{dir}/*.cr")
-
-    if go_files.any?
-      build_go_example(dir, rel_path, go_files, config)
-    end
-
-    if cr_files.any?
-      build_crystal_example(dir, rel_path, cr_files, config)
+    if go_failed > 0 || cr_failed > 0
+      exit 1
     end
   end
 
   def self.build_go_example(dir, rel_path, go_files, config)
     go_mod_dir = find_go_mod_dir(dir)
     unless go_mod_dir
-      puts "WARN: No go.mod found for #{dir}, skipping Go build" if config.verbose
-      return
+      puts "WARN: No go.mod found for #{dir}, skipping Go build" if config.verbose?
+      return false
     end
 
     # Fix go.mod replace directives if enabled
-    if config.fix_go_mod
+    if config.fix_go_mod?
       fix_go_mod_file(go_mod_dir, config)
     end
 
     # Determine main.go file (prefer main.go, else first .go)
-    main_go = go_files.find { |f| f.ends_with?("main.go") } || go_files.first
+    main_go = go_files.find(&.ends_with?("main.go")) || go_files.first
     # Relative path from go_mod_dir to main_go
     rel_to_mod = Path[main_go].relative_to(Path[go_mod_dir]).to_s
 
     output_name = "#{rel_path}-go"
     output_path = File.expand_path(File.join(config.output_dir, output_name))
 
-    puts "Building Go: #{dir} -> #{output_name}" if config.verbose
+    puts "Building Go: #{dir} -> #{output_name}" if config.verbose?
 
     # Change to go_mod_dir and run go build
     cmd = ["go", "build", "-o", output_path, "./#{rel_to_mod}"]
-    if config.verbose
+    if config.verbose?
       puts "  cd #{go_mod_dir}"
       puts "  #{cmd.join(" ")}"
     end
 
     status = nil
-    if config.verbose
+    if config.verbose?
       status = Process.run(
         cmd[0],
         cmd[1..],
@@ -434,40 +449,60 @@ module BuildExamples
     end
 
     if status && !status.success?
-      # Error already printed
+      return false
     end
+
+    true
   end
 
   def self.build_crystal_example(dir, rel_path, cr_files, config)
     # Determine main.cr file (prefer main.cr, else first .cr)
-    main_cr = cr_files.find { |f| f.ends_with?("main.cr") } || cr_files.first
+    main_cr = cr_files.find(&.ends_with?("main.cr")) || cr_files.first
 
     output_name = "#{rel_path}-cr"
     output_path = File.join(config.output_dir, output_name)
 
-    puts "Building Crystal: #{dir} -> #{output_name}" if config.verbose
+    puts "Building Crystal: #{dir} -> #{output_name}" if config.verbose?
 
     # Use shared crystal cache
     env = {"CRYSTAL_CACHE_DIR" => File.join(Dir.current, ".crystal-cache")}
     cmd = ["crystal", "build", "--no-color", "--release", "-Dpreview_mt", "-Dexecution_context", "-o", output_path, main_cr]
 
-    if config.verbose
+    if config.verbose?
       puts "  #{cmd.join(" ")}"
     end
 
-    output = config.verbose ? Process::Redirect::Inherit : Process::Redirect::Close
-    error = config.verbose ? Process::Redirect::Inherit : Process::Redirect::Close
-    status = Process.run(
-      cmd[0],
-      cmd[1..],
-      env: env,
-      output: output,
-      error: error
-    )
-
-    unless status.success?
-      puts "ERROR: Crystal build failed for #{dir}" unless config.verbose
+    status = nil
+    if config.verbose?
+      status = Process.run(
+        cmd[0],
+        cmd[1..],
+        env: env,
+        output: Process::Redirect::Inherit,
+        error: Process::Redirect::Inherit
+      )
+    else
+      output = Process::Redirect::Close
+      error = IO::Memory.new
+      status = Process.run(
+        cmd[0],
+        cmd[1..],
+        env: env,
+        output: output,
+        error: error
+      )
+      unless status.success?
+        puts "ERROR: Crystal build failed for #{dir}"
+        err_str = error.to_s
+        puts err_str if !err_str.empty?
+      end
     end
+
+    if status && !status.success?
+      return false
+    end
+
+    true
   end
 end
 

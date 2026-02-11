@@ -7,7 +7,7 @@
 /shard.lock
 
 # Built example binaries (cleaned by `make clean`)
-
+/build/
 # Temporary and log directories (cleaned by `make clean`)
 /temp/
 /log/
