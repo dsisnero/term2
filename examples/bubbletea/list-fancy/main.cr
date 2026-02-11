@@ -39,7 +39,7 @@ class FancyDelegate
 
   def initialize(@key_map = DelegateKeys.new, @match_style = Lipgloss::Style.new.underline(true))
     @remove_enabled = true
-    @update_status = ->(_s : String) : Term2::Cmd { -> { nil.as(Term2::Message?) } }
+    @update_status = ->(_s : String) : Term2::Cmd { -> { nil.as(Term2::Msg?) } }
     @on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
   end
 
@@ -163,7 +163,7 @@ class FancyListModel
 
     delegate.update_status = ->(text : String) : Term2::Cmd {
       @list.status_message = status_message(text)
-      -> { nil.as(Term2::Message?) }
+      -> { nil.as(Term2::Msg?) }
     }
     delegate.on_remove = ->(_idx : Int32, _item : TC::List::Item) { }
     delegate.match_style = Lipgloss::Style.new.underline(true)
@@ -188,8 +188,8 @@ class FancyListModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::WindowSizeMsg
-      h = APP_STYLE.get_horizontal_margins + APP_STYLE.get_horizontal_padding
-      v = APP_STYLE.get_vertical_margins + APP_STYLE.get_vertical_padding
+      h = APP_STYLE.horizontal_margins + APP_STYLE.horizontal_padding
+      v = APP_STYLE.vertical_margins + APP_STYLE.vertical_padding
       @list.width = msg.width - h
       @list.height = msg.height - v
     when Term2::KeyMsg

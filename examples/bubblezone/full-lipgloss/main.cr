@@ -39,13 +39,13 @@ module BubblezoneFullLipglossExample
       Cmds.none
     end
 
-    def update(msg : Message) : {Model, Cmd}
+    def update(msg : Term2::Msg) : {Model, Cmd}
       unless initialized?
-        return {self, Cmds.none} unless msg.is_a?(WindowSizeMsg)
+        return {self, Cmds.none} unless msg.is_a?(Term2::WindowSizeMsg)
       end
 
       case msg
-      when KeyMsg
+      when Term2::KeyMsg
         handle_key(msg)
       when Term2::ZoneClickMsg
         return {self, Cmds.none} if @tabs.handle_zone_click(msg)
@@ -54,7 +54,7 @@ module BubblezoneFullLipglossExample
         return {self, Cmds.none} if @dialog.handle_zone_click(msg)
         return {self, Cmds.none} if @history.handle_zone_click(msg)
         {self, Cmds.none}
-      when WindowSizeMsg
+      when Term2::WindowSizeMsg
         @width = msg.width
         @height = msg.height
         {self, Cmds.none}
@@ -84,7 +84,7 @@ module BubblezoneFullLipglossExample
       content = Lipgloss.join_vertical(Lipgloss::Position::Top,
         @tabs.view(inner_width),
         "",
-        Lipgloss.place_horizontal(inner_width, Lipgloss::Position::Center, lists),
+        Lipgloss.place_horizontal(inner_width, Lipgloss::Position::Center, lists, Lipgloss.with_whitespace_chars(" ")),
         @history.view(inner_width, history_height)
       )
 
@@ -95,11 +95,11 @@ module BubblezoneFullLipglossExample
         .render(content)
     end
 
-    private def handle_key(msg : KeyMsg) : {Model, Cmd}
-      case msg.key.to_s
-      when "ctrl+c"
+    private def handle_key(msg : Term2::KeyMsg) : {Model, Cmd}
+      case
+      when msg.match_string("ctrl+c")
         {self, Term2.quit}
-      when "ctrl+e"
+      when msg.match_string("ctrl+e")
         Term2::Zone.enabled = !Term2::Zone.enabled?
         {self, nil}
       else

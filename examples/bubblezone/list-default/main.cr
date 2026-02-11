@@ -97,35 +97,41 @@ module BubblezoneListDefaultExample
     def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
       when Term2::KeyMsg
-        return {self, Term2::Cmds.quit} if msg.key.to_s == "ctrl+c"
+        return {self, Term2::Cmds.quit} if msg.match_string("ctrl+c")
       when Term2::WindowSizeMsg
-        h = DOC_STYLE.get_horizontal_margins + DOC_STYLE.get_horizontal_padding
-        v = DOC_STYLE.get_vertical_margins + DOC_STYLE.get_vertical_padding
+        h = DOC_STYLE.horizontal_margins + DOC_STYLE.horizontal_padding
+        v = DOC_STYLE.vertical_margins + DOC_STYLE.vertical_padding
         @list.width = msg.width - h
         @list.height = msg.height - v
-      when Term2::MouseEvent
-        case msg.button
-        when Term2::MouseEvent::Button::WheelUp
-          @list.cursor_up
-          return {self, nil}
-        when Term2::MouseEvent::Button::WheelDown
-          @list.cursor_down
-          return {self, nil}
-        else
-          # Handle zone clicks on mouse release.
-          if msg.action == Term2::MouseEvent::Action::Release && msg.button == Term2::MouseEvent::Button::Left
-            items = @list.visible_items
-            start_idx, end_idx = @list.paginator.get_slice_bounds(items.size)
-            page_items = items[start_idx...end_idx]
+      when Term2::UVMouseEvent
+        mouse = msg.mouse
+        case msg
+        when UV::MouseWheelEvent
+          case mouse.button
+          when UV::MouseButton::WheelUp
+            @list.cursor_up
+            return {self, nil}
+          when UV::MouseButton::WheelDown
+            @list.cursor_down
+            return {self, nil}
+          else
+            return {self, nil}
+          end
+        when UV::MouseReleaseEvent
+          return {self, nil} unless mouse.button == UV::MouseButton::Left
+          items = @list.visible_items
+          start_idx, end_idx = @list.paginator.get_slice_bounds(items.size)
+          page_items = items[start_idx...end_idx]
 
-            page_items.each_with_index do |list_item, i|
-              v = list_item.as(Item)
-              if Zone.get(v.id).in_bounds?(msg)
-                @list.select(i)
-                break
-              end
+          page_items.each_with_index do |list_item, i|
+            v = list_item.as(Item)
+            if Zone.get(v.id).in_bounds?(msg)
+              @list.select(i)
+              break
             end
           end
+          return {self, nil}
+        else
           return {self, nil}
         end
       end

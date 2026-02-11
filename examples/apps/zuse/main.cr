@@ -10,7 +10,7 @@ Log.setup_from_env
 
 module ZuseApp
   alias ServerId = Int32
-  alias DispatchProc = Proc(Term2::Message, Nil)
+  alias DispatchProc = Proc(Term2::Msg, Nil)
 
   PINK            = Lipgloss::Color.from_hex("#DB2777")
   DARK_PINK       = Lipgloss::Color.from_hex("#ac215f")
@@ -589,7 +589,7 @@ module ZuseApp
         resize(msg.width, msg.height)
         return {self, Term2::Cmds.none}
       when Term2::KeyMsg
-        key = msg.key.to_s
+        key = msg.string
         case key
         when "ctrl+c", "esc"
           return {self, Term2::Cmds.quit}
@@ -630,12 +630,13 @@ module ZuseApp
 
       top_padding = 2
       servers_title = STYLE_DIM.render("Servers List")
+      server_list_view = render_view(@server_list.view)
 
       left_inner = Lipgloss.join_vertical(
         Lipgloss::Position::Left,
         TITLE_STYLE.render("zuse irc beta"),
         Lipgloss::Style.new.margin_top(1).margin_bottom(1).render(servers_title),
-        @server_list.view
+        server_list_view
       )
 
       left_box = BOX_STYLE.width(@left_width).height(@height - top_padding).render(left_inner)
@@ -647,7 +648,7 @@ module ZuseApp
       top_spacer = Lipgloss::Style.new.width(@width).height(top_padding).render(" ")
       final_view = Lipgloss.join_vertical(Lipgloss::Position::Left, top_spacer, joined)
 
-      Lipgloss.place(@width, @height, Lipgloss::Position::Left, Lipgloss::Position::Top, final_view)
+      Lipgloss.place(@width, @height, Lipgloss::Position::Left, Lipgloss::Position::Top, final_view, Lipgloss.with_whitespace_chars(" "))
     end
 
     private def build_form_inputs : Nil
@@ -896,12 +897,19 @@ module ZuseApp
       header << TITLE_STYLE.render("up/down scroll | left/right panes") << "\n"
       divider = STYLE_PINK.render("-" * @chat_vp.width)
 
+      chat_view = header.to_s + render_view(@chat_vp.view)
+      input_view = render_view(@chat_input.view)
+
       Lipgloss.join_vertical(
         Lipgloss::Position::Left,
-        header.to_s + @chat_vp.view,
+        chat_view,
         divider,
-        @chat_input.view
+        input_view
       )
+    end
+
+    private def render_view(view : String | Term2::View) : String
+      view.is_a?(String) ? view : view.content
     end
 
     private def focus_form_field(idx : Int32) : Term2::Cmd
@@ -1193,6 +1201,6 @@ unless ENV["TERM2_REQUIRE_ONLY"]?
   model = ZuseApp::Model.new
   options = Term2::ProgramOptions.new(Term2::WithAltScreen.new)
   program = Term2::Program(ZuseApp::Model).new(model, options: options)
-  model.attach_dispatcher(->(msg : Term2::Message) { program.dispatch(msg) })
+  model.attach_dispatcher(->(msg : Term2::Msg) { program.dispatch(msg) })
   program.run
 end

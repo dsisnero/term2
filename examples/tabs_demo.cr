@@ -16,10 +16,10 @@ class TabsModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "ctrl+c", "q"
         {self, Term2.quit}
       when "right", "l", "n", "tab"
@@ -44,7 +44,7 @@ class TabsModel
     border
   end
 
-  def view : String
+  def view : String | Term2::View
     inactive_tab_border = tab_border_with_bottom("┴", "─", "┴")
     active_tab_border = tab_border_with_bottom("┘", " ", "└")
 
@@ -82,7 +82,7 @@ class TabsModel
       # Since Style holds a reference to Border (which is a struct),
       # we need to get the border, modify it (it's a struct, so copy), and set it back.
 
-      border = style.get_border_style
+      border = style.border_style
       new_border = border # Copy struct
 
       if is_first && is_active
@@ -103,7 +103,7 @@ class TabsModel
     row = Lipgloss.join_horizontal(Lipgloss::Position::Top, rendered_tabs)
 
     content = window_style
-      .width(Term2.width(row) - window_style.get_horizontal_frame_size)
+      .width(Lipgloss::Text.width(row) - window_style.horizontal_frame_size)
       .render(@tab_content[@active_tab])
 
     doc_style.render("#{row}\n#{content}")
