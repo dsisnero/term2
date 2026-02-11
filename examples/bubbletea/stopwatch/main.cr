@@ -66,13 +66,13 @@ class StopwatchModel
     "\n" + @help.view_short(self).content
   end
 
-  def view : String
+  def view : Term2::View
     s = @stopwatch.view.content + "\n"
     unless @quitting
       s = "Elapsed: " + s
       s += help_view
     end
-    s
+    Term2.new_view(s)
   end
 end
 

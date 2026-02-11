@@ -27,7 +27,7 @@ class SimpleModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "ctrl+c", "q"
         return {self, Term2::Cmds.quit}
       when "ctrl+z"
@@ -44,8 +44,9 @@ class SimpleModel
     {self, nil}
   end
 
-  def view : String
-    "Hi. This program will exit in #{@remaining} seconds.\n\nTo quit sooner press ctrl-c, or press ctrl-z to suspend...\n"
+  def view : Term2::View
+    content = "Hi. This program will exit in #{@remaining} seconds.\n\nTo quit sooner press ctrl-c, or press ctrl-z to suspend...\n"
+    Term2.new_view(content)
   end
 end
 
