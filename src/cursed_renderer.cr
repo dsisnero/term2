@@ -27,6 +27,9 @@ module Term2
     @last_view : View? = nil
     @cursor_visible : Bool? = nil
     @clear_requested : Bool = false
+    @starting : Bool = false
+    @mu : Mutex = Mutex.new
+    @buf : IO::Memory = IO::Memory.new
 
     # Ultraviolet cell buffer for efficient diffing
     @cell_buf : Ultraviolet::ScreenBuffer
@@ -40,10 +43,14 @@ module Term2
     @backspace : Bool = false
     @mapnl : Bool = false
     @syncd_updates : Bool = false
+    @logger : Ultraviolet::Logger? = nil
+    @term : String = ""
+    @view : View = View.new
 
     def initialize(@output : IO = STDOUT, env : Array(String) = ENV.map { |k, v| "#{k}=#{v}" }.to_a, width : Int32 = 0, height : Int32 = 0)
       update_frame_duration
       @env = env
+      @term = env.find { |e| e.starts_with?("TERM=") }.try(&.[5..]) || ""
       @width = width
       @height = height
       # Initialize cell buffers with dummy size (will resize on first render)
@@ -52,76 +59,253 @@ module Term2
     end
 
     def output=(io : IO) : Nil
-      @output = io
+      @mu.synchronize do
+        @output = io
+      end
+    end
+
+    def set_logger(logger : Ultraviolet::Logger) : Nil
+      @mu.synchronize do
+        @logger = logger
+      end
+    end
+
+    def set_optimizations(hard_tabs : Bool, backspace : Bool, mapnl : Bool) : Nil
+      @mu.synchronize do
+        @hard_tabs = hard_tabs
+        @backspace = backspace
+        @mapnl = mapnl
+        if scr = @scr
+          scr.tab_stops = @width
+          scr.backspace = backspace
+          scr.map_newline = mapnl
+        end
+      end
+    end
+
+    def set_syncd_updates(syncd : Bool) : Nil
+      @mu.synchronize do
+        @syncd_updates = syncd
+      end
+    end
+
+    def resize(width : Int32, height : Int32) : Nil
+      @mu.synchronize do
+        scr.erase
+        @width = width
+        @height = height
+        scr.resize(width, height)
+      end
+    end
+
+    def clear_screen : Nil
+      @mu.synchronize do
+        scr.move_to(0, 0)
+        scr.erase
+      end
+    end
+
+    def insert_above(str : String) : Nil
+      @mu.synchronize do
+        # TODO: implement insert_above
+      end
+    end
+
+    def set_color_profile(profile : Lipgloss::ColorProfile) : Nil
+      @mu.synchronize do
+        @color_profile = profile
+        if scr = @scr
+          scr.color_profile = to_ultraviolet_profile(profile)
+        end
+      end
     end
 
     # Start the renderer
     def start : Nil
-      return if @running
-      reset if @scr.nil?
-      @running = true
-      @last_render = ""
-      @last_lines.clear
-      @last_frame_time = Time::UNIX_EPOCH # Reset to allow immediate first render
-      @current_bracketed_paste_disabled = nil
-      @current_alt_screen = nil
-      @last_view = nil
-      @cursor_visible = nil
-      @clear_requested = false
+      @mu.synchronize do
+        return if @running
+        reset if @scr.nil?
+        @running = true
+        @last_render = ""
+        @last_lines.clear
+        @last_frame_time = Time::UNIX_EPOCH # Reset to allow immediate first render
+        @current_bracketed_paste_disabled = nil
+        @current_alt_screen = nil
+        @cursor_visible = nil
+        @clear_requested = false
+        @starting = true
+        _restore_state
+      end
     end
 
     # Stop the renderer
     def stop : Nil
-      return unless @running
-      @running = false
-      @current_alt_screen = nil
-      scr.flush
+      @mu.synchronize do
+        return unless @running
+        @running = false
+        _cleanup
+        @current_alt_screen = nil
+        @current_background = nil
+        @current_foreground = nil
+        @current_mouse_mode = MouseMode::None
+        @current_keyboard_enhancements = KeyboardEnhancements.new
+        @current_bracketed_paste_disabled = nil
+        @cursor_visible = nil
+        @last_view = nil
+        @last_render = ""
+        @last_lines.clear
+      end
     end
 
     # Render a string view (legacy compatibility)
     def render(view : String) : Nil
-      return unless @running
+      @mu.synchronize do
+        return unless @running
 
-      # Rate limiting based on FPS
-      now = Time.utc
-      elapsed = now - @last_frame_time
-      if elapsed < @frame_duration
-        return
+        # Rate limiting based on FPS
+        now = Time.utc
+        elapsed = now - @last_frame_time
+        if elapsed < @frame_duration
+          return
+        end
+        @last_frame_time = now
+
+        # Only render if the view has changed
+        return if view == @last_render
+
+        write_string("\r\e[J")
+        write_string(view)
+        scr.flush
+        _flush_buffer
+
+        @last_render = view
       end
-      @last_frame_time = now
-
-      # Only render if the view has changed
-      return if view == @last_render
-
-      write_string("\r\e[J")
-      write_string(view)
-      scr.flush
-
-      @last_render = view
     end
 
     # Render a View struct (v2 API)
     def render_view(view : View) : Nil
-      render_standard(view)
+      @mu.synchronize do
+        render_standard(view, closing: false)
+      end
     end
 
     # Request a clear on the next render
     def request_clear : Nil
-      @clear_requested = true
+      @mu.synchronize do
+        @clear_requested = true
+      end
     end
 
     # Flush any pending output
     def flush : Nil
+      @mu.synchronize do
+        scr.flush
+        _flush_buffer
+      end
+    end
+
+    private def _flush_buffer : Nil
+      if @buf.bytesize > 0
+        @output.write(@buf.to_slice)
+        @buf.clear
+      end
+    end
+
+    private def _cleanup : Nil
+      # Reset colors
+      apply_colors(nil, nil)
+
+      # Reset cursor color and shape
+      write_string("\e]112\a") # Reset cursor color (OSC 112)
+      write_string("\e[0 q")   # Reset cursor style to default
+
+      # Show cursor if hidden
+      apply_cursor_visibility(true)
+
+      # Disable mouse tracking
+      _disable_mouse_tracking
+
+      # Disable keyboard enhancements
+      _disable_keyboard_enhancements
+
+      # Disable bracketed paste mode
+      apply_bracketed_paste(true)
+
+      # Reset progress bar
+      write_string("\e]9;4;0\a")
+
+      # Clear window title
+      write_string("\e]2;\a")
+
+      # Flush cleanup sequences
       scr.flush
+      _flush_buffer
+    end
+
+    private def _restore_state : Nil
+      return unless view = @last_view
+
+      # Restore alt screen state
+      if view.alt_screen
+        # Enter alt screen
+        scr.save_cursor
+        write_string("\e[?1049h")
+        scr.fullscreen = true
+        scr.relative_cursor = false
+        scr.erase
+        @current_alt_screen = true
+      end
+
+      # Restore cursor
+      if cursor = view.cursor
+        apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
+        apply_cursor_visibility(true)
+      else
+        apply_cursor_visibility(false)
+      end
+
+      # Restore colors
+      apply_colors(view.background_color, view.foreground_color)
+
+      # Restore bracketed paste mode
+      apply_bracketed_paste(view.disable_bracketed_paste_mode)
+
+      # Restore mouse mode
+      apply_mouse_mode(view.mouse_mode)
+
+      # Restore keyboard enhancements
+      apply_keyboard_enhancements(view.keyboard_enhancements)
+
+      # Restore window title
+      if title = view.window_title
+        write_string("\e]2;#{title}\a")
+      end
+
+      # Restore progress bar
+      if progress = view.progress_bar
+        apply_progress_bar(progress)
+      end
+
+      # Flush restore sequences
+      scr.flush
+      _flush_buffer
     end
 
     # Check if the renderer is running
     def running? : Bool
-      @running
+      @mu.synchronize do
+        @running
+      end
     end
 
     # Repaint the screen
     def repaint : Nil
+      @mu.synchronize do
+        _repaint
+      end
+    end
+
+    private def _repaint : Nil
       return unless @running
       @last_render = "" # Force re-render on next call
       @last_lines.clear
@@ -129,42 +313,53 @@ module Term2
 
     # Print text to the output, handling screen clearing/restoring if necessary
     def print(text : String) : Nil
-      return unless @running
+      @mu.synchronize do
+        return unless @running
 
-      # Clear the screen (remove TUI)
-      clear_screen
+        # Clear the screen (remove TUI)
+        clear_screen
 
-      # Print the text
-      formatted_text = text.gsub("\n", "\r\n")
-      write_string(formatted_text)
-      scr.flush
+        # Print the text
+        formatted_text = text.gsub("\n", "\r\n")
+        write_string(formatted_text)
+        scr.flush
+        _flush_buffer
 
-      # Force repaint on next render
-      repaint
+        # Force repaint on next render
+        _repaint
+      end
     end
 
     # Get the color profile
     def color_profile : Lipgloss::ColorProfile
-      @color_profile
+      @mu.synchronize do
+        @color_profile
+      end
     end
 
     # Set the color profile
     def color_profile=(profile : Lipgloss::ColorProfile) : Nil
-      @color_profile = profile
-      if scr = @scr
-        scr.color_profile = to_ultraviolet_profile(profile)
+      @mu.synchronize do
+        @color_profile = profile
+        if scr = @scr
+          scr.color_profile = to_ultraviolet_profile(profile)
+        end
       end
     end
 
     # Set the frame rate (frames per second)
     def fps=(fps : Float64) : Nil
-      @fps = fps.clamp(1.0, 120.0)
-      update_frame_duration
+      @mu.synchronize do
+        @fps = fps.clamp(1.0, 120.0)
+        update_frame_duration
+      end
     end
 
     # Get the current frame rate
     def fps : Float64
-      @fps
+      @mu.synchronize do
+        @fps
+      end
     end
 
     # Private helper methods
@@ -179,7 +374,7 @@ module Term2
     end
 
     private def scr : Ultraviolet::TerminalRenderer
-      @scr.not_nil!
+      @scr.not_nil! # ameba:disable Lint/NotNil
     end
 
     private def write_string(str : String) : Nil
@@ -188,14 +383,17 @@ module Term2
 
     # Compatibility no-op with Bubble Tea renderer API
     def reset_lines_rendered : Nil
-      # We don't track rendered lines; noop for compatibility.
+      @mu.synchronize do
+        # We don't track rendered lines; noop for compatibility.
+      end
     end
 
     # TODO: Implement ultraviolet-style cell buffer diffing
-    private def render_standard(view : View) : Nil
+    # ameba:disable Metrics/CyclomaticComplexity
+    private def render_standard(view : View, closing : Bool = false) : Nil
       # Ensure terminal renderer is initialized
       reset if @scr.nil?
-      scr = @scr.not_nil!
+      scr = @scr.as(Ultraviolet::TerminalRenderer)
 
       # Update alt screen state (matches Go's shouldUpdateAltScreen logic)
       should_update_alt_screen = (@current_alt_screen.nil? && view.alt_screen) ||
@@ -242,30 +440,54 @@ module Term2
         apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
       end
 
-      scr = @scr.not_nil!
+      # Compute frame area (matching Go's flush logic)
+      frame_area = Ultraviolet.rect(0, 0, @width, @height)
+      if view.content.empty?
+        # If the component is nil, we should clear the screen buffer.
+        frame_area = Ultraviolet.rect(0, 0, @width, 0)
+      end
 
-      # Create styled string and compute frame dimensions (matching Go's flush logic)
       content = Ultraviolet::StyledString.new(view.content)
-      frame_area = @cell_buf.bounds
+      frame_height = frame_area.dy
       unless view.alt_screen
-        # In inline mode, resize based on content height
-        frame_height = content.height
-        if frame_height != frame_area.dy
+        # We need to resize the screen based on the frame height and
+        # terminal width. This is because the frame height can change based on
+        # the content of the frame. This is different from the alt screen buffer,
+        # which has a fixed height and width.
+        content_height = content.height
+        if content_height != frame_height
+          frame_height = content_height
           frame_area = Ultraviolet.rect(frame_area.min.x, frame_area.min.y, frame_area.dx, frame_height)
         end
       end
 
-      # Resize cell buffer if dimensions changed
+      # No-change optimization (matches Go)
+      if !@starting && (last_view = @last_view) && view_equals(last_view, view) && frame_area == @cell_buf.bounds
+        # No changes, nothing to do.
+        return
+      end
+
+      # We're no longer starting.
+      @starting = false
+
       if frame_area != @cell_buf.bounds
-        scr.erase # Force full redraw to avoid artifacts
-        # We need to reset touched lines buffer to match new height
-        # @cell_buf.touched = nil if @cell_buf.responds_to?(:touched)
+        scr.erase # Force a full redraw to avoid artifacts.
+        # We need to reset the touched lines buffer to match the new height.
+        @cell_buf.touched = Array(Ultraviolet::LineData?).new(frame_area.dy, nil)
         @cell_buf.resize(frame_area.dx, frame_area.dy)
       end
 
-      # Clear screen buffer before drawing new content
+      # Clear our screen buffer before copying the new frame into it to ensure
+      # we erase any old content.
       @cell_buf.clear
       content.draw(@cell_buf, @cell_buf.bounds)
+
+      # If the frame height is greater than the screen height, we drop the
+      # lines from the top of the buffer.
+      if frame_height > @height
+        n = frame_height - @height
+        @cell_buf.lines.shift(n)
+      end
 
       # Render cell buffer to terminal
       scr.render(@cell_buf)
@@ -292,12 +514,27 @@ module Term2
       end
 
       scr.flush
+      _flush_updates(closing)
 
       @last_render = view.content
       @last_view = view
     end
 
     # TODO: Implement ultraviolet cell buffer diffing
+    private def view_equals(a : View, b : View) : Bool
+      a.content == b.content &&
+        a.alt_screen == b.alt_screen &&
+        a.cursor == b.cursor &&
+        a.background_color == b.background_color &&
+        a.foreground_color == b.foreground_color &&
+        a.window_title == b.window_title &&
+        a.progress_bar == b.progress_bar &&
+        a.disable_bracketed_paste_mode == b.disable_bracketed_paste_mode &&
+        a.mouse_mode == b.mouse_mode &&
+        a.keyboard_enhancements == b.keyboard_enhancements &&
+        a.report_focus == b.report_focus
+    end
+
     private def apply_colors(background : Lipgloss::Color?, foreground : Lipgloss::Color?)
       old_bg = @current_background
       old_fg = @current_foreground
@@ -367,9 +604,9 @@ module Term2
       # Disable current tracking
       case @current_mouse_mode
       when MouseMode::CellMotion
-        disable_mouse_cell_motion
+        _disable_mouse_cell_motion
       when MouseMode::AllMotion
-        disable_mouse_all_motion
+        _disable_mouse_all_motion
       when MouseMode::None
         # Already disabled, nothing to do
       end
@@ -377,11 +614,11 @@ module Term2
       # Enable new tracking
       case mode
       when MouseMode::CellMotion
-        enable_mouse_cell_motion
+        _enable_mouse_cell_motion
       when MouseMode::AllMotion
-        enable_mouse_all_motion
+        _enable_mouse_all_motion
       when MouseMode::None
-        disable_mouse_tracking
+        _disable_mouse_tracking
       end
 
       @current_mouse_mode = mode
@@ -418,48 +655,93 @@ module Term2
 
     # Enable mouse cell motion tracking (clicks and drags)
     def enable_mouse_cell_motion : Nil
+      @mu.synchronize do
+        _enable_mouse_cell_motion
+      end
+    end
+
+    private def _enable_mouse_cell_motion : Nil
       write_string("\e[?1002h\e[?1006h")
     end
 
     # Disable mouse cell motion tracking
     def disable_mouse_cell_motion : Nil
+      @mu.synchronize do
+        _disable_mouse_cell_motion
+      end
+    end
+
+    private def _disable_mouse_cell_motion : Nil
       write_string("\e[?1002l\e[?1003l\e[?1006l")
     end
 
     # Enable mouse all motion tracking (including hover)
     def enable_mouse_all_motion : Nil
+      @mu.synchronize do
+        _enable_mouse_all_motion
+      end
+    end
+
+    private def _enable_mouse_all_motion : Nil
       write_string("\e[?1003h\e[?1006h")
     end
 
     # Disable mouse all motion tracking
     def disable_mouse_all_motion : Nil
+      @mu.synchronize do
+        _disable_mouse_all_motion
+      end
+    end
+
+    private def _disable_mouse_all_motion : Nil
       write_string("\e[?1003l")
     end
 
     # Disable all mouse tracking
     def disable_mouse_tracking : Nil
+      @mu.synchronize do
+        _disable_mouse_tracking
+      end
+    end
+
+    private def _disable_mouse_tracking : Nil
       write_string("\e[?1002l\e[?1003l\e[?1006l")
     end
 
     # Enable keyboard enhancements (key repeat/release reporting)
     def enable_keyboard_enhancements : Nil
+      @mu.synchronize do
+        _enable_keyboard_enhancements
+      end
+    end
+
+    private def _enable_keyboard_enhancements : Nil
       write_string("\e[?1001h")
     end
 
     # Disable keyboard enhancements
     def disable_keyboard_enhancements : Nil
+      @mu.synchronize do
+        _disable_keyboard_enhancements
+      end
+    end
+
+    private def _disable_keyboard_enhancements : Nil
       write_string("\e[?1001l")
     end
 
     private def reset : Nil
+      # Clear output buffer
+      @buf.clear
+
       # Determine terminal dimensions
       if @width <= 0 || @height <= 0
         @width, @height = Terminal.size
       end
 
-      # Create terminal renderer
-      @scr = Ultraviolet::TerminalRenderer.new(@output, @env)
-      scr = @scr.not_nil!
+      # Create terminal renderer writing to buffer
+      @scr = Ultraviolet::TerminalRenderer.new(@buf, @env)
+      scr = @scr.as(Ultraviolet::TerminalRenderer)
 
       # Set color profile
       scr.color_profile = to_ultraviolet_profile(@color_profile)
@@ -489,6 +771,22 @@ module Term2
       else
         Ultraviolet::ColorProfile::TrueColor
       end
+    end
+
+    private def _flush_updates(closing : Bool) : Nil
+      return if @buf.bytesize == 0
+
+      if @syncd_updates
+        @output.write(Ultraviolet::Ansi::SetModeSynchronizedOutput.to_slice)
+      end
+
+      @output.write(@buf.to_slice)
+
+      if @syncd_updates
+        @output.write(Ultraviolet::Ansi::ResetModeSynchronizedOutput.to_slice)
+      end
+
+      @buf.clear
     end
   end
 end
