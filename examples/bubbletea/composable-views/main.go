@@ -187,7 +187,7 @@ func main() {
 }
 
 var (
-	focusedModelStyle = lipgloss.NewStyle().Width(15).Height(5).Align(lipgloss.Center).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("63"))
+	focusedModelStyle   = lipgloss.NewStyle().Width(15).Height(5).Align(lipgloss.Center).BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("63"))
 	unfocusedModelStyle = focusedModelStyle.Copy().BorderForeground(lipgloss.Color("238"))
 
 	spinnerStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))

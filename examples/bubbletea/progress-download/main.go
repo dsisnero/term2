@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"charm.land/bubbles/v2/progress"
-	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/bubbles/v2/progress"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 var p *tea.Program
