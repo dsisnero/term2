@@ -1,6 +1,8 @@
 require "spec"
 require "golden"
 require "../src/term2"
+require "lipgloss"
+Lipgloss::StyleRenderer.default.color_profile = Lipgloss::ColorProfile::ANSI
 require "./support/teatest"
 require "./support/view_helpers"
 require "./support/uv_helpers"

@@ -98,10 +98,33 @@ module Term2
           @cursor = CursorStyle.new,
         )
         end
+
+        # Default styles for dark background (matching Go v2‑exp DefaultDarkStyles).
+        def self.default_dark_styles : Styles
+          Styles.new(
+            focused: StyleState.new(
+              text: Lipgloss::Style.new,
+              placeholder: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)),
+              suggestion: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)),
+              prompt: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(7)),
+            ),
+            blurred: StyleState.new(
+              text: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(7)),
+              placeholder: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)),
+              suggestion: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(240)),
+              prompt: Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(7)),
+            ),
+            cursor: CursorStyle.new(
+              color: Lipgloss::Color.indexed(7),
+              shape: Term2::CursorShape::Block,
+              blink: true,
+            ),
+          )
+        end
       end
 
       # Styles for the text input (v2‑exp API).
-      property styles : Styles = Styles.new
+      property styles : Styles = Styles.default_dark_styles
 
       def styles=(s : Styles)
         @styles = s
@@ -141,6 +164,7 @@ module Term2
       property echo_mode : EchoMode = EchoMode::Normal
       property echo_character : Char = '*'
       property cursor : Cursor = Cursor.new
+      property virtual_cursor : Bool = true
 
       # Styles (deprecated, use `styles` property)
       def prompt_style : Lipgloss::Style
@@ -451,66 +475,83 @@ module Term2
           return View.new(content: placeholder_view)
         end
 
+        styles = active_style
+        style_text = ->(s : String) { styles.text.inline(true).render(s) }
+
         # Current viewable window
         visible_value = @value[@offset...@offset_right]
-        visible_value_str = visible_value.join
         cursor_pos = (@pos - @offset).clamp(0, visible_value.size)
 
         pre_cursor = visible_value[0...cursor_pos].join
+        v = style_text.call(echo_transform(pre_cursor))
 
-        # Determine char under cursor
-        char_under = if cursor_pos < visible_value.size
-                       visible_value[cursor_pos]
-                     else
-                       ' '
-                     end
-
-        post_cursor = if cursor_pos + 1 < visible_value.size
-                        visible_value[cursor_pos + 1..-1].join
-                      else
-                        ""
-                      end
-
-        # Apply Echo transformation
-        pre_cursor = echo_transform(pre_cursor)
-        char_under_str = echo_transform(char_under.to_s)
-        post_cursor = echo_transform(post_cursor)
-
-        # Lipgloss::Style text
-        v = text_style.render(pre_cursor)
-
-        # Render Cursor
-        @cursor.char = char_under_str
-        # Check suggestions overlay
-        if @focus && can_accept_suggestion? && cursor_pos >= visible_value.size
-          suggestion = @matched_suggestions[@current_suggestion_index]
-          if suggestion.size > @value.size
-            # Show ghost text
-            completion_char = suggestion[@value.size]
-            @cursor.text_style = active_style.suggestion
-            @cursor.char = completion_char.to_s
-
-            rest_completion = suggestion[@value.size + 1..-1].join
-            cursor_view = @cursor.view.content
-            content = prompt_style.render(@prompt) + v + cursor_view + completion_style.render(rest_completion)
-            return View.new(content: content)
+        if cursor_pos < visible_value.size
+          # Cursor within text
+          char = echo_transform(visible_value[cursor_pos].to_s)
+          @cursor.char = char
+          if @virtual_cursor
+            v += @cursor.view.content
+          else
+            v += style_text.call(char)
+          end
+          post_cursor = visible_value[cursor_pos + 1..-1].join
+          v += style_text.call(echo_transform(post_cursor))
+          v += completion_view(0)
+        else
+          # Cursor at end
+          if @focus && can_accept_suggestion?
+            suggestion = @matched_suggestions[@current_suggestion_index]
+            if @value.size < suggestion.size
+              # Show ghost text
+              completion_char = echo_transform(suggestion[@value.size].to_s)
+              @cursor.text_style = styles.suggestion
+              @cursor.char = completion_char
+              if @virtual_cursor
+                v += @cursor.view.content
+              else
+                v += styles.suggestion.inline(true).render(completion_char)
+              end
+              v += completion_view(1)
+            else
+              @cursor.char = " "
+              if @virtual_cursor
+                v += @cursor.view.content
+              else
+                v += style_text.call(" ")
+              end
+            end
+          else
+            @cursor.char = " "
+            if @virtual_cursor
+              v += @cursor.view.content
+            else
+              v += style_text.call(" ")
+            end
           end
         end
 
-        v += @cursor.view.content
-        v += text_style.render(post_cursor)
-
-        visible_width = Lipgloss::Text.width(echo_transform(visible_value_str))
+        # If a width is set, fill empty spaces with background color
+        visible_width = Lipgloss::Text.width(echo_transform(visible_value.join))
         if @width > 0 && visible_width <= @width
           padding = (@width - visible_width).clamp(0, Int32::MAX)
           if visible_width + padding <= @width && cursor_pos < visible_value.size
             padding += 1
           end
-          v += text_style.render(" " * padding)
+          v += style_text.call(" " * padding)
         end
 
-        content = prompt_style.render(@prompt) + v
+        content = styles.prompt.render(@prompt) + v
         View.new(content: content)
+      end
+
+      private def completion_view(offset : Int32) : String
+        return "" unless can_accept_suggestion?
+        suggestion = @matched_suggestions[@current_suggestion_index]
+        if @value.size < suggestion.size
+          rest = suggestion[@value.size + offset..-1]
+          return active_style.suggestion.inline(true).render(echo_transform(rest.join))
+        end
+        ""
       end
 
       private def placeholder_view : String
@@ -532,7 +573,11 @@ module Term2
         v = ""
         @cursor.text_style = placeholder_style
         @cursor.char = first
-        v += @cursor.view.content
+        if @virtual_cursor
+          v += @cursor.view.content
+        else
+          v += placeholder_style.render(first)
+        end
 
         if @width > 0
           available = @width - Lipgloss::Text.width(p) - Lipgloss::Text.width(v)

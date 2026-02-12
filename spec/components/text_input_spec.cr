@@ -1,4 +1,5 @@
 require "../spec_helper"
+require "../spec_helper"
 require "../../src/components/text_input"
 
 describe Term2::Components::TextInput do
@@ -80,6 +81,7 @@ describe Term2::Components::TextInput do
     ti.value = "abc"
     ti.cursor_pos = 1
     ti.focus
+    ti.virtual_cursor = true
 
     # Prompt "> "
     # Left "a"
@@ -95,7 +97,7 @@ describe Term2::Components::TextInput do
     view.content.should contain "c"
     # Check for reverse video code around 'b'
     # \e[7mb\e[0m (standard ANSI reverse video)
-    view.content.should match /\e\[7mb\e\[0m/
+    view.content.should match /\e\[7(;[^m]+)?mb\e\[0m/
   end
 
   it "handles space input" do

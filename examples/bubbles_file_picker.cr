@@ -16,7 +16,7 @@ class FilePickerModel
     Term2::Cmds.none
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
       if msg.key.to_s == "q" || msg.key.to_s == "ctrl+c"
@@ -40,7 +40,7 @@ class FilePickerModel
       "You selected: #{@selected_file}"
     else
       "Select a file (q to quit):\n\n" +
-        @picker.view
+        @picker.view.to_s
     end
   end
 end

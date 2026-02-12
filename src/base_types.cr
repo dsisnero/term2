@@ -45,6 +45,7 @@ module Term2
   alias FocusMsg = UV::FocusEvent
   alias BlurMsg = UV::BlurEvent
   alias MouseMsg = UVMouseEvent
+  alias MouseEvent = UVMouseEvent
   alias MouseClickMsg = UV::MouseClickEvent
   alias MouseReleaseMsg = UV::MouseReleaseEvent
   alias MouseWheelMsg = UV::MouseWheelEvent
@@ -75,7 +76,6 @@ module Term2
       messages
     end
   end
-
 
   # Cmd is an IO operation that returns a message when it's complete.
   # If it's nil it's considered a no-op.
@@ -314,7 +314,7 @@ module Term2
   class DisableReportFocusMsg < ControlMsg
   end
 
-# EnvMsg represents the environment variables of the program.
+  # EnvMsg represents the environment variables of the program.
   # This is useful for getting environment variables of programs
   # running in a remote session like SSH. In that case, using ENV[] would
   # return the server's environment variables, not the client's.
@@ -379,7 +379,6 @@ module Term2
       @capability == other.capability
     end
   end
-
 
   class Dispatcher
     def initialize(@mailbox : CML::Mailbox(Msg), parent : Dispatcher? = nil, mapper : Proc(Msg, Msg)? = nil)

@@ -1186,6 +1186,7 @@ module Term2
     alias Model = Term2::Model
     alias TC = Term2::Components
     alias ControlMsg = Term2::ControlMsg
+    alias Message = Term2::Message
     alias Terminal = Term2::Terminal
     alias Program = Term2::Program
     alias QuitMsg = Term2::QuitMsg

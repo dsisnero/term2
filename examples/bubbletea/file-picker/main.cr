@@ -14,16 +14,17 @@ end
 class FilePickerModel
   include Term2::Model
 
-  getter filepicker : TC::FilePicker
+  getter filepicker : TC::FilePicker = begin
+    fp = TC::FilePicker.new
+    fp.allowed_types = [".mod", ".sum", ".go", ".txt", ".md"]
+    fp.current_directory = ENV["HOME"]? || Dir.current
+    fp
+  end
   getter selected_file : String = ""
   getter? quitting : Bool = false
   getter err : String?
 
   def initialize
-    fp = TC::FilePicker.new
-    fp.allowed_types = [".mod", ".sum", ".go", ".txt", ".md"]
-    fp.current_directory = ENV["HOME"]? || Dir.current
-    @filepicker = fp
     @err = nil
   end
 
