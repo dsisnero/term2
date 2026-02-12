@@ -394,35 +394,36 @@ module Term2
       # Ensure terminal renderer is initialized
       reset if @scr.nil?
       scr = @scr.as(Ultraviolet::TerminalRenderer)
+      @view = view
 
       # Update alt screen state (matches Go's shouldUpdateAltScreen logic)
       should_update_alt_screen = (@current_alt_screen.nil? && view.alt_screen) ||
                                  (@current_alt_screen != nil && @current_alt_screen != view.alt_screen)
 
       if should_update_alt_screen
-        # Kitty keyboard reset when switching screens
-        write_string("\e[=0;1u")
+        # Kitty keyboard reset when switching screens (deferred to flush)
+        # write_string("\e[=0;1u")
 
         if view.alt_screen
-          # Enter alt screen
+          # Enter alt screen (state only, sequences deferred)
           scr.save_cursor
-          write_string("\e[?1049h")
+          # write_string("\e[?1049h")
           scr.fullscreen = true
           scr.relative_cursor = false
           scr.erase
         else
-          # Exit alt screen
+          # Exit alt screen (state only, sequences deferred)
           scr.erase
           scr.relative_cursor = true
           scr.fullscreen = false
-          write_string("\e[?1049l")
+          # write_string("\e[?1049l")
           scr.restore_cursor
         end
         @current_alt_screen = view.alt_screen
       end
 
       if view.cursor.nil?
-        apply_cursor_visibility(false)
+        apply_cursor_visibility(false, write: false)
       end
 
       if @clear_requested
@@ -494,7 +495,7 @@ module Term2
 
       if cursor = view.cursor
         scr.move_to(cursor.position.x, cursor.position.y)
-        apply_cursor_visibility(true)
+        apply_cursor_visibility(true, write: false)
       else
         # Move cursor out of the way in inline mode
         unless view.alt_screen
@@ -578,12 +579,14 @@ module Term2
       end
     end
 
-    private def apply_cursor_visibility(show : Bool)
+    private def apply_cursor_visibility(show : Bool, write : Bool = true)
       return if @cursor_visible == show
-      if show
-        write_string("\e[?25h")
-      else
-        write_string("\e[?25l")
+      if write
+        if show
+          write_string("\e[?25h")
+        else
+          write_string("\e[?25l")
+        end
       end
       @cursor_visible = show
     end
@@ -776,14 +779,52 @@ module Term2
     private def _flush_updates(closing : Bool) : Nil
       return if @buf.bytesize == 0
 
-      if @syncd_updates
-        @output.write(Ultraviolet::Ansi::SetModeSynchronizedOutput.to_slice)
+      has_updates = @buf.bytesize > 0
+      did_show_cursor = @last_view.try(&.cursor) != nil
+      show_cursor = @view.cursor != nil
+      hide_cursor = !show_cursor
+      last_alt_screen = @last_view.try(&.alt_screen)
+      should_update_alt_screen = (@last_view.nil? && @view.alt_screen) ||
+                                 (last_alt_screen != nil && last_alt_screen != @view.alt_screen)
+      should_update_cursor_vis = (@last_view.nil? || did_show_cursor != show_cursor) || should_update_alt_screen
+
+      # Build final output buffer (simplified - write directly to output)
+      if should_update_alt_screen
+        # We always disable keyboard enhancements when switching screens
+        @output.write("\e[=0;1u".to_slice)
+        if @view.alt_screen
+          # Entering alt screen mode
+          @output.write("\e[?1049h".to_slice)
+        else
+          # Exiting alt screen mode
+          @output.write("\e[?1049l".to_slice)
+        end
       end
 
-      @output.write(@buf.to_slice)
+      if @syncd_updates
+        if has_updates
+          @output.write(Ultraviolet::Ansi::SetModeSynchronizedOutput.to_slice)
+        end
+        if should_update_cursor_vis && hide_cursor
+          @output.write("\e[?25l".to_slice)
+        end
+      elsif (should_update_cursor_vis && hide_cursor) || (has_updates && show_cursor && did_show_cursor)
+        @output.write("\e[?25l".to_slice)
+      end
+
+      if has_updates
+        @output.write(@buf.to_slice)
+      end
 
       if @syncd_updates
-        @output.write(Ultraviolet::Ansi::ResetModeSynchronizedOutput.to_slice)
+        if should_update_cursor_vis && show_cursor
+          @output.write("\e[?25h".to_slice)
+        end
+        if has_updates
+          @output.write(Ultraviolet::Ansi::ResetModeSynchronizedOutput.to_slice)
+        end
+      elsif (should_update_cursor_vis && show_cursor) || (has_updates && show_cursor && did_show_cursor)
+        @output.write("\e[?25h".to_slice)
       end
 
       @buf.clear
