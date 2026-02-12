@@ -1,5 +1,4 @@
 require "../spec_helper"
-require "../spec_helper"
 require "../../src/components/text_input"
 
 describe Term2::Components::TextInput do

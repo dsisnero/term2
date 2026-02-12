@@ -6,16 +6,16 @@ module ClickableExample
 
   MAX_DIALOGS = 999
 
-  BG_TEXT_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(239)).padding(1, 2)
+  BG_TEXT_STYLE     = Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(239)).padding(1, 2)
   DIALOG_WORD_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color.hex("#E7E1CC"))
-  DIALOG_STYLE = DIALOG_WORD_STYLE
+  DIALOG_STYLE      = DIALOG_WORD_STYLE
     .width(36)
     .height(8)
     .padding(1, 3)
     .border(Lipgloss::Border.rounded)
     .border_foreground(Lipgloss::Color.hex("#874BFD"))
   HOVERED_DIALOG_STYLE = DIALOG_STYLE.border_foreground(Lipgloss::Color.hex("#F25D94"))
-  BUTTON_STYLE = Lipgloss::Style.new
+  BUTTON_STYLE         = Lipgloss::Style.new
     .padding(0, 3)
     .foreground(Lipgloss::Color.hex("#FFF7DB"))
     .background(Lipgloss::Color.hex("#6124DF"))
@@ -137,7 +137,7 @@ module ClickableExample
         if id.empty?
           nil
         else
-          ->{ LayerHitMsg.new(id, event).as(Term2::Msg) }
+          -> { LayerHitMsg.new(id, event).as(Term2::Msg) }
         end
       end
 
