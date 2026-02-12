@@ -34,9 +34,9 @@ end
 
 RAMP = make_ramp_styles("#B14FFF", "#00FFA3", PROGRESS_BAR_WIDTH)
 
-class ViewsTickMsg < Message; end
+class ViewsTickMsg < Term2::Message; end
 
-class ViewsFrameMsg < Message; end
+class ViewsFrameMsg < Term2::Message; end
 
 def tick_cmd : Cmd
   Cmds.tick(1.second) { ViewsTickMsg.new }
@@ -72,7 +72,7 @@ class ViewsModel
   end
 
   def update(msg : Msg) : {Model, Cmd}
-    if msg.is_a?(KeyMsg)
+    if msg.is_a?(Term2::KeyMsg)
       k = msg.key.to_s
       if k == "q" || k == "esc" || k == "ctrl+c"
         @quitting = true
@@ -100,7 +100,7 @@ class ViewsModel
 
   private def update_choices(msg : Msg) : {Model, Cmd}
     case msg
-    when KeyMsg
+    when Term2::KeyMsg
       case msg.key.to_s
       when "j", "down"
         @choice += 1

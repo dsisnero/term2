@@ -188,8 +188,8 @@ class FancyListModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::WindowSizeMsg
-      h = APP_STYLE.horizontal_margins + APP_STYLE.horizontal_padding
-      v = APP_STYLE.vertical_margins + APP_STYLE.vertical_padding
+      h = APP_STYLE.get_horizontal_margins + APP_STYLE.get_horizontal_padding
+      v = APP_STYLE.get_vertical_margins + APP_STYLE.get_vertical_padding
       @list.width = msg.width - h
       @list.height = msg.height - v
     when Term2::KeyMsg
