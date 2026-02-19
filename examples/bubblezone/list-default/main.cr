@@ -99,8 +99,8 @@ module BubblezoneListDefaultExample
       when Term2::KeyMsg
         return {self, Term2::Cmds.quit} if msg.match_string("ctrl+c")
       when Term2::WindowSizeMsg
-        h = DOC_STYLE.get_horizontal_margins + DOC_STYLE.get_horizontal_padding
-        v = DOC_STYLE.get_vertical_margins + DOC_STYLE.get_vertical_padding
+        h = DOC_STYLE.horizontal_margins + DOC_STYLE.horizontal_padding
+        v = DOC_STYLE.vertical_margins + DOC_STYLE.vertical_padding
         @list.width = msg.width - h
         @list.height = msg.height - v
       when Term2::UVMouseEvent

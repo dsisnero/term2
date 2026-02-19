@@ -1,0 +1,3 @@
+Terminal supports key releases: false
+Terminal supports key disambiguation: false
+This demo logs key events. Press ctrl+c to quit.

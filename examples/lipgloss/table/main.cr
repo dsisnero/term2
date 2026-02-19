@@ -4,7 +4,7 @@ require "../styles"
 include Term2::Prelude
 
 class LibglossTableModel
-  include Model
+  include Term2::Model
 
   getter data : Array(Array(String))
 
@@ -18,12 +18,12 @@ class LibglossTableModel
     ]
   end
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
-    {self, Cmds.none}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
+    {self, Term2::Cmds.none}
   end
 
   def view : String

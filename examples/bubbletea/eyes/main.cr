@@ -45,7 +45,7 @@ class EyesModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      if msg.key.type == Term2::KeyType::CtrlC || msg.key.type == Term2::KeyType::Esc
+      if msg.string == "ctrl+c" || msg.string == "esc"
         return {self, Term2::Cmds.quit}
       end
     when Term2::WindowSizeMsg

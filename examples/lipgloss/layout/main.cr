@@ -4,7 +4,7 @@ require "../styles"
 include Term2::Prelude
 
 class LayoutModel
-  include Model
+  include Term2::Model
 
   getter tabs : Array(String)
   getter selected_tab : Int32
@@ -14,27 +14,27 @@ class LayoutModel
     @selected_tab = 0
   end
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when KeyMsg
-      case msg.key.to_s
+    when Term2::KeyMsg
+      case msg.string
       when "q", "ctrl+c"
-        {self, Term2.quit}
+        {self, Term2::Cmds.quit}
       when "tab", "right"
         @selected_tab = (@selected_tab + 1) % @tabs.size
-        {self, Cmds.none}
+        {self, Term2::Cmds.none}
       when "left"
         @selected_tab = (@selected_tab - 1 + @tabs.size) % @tabs.size
-        {self, Cmds.none}
+        {self, Term2::Cmds.none}
       else
-        {self, Cmds.none}
+        {self, Term2::Cmds.none}
       end
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 

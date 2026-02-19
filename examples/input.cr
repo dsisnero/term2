@@ -17,7 +17,7 @@ VALUE_STYLE = Lipgloss::Style.new.foreground(Lipgloss::Color::BRIGHT_BLACK) # gr
 KEY_STYLE   = Lipgloss::Style.new.foreground(Lipgloss::Color::CYAN)
 
 class InputModel
-  include Model
+  include Term2::Model
   property input : TC::TextInput
 
   def initialize
@@ -27,26 +27,26 @@ class InputModel
     @input.focus
   end
 
-  def init : Cmd
+  def init : Term2::Cmd
     @input.focus
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
-    when KeyMsg
-      case msg.key.to_s
+    when Term2::KeyMsg
+      case msg.string
       when "ctrl+c"
-        {self, Term2.quit}
+        {self, Term2::Cmds.quit}
       when "enter"
         # Submit
-        {self, Cmds.none}
+        {self, Term2::Cmds.none}
       else
         new_input, cmd = @input.update(msg)
         @input = new_input
         {self, cmd}
       end
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 

@@ -1,0 +1,5 @@
+This will produce the wrong colors on Apple Terminal :)
+
+[38;2;107;80;255mHowdy![m
+
+Press any key to exit.

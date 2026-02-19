@@ -12,7 +12,7 @@ struct ChatMessage
 end
 
 class AiChatModel
-  include Model
+  include Term2::Model
 
   HEADER_STYLE = Lipgloss::Style.new.bold(true).yellow
   ROLE_STYLES  = {
@@ -59,27 +59,30 @@ class AiChatModel
     @window_height = 24
   end
 
-  def init : Cmd
-    Cmds.batch(@input.focus, redraw_viewport)
+  def init : Term2::Cmd
+    Term2::Cmds.batch(@input.focus, redraw_viewport)
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::WindowSizeMsg
       resize(msg.width, msg.height)
       return {self, redraw_viewport}
     when Term2::KeyMsg
-      if msg.key.to_s == "ctrl+c"
-        return {self, Term2.quit}
+      if msg.string == "ctrl+c"
+        return {self, Term2::Cmds.quit}
       end
       # submit on Enter
-      if msg.key.to_s == "enter"
+      if msg.string == "enter"
         submit_input
         return {self, redraw_viewport}
       end
+    when UpdateViewportMsg
+      refresh_viewport
+      return {self, Term2::Cmds.none}
     end
 
-    {self, Cmds.none}
+    {self, Term2::Cmds.none}
   end
 
   def view : String
@@ -157,16 +160,11 @@ class AiChatModel
     %(Echoing "#{prompt}" using #{@model_name}. (Not actually calling an API.))
   end
 
-  private def redraw_viewport : Cmd
-    Cmds.message(UpdateViewportMsg.new)
+  private def redraw_viewport : Term2::Cmd
+    Term2::Cmds.message(UpdateViewportMsg.new)
   end
 
-  class UpdateViewportMsg < Message; end
-
-  def update(msg : UpdateViewportMsg) : {Model, Cmd}
-    refresh_viewport
-    {self, Cmds.none}
-  end
+  class UpdateViewportMsg < Term2::Message; end
 
   private def refresh_viewport
     body = @messages.map { |m| format_message(m) }.join("\n\n")

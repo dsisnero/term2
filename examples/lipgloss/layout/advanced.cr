@@ -63,17 +63,17 @@ module AdvancedLayout
 end
 
 class AdvancedLayoutModel
-  include Model
+  include Term2::Model
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
-    if msg.is_a?(KeyMsg) && ["q", "ctrl+c"].includes?(msg.key.to_s)
-      {self, Term2.quit}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
+    if msg.is_a?(Term2::KeyMsg) && ["q", "ctrl+c"].includes?(msg.string)
+      {self, Term2::Cmds.quit}
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 

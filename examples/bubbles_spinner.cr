@@ -14,11 +14,11 @@ class SpinnerModel
     @spinner.tick
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      if msg.key.to_s == "q" || msg.key.to_s == "ctrl+c"
-        return {self, Term2.quit}
+      if msg.string == "q" || msg.string == "ctrl+c"
+        return {self, Term2::Cmds.quit}
       end
     end
 

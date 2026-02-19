@@ -29,39 +29,39 @@ KEY_STYLE = Lipgloss::Style.new
   .foreground(Lipgloss::Color::CYAN)
 
 # Custom messages for explicit actions
-class Increment < Message
+class Increment < Term2::Message
 end
 
-class Decrement < Message
+class Decrement < Term2::Message
 end
 
-class Reset < Message
+class Reset < Term2::Message
 end
 
 class CounterModel
-  include Model
+  include Term2::Model
 
   getter count : Int32
 
   def initialize(@count : Int32 = 0)
   end
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Increment
-      {CounterModel.new(count + 1), Cmds.none}
+      {CounterModel.new(count + 1), Term2::Cmds.none}
     when Decrement
-      {CounterModel.new(count - 1), Cmds.none}
+      {CounterModel.new(count - 1), Term2::Cmds.none}
     when Reset
-      {CounterModel.new, Cmds.none}
+      {CounterModel.new, Term2::Cmds.none}
     when Term2::KeyMsg
-      handle_key(msg.key)
+      handle_key(msg.string)
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 
@@ -83,18 +83,18 @@ class CounterModel
     end
   end
 
-  private def handle_key(key : Term2::Key) : {Model, Cmd}
-    case key.to_s
+  private def handle_key(key : String) : {Term2::Model, Term2::Cmd}
+    case key
     when "+", "up"
-      {CounterModel.new(count + 1), Cmds.none}
+      {CounterModel.new(count + 1), Term2::Cmds.none}
     when "-", "down"
-      {CounterModel.new(count - 1), Cmds.none}
+      {CounterModel.new(count - 1), Term2::Cmds.none}
     when "0"
-      {CounterModel.new, Cmds.none}
+      {CounterModel.new, Term2::Cmds.none}
     when "q", "ctrl+c"
-      {self, Term2.quit}
+      {self, Term2::Cmds.quit}
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 end

@@ -14,7 +14,7 @@ class SimpleModel
     Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Model, Cmd}
     case msg
     when Term2::KeyMsg
       case msg.key.to_s

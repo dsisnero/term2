@@ -11,34 +11,34 @@ HEADER_STYLE = Lipgloss::Style.new.bold(true).foreground(Lipgloss::Color::YELLOW
 KEY_STYLE    = Lipgloss::Style.new.foreground(Lipgloss::Color::CYAN)
 
 class CounterModel
-  include Model
+  include Term2::Model
 
   getter count : Int32
 
   def initialize(@count : Int32 = 0)
   end
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "q", "ctrl+c"
-        {self, Term2.quit}
+        {self, Term2::Cmds.quit}
       when "+", "="
-        {CounterModel.new(count + 1), Cmds.none}
+        {CounterModel.new(count + 1), Term2::Cmds.none}
       when "-", "_"
-        {CounterModel.new(count - 1), Cmds.none}
+        {CounterModel.new(count - 1), Term2::Cmds.none}
       when "r"
-        {CounterModel.new, Cmds.none}
+        {CounterModel.new, Term2::Cmds.none}
       else
-        {self, Cmds.none}
+        {self, Term2::Cmds.none}
       end
     else
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
   end
 

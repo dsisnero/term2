@@ -8,7 +8,7 @@ GAP = "\n\n"
 Log.setup_from_env
 
 class ChatModel
-  include Model
+  include Term2::Model
 
   getter viewport : TC::Viewport
   getter textarea : TC::TextArea
@@ -39,32 +39,32 @@ class ChatModel
     @textarea.focus
   end
 
-  def init : Cmd
-    Cmds.batch(@textarea.focus, @textarea.blink)
+  def init : Term2::Cmd
+    Term2::Cmds.batch(@textarea.focus, @textarea.blink)
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     Log.debug { "chat#update msg=#{msg.class.name}" }
 
     case msg
     when Term2::WindowSizeMsg
       resize(msg.width, msg.height)
-      return {self, Cmds.none}
+      return {self, Term2::Cmds.none}
     when Term2::KeyMsg
-      key = msg.key.to_s
+      key = msg.string
       case key
       when "ctrl+c", "esc"
-        return {self, Term2.quit}
+        return {self, Term2::Cmds.quit}
       when "enter"
         submit_message
-        return {self, Cmds.none}
+        return {self, Term2::Cmds.none}
       when "ctrl+z"
         @suspending = true
-        return {self, Cmds.suspend}
+        return {self, Term2::Cmds.suspend}
       end
     when Term2::ResumeMsg
       @suspending = false
-      return {self, Cmds.none}
+      return {self, Term2::Cmds.none}
     end
 
     new_textarea, ta_cmd = @textarea.update(msg)
@@ -90,7 +90,7 @@ class ChatModel
   def view : String
     return "" if suspending?
 
-    "#{@viewport.view}#{GAP}#{@textarea.view}"
+    "#{@viewport.view.content}#{GAP}#{@textarea.view.content}"
   end
 
   private def initial_welcome : String
@@ -121,7 +121,14 @@ MSG
 
   private def update_viewport_content
     wrapper = Lipgloss::Style.new.width(@viewport.width)
-    @viewport.content = wrapper.render(@messages.join("\n"))
+    body = String.build do |io|
+      io << initial_welcome
+      unless @messages.empty?
+        io << "\n\n"
+        io << @messages.join("\n")
+      end
+    end
+    @viewport.content = wrapper.render(body)
   end
 end
 

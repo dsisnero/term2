@@ -16,12 +16,12 @@ class TextInputModel
     @text_input.focus
   end
 
-  def update(msg : Term2::Message) : {Term2::Model, Term2::Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      if msg.key.to_s == "ctrl+c"
-        return {self, Term2.quit}
-      elsif msg.key.to_s == "enter"
+      if msg.string == "ctrl+c"
+        return {self, Term2::Cmds.quit}
+      elsif msg.string == "enter"
         @entered_text = @text_input.value
         @text_input.value = ""
         @text_input.cursor_start

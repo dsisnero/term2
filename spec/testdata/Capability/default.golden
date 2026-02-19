@@ -1,0 +1,8 @@
+
+Query for terminal capabilities. You can enter things like  
+'TN', 'RGB', 'cols', and so on. This will not work in all   
+terminals and multiplexers.                                 
+
+[37m> [m[7;37mE[m[90mnter capability name to request[m
+
+Press enter to request capability, or ctrl+c to quit.

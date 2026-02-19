@@ -6,18 +6,19 @@ class ResponseMsg < Term2::Message
 end
 
 def listen_for_activity(ch : Channel(Nil)) : Term2::Cmd
-  -> : Term2::Message? {
+  -> : Term2::Msg? {
     loop do
       sleep Random.rand(100..1000).milliseconds
       ch.send(nil)
     end
+    nil
   }
 end
 
 def wait_for_activity(ch : Channel(Nil)) : Term2::Cmd
-  -> : Term2::Message? {
+  -> : Term2::Msg? {
     ch.receive?
-    ResponseMsg.new
+    ResponseMsg.new.as(Term2::Msg)
   }
 end
 

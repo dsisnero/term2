@@ -28,21 +28,25 @@ class FilePickerModel
     @picker = new_picker
 
     if @picker.did_select_file?
-      @selected_file = @picker.selected_file
-      return {self, Term2.quit}
+      selected = @picker.selected_file
+      if selected && !selected.empty?
+        @selected_file = selected
+        return {self, Term2.quit}
+      end
     end
 
     {self, cmd}
   end
 
   def view : String
-    if @selected_file
+    if selected = @selected_file
       "You selected: #{@selected_file}"
     else
-      "Select a file (q to quit):\n\n" +
-        @picker.view.to_s
+      "  Pick a file:\n\n#{@picker.view.content}"
     end
   end
 end
 
-Term2.run(FilePickerModel.new)
+unless ENV["TERM2_REQUIRE_ONLY"]?
+  Term2.run(FilePickerModel.new)
+end

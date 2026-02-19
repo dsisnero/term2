@@ -3,18 +3,21 @@ module examples
 go 1.25.2
 
 replace (
-	github.com/charmbracelet/bubbles/v2 => ../../vendor/bubbles
-	github.com/charmbracelet/bubbletea/v2 => ../../vendor/bubbletea
-	github.com/charmbracelet/lipgloss/v2 => ../../vendor/lipgloss
-	github.com/charmbracelet/x/ansi => ../../vendor/x/ansi
-	github.com/charmbracelet/x/cellbuf => ../../vendor/x/cellbuf
-	github.com/charmbracelet/x/exp/charmtone => ../../vendor/x/exp/charmtone
-	github.com/charmbracelet/x/exp/slice => ../../vendor/x/exp/slice
-	github.com/charmbracelet/x/exp/teatest/v2 => ../../vendor/x/exp/teatest/v2
-	github.com/charmbracelet/x/term => ../../vendor/x/term
-	github.com/charmbracelet/x/termios => ../../vendor/x/termios
-	github.com/charmbracelet/x/windows => ../../vendor/x/windows
+  github.com/charmbracelet/x/exp/charmtone => ../../vendor/x/exp/charmtone
+  github.com/charmbracelet/x/exp/golden => ../../vendor/x/exp/golden
+  github.com/charmbracelet/x/exp/slice => ../../vendor/x/exp/slice
+  github.com/charmbracelet/x/ansi => ../../vendor/x/ansi
+  github.com/charmbracelet/x/cellbuf => ../../vendor/x/cellbuf
+  github.com/charmbracelet/x/term => ../../vendor/x/term
+  github.com/charmbracelet/x/termios => ../../vendor/x/termios
+  github.com/charmbracelet/x/windows => ../../vendor/x/windows
+  charm.land/bubbles/v2 => ../../vendor/bubbles
+  charm.land/bubbletea/v2 => ../../vendor/bubbletea
+  charm.land/lipgloss/v2 => ../../vendor/lipgloss
+  github.com/charmbracelet/x/exp/teatest/v2 => ../../vendor/x
 )
+
+
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

@@ -26,8 +26,8 @@ class TextInputExampleModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.type
-      when Term2::KeyType::Enter, Term2::KeyType::CtrlC, Term2::KeyType::Esc
+      case msg.string
+      when "enter", "ctrl+c", "esc"
         return {self, Term2::Cmds.quit}
       end
     end

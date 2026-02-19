@@ -14,7 +14,7 @@ module StopwatchExample
 
   # Stopwatch component that counts elapsed time
   class Stopwatch
-    include Model
+    include Term2::Model
 
     property elapsed : Time::Span = Time::Span.zero
     property interval : Time::Span
@@ -27,7 +27,7 @@ module StopwatchExample
       @id = Random.rand(Int32)
     end
 
-    class TickMsg < Message
+    class TickMsg < Term2::Message
       getter id : Int32
       getter tag : Int32
 
@@ -35,11 +35,11 @@ module StopwatchExample
       end
     end
 
-    def init : Cmd
-      Cmds.none
+    def init : Term2::Cmd
+      Term2::Cmds.none
     end
 
-    def update(msg : Term2::Message) : {Stopwatch, Cmd}
+    def update(msg : Term2::Msg) : {Stopwatch, Term2::Cmd}
       case msg
       when TickMsg
         if msg.id == @id && msg.tag == @tag && @running
@@ -47,39 +47,39 @@ module StopwatchExample
           return {self, tick_cmd}
         end
       end
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
 
-    def tick_cmd : Cmd
+    def tick_cmd : Term2::Cmd
       id = @id
       tag = @tag
-      Cmds.tick(@interval) do
+      Term2::Cmds.tick(@interval) do
         TickMsg.new(id, tag)
       end
     end
 
-    def start : Cmd
-      return Cmds.none if @running
+    def start : Term2::Cmd
+      return Term2::Cmds.none if @running
       @running = true
       @tag += 1
       tick_cmd
     end
 
-    def stop : Cmd
+    def stop : Term2::Cmd
       @running = false
-      Cmds.none
+      Term2::Cmds.none
     end
 
-    def toggle : Cmd
+    def toggle : Term2::Cmd
       @running ? stop : start
     end
 
-    def reset : Cmd
+    def reset : Term2::Cmd
       was_running = @running
       @running = false
       @elapsed = Time::Span.zero
       @tag += 1
-      was_running ? Cmds.none : Cmds.none
+      was_running ? Term2::Cmds.none : Term2::Cmds.none
     end
 
     def view : String
@@ -120,7 +120,7 @@ module StopwatchExample
 
   # Main application model
   class App
-    include Model
+    include Term2::Model
 
     property stopwatch : Stopwatch
     property keymap : KeyMap
@@ -131,18 +131,18 @@ module StopwatchExample
       @keymap = KeyMap.new
     end
 
-    def init : Cmd
+    def init : Term2::Cmd
       @stopwatch.init
     end
 
-    def update(msg : Term2::Message) : {Model, Cmd}
+    def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
       case msg
-      when KeyMsg
-        key_str = msg.key.to_s
+      when Term2::KeyMsg
+        key_str = msg.string
         case
         when @keymap.quit.matches?(msg)
           @quitting = true
-          return {self, Term2.quit}
+          return {self, Term2::Cmds.quit}
         when @keymap.reset.matches?(msg)
           cmd = @stopwatch.reset
           return {self, cmd}
@@ -154,7 +154,7 @@ module StopwatchExample
         @stopwatch, cmd = @stopwatch.update(msg)
         return {self, cmd}
       end
-      {self, Cmds.none}
+      {self, Term2::Cmds.none}
     end
 
     def view : String

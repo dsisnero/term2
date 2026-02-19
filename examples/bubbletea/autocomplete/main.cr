@@ -48,7 +48,7 @@ class Keymap
 end
 
 class AutocompleteModel
-  include Model
+  include Term2::Model
 
   DEFAULT_WIDTH     = 20
   LIST_HEIGHT       =  5
@@ -85,16 +85,16 @@ class AutocompleteModel
     @status = nil
   end
 
-  def init : Cmd
-    Cmds.batch(@text_input.focus, fetch_repos_cmd, @text_input.cursor.blink_cmd)
+  def init : Term2::Cmd
+    Term2::Cmds.batch(@text_input.focus, fetch_repos_cmd, @text_input.cursor.blink_cmd)
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "enter", "ctrl+c", "esc"
-        return {self, Cmds.quit}
+        return {self, Term2::Cmds.quit}
       when "tab"
         @text_input.accept_current_suggestion
       when "ctrl+n"
@@ -129,8 +129,8 @@ class AutocompleteModel
     end
   end
 
-  private def fetch_repos_cmd : Cmd
-    -> do
+  private def fetch_repos_cmd : Term2::Cmd
+    -> : Term2::Msg do
       begin
         headers = HTTP::Headers{
           "Accept"               => "application/vnd.github+json",
@@ -140,12 +140,12 @@ class AutocompleteModel
         response = HTTP::Client.get(REPOS_URL, headers: headers)
         if response.status.success?
           repos = Array(Repo).from_json(response.body)
-          GotReposSuccessMsg.new(repos)
+          GotReposSuccessMsg.new(repos).as(Term2::Msg)
         else
-          GotReposErrMsg.new(RuntimeError.new("status #{response.status_code}"))
+          GotReposErrMsg.new(RuntimeError.new("status #{response.status_code}")).as(Term2::Msg)
         end
       rescue ex
-        GotReposErrMsg.new(ex)
+        GotReposErrMsg.new(ex).as(Term2::Msg)
       end
     end
   end

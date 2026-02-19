@@ -24,18 +24,16 @@ class TextareaExampleModel
     cmds = [] of Term2::Cmd
     case msg
     when Term2::KeyMsg
-      case msg.key.type
-      when Term2::KeyType::Esc
+      case msg.string
+      when "esc"
         if @textarea.focused?
           @textarea.blur
         end
-      when Term2::KeyType::CtrlC
+      when "ctrl+c"
         return {self, Term2::Cmds.quit}
       else
         cmds << @textarea.focus unless @textarea.focused?
       end
-    when Term2::KeyPress # legacy keypress for simple chars
-      cmds << @textarea.focus unless @textarea.focused?
     end
 
     @textarea, cmd = @textarea.update(msg)

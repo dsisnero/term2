@@ -36,7 +36,7 @@ sync-vendor-examples:
 
 # Run all tests (excluding interactive)
 spec:
-	crystal spec -Dpreview_mt -Dexecution_context --tag "~interactive"
+	crystal spec -Dpreview_mt -Dexecution_context --tag "~interactive" --verbose
 
 # Run all tests including interactive
 spec-all:

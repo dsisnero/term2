@@ -26,17 +26,13 @@ class CreditCardModel
 
   def initialize
     @inputs = Array(TC::TextInput).new(3) { TC::TextInput.new }
-    @inputs = Array(TC::TextInput).new(3) { TC::TextInput.new }
     setup_inputs
     @focused = 0
     @error = nil
   end
 
   def init : Term2::Cmd
-    TC::Cursor::BlinkMsg # dummy to ensure module load
-    TC::TextInput.new.blink
-    TC::Cursor.new.focus_cmd
-    Term2::Cmds.batch(@inputs.first.focus, @inputs.first.cursor.blink_cmd)
+    TC::TextInput.blink
   end
 
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
@@ -91,7 +87,7 @@ class CreditCardModel
     @inputs[Field::CCN.value].validate = ->(s : String) { ccn_validator(s) ? nil : Exception.new("invalid card number") }
 
     # EXP
-    @inputs[Field::EXP.value].placeholder = "MM/YY"
+    @inputs[Field::EXP.value].placeholder = "MM/YY "
     @inputs[Field::EXP.value].char_limit = 5
     @inputs[Field::EXP.value].width = 5
     @inputs[Field::EXP.value].prompt = ""

@@ -4,14 +4,14 @@ require "../styles"
 include Term2::Prelude
 
 class LibglossTreeModel
-  include Model
+  include Term2::Model
 
-  def init : Cmd
-    Cmds.none
+  def init : Term2::Cmd
+    Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
-    {self, Cmds.none}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
+    {self, Term2::Cmds.none}
   end
 
   def view : String

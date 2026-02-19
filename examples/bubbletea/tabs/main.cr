@@ -38,7 +38,7 @@ class TabsModel
   def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "ctrl+c", "q"
         return {self, Term2::Cmds.quit}
       when "right", "l", "n", "tab"
@@ -57,7 +57,7 @@ class TabsModel
       is_active = i == @active_tab
 
       style = is_active ? ACTIVE_TAB_STYLE : INACTIVE_TAB_STYLE
-      border, _, _, _, _ = style.get_border
+      border, _, _, _, _ = style.border
       if is_first && is_active
         border.bottom_left = "│"
       elsif is_first && !is_active
@@ -72,7 +72,7 @@ class TabsModel
     end
 
     row = Lipgloss.join_horizontal(Lipgloss::Position::Top, rendered_tabs)
-    window = WINDOW_STYLE.width(Lipgloss::Text.width(row) - WINDOW_STYLE.get_horizontal_frame_size).render(@tab_content[@active_tab])
+    window = WINDOW_STYLE.width(Lipgloss::Text.width(row) - WINDOW_STYLE.horizontal_frame_size).render(@tab_content[@active_tab])
 
     DOC_STYLE.render("#{row}\n#{window}")
   end

@@ -87,7 +87,7 @@ class PreventQuitModel
       when @keymap.quit.matches?(msg)
         @quitting = true
         return {self, Term2::Cmds.quit}
-      when msg.key.type == Term2::KeyType::Runes
+      when !msg.string.empty?
         @save_text = ""
         @has_changes = true
       else
@@ -104,7 +104,7 @@ class PreventQuitModel
   private def update_prompt_view(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      if @keymap.quit.matches?(msg) || msg.key.to_s == "y"
+      if @keymap.quit.matches?(msg) || msg.string == "y"
         @has_changes = false
         return {self, Term2::Cmds.quit}
       end
@@ -114,7 +114,7 @@ class PreventQuitModel
   end
 end
 
-def prevent_filter(model : Term2::Model, msg : Term2::Message?) : Term2::Message?
+def prevent_filter(model : Term2::Model, msg : Term2::Msg?) : Term2::Msg?
   return msg unless msg.is_a?(Term2::QuitMsg)
   prevent_model = model.as(PreventQuitModel)
   return if prevent_model.has_changes?
@@ -123,7 +123,7 @@ end
 
 unless ENV["TERM2_REQUIRE_ONLY"]?
   model = PreventQuitModel.new
-  options = Term2::ProgramOptions.new(Term2::WithFilter.new(->(msg : Term2::Message) { prevent_filter(model, msg) }))
+  options = Term2::ProgramOptions.new(Term2::WithFilter.new(->(msg : Term2::Msg) { prevent_filter(model, msg) }))
   program = Term2::Program(PreventQuitModel).new(model, options: options)
   program.run
 end

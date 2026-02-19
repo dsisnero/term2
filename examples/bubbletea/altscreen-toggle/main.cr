@@ -4,7 +4,7 @@ require "../../../src/logging"
 include Term2::Prelude
 
 class AltScreenModel
-  include Model
+  include Term2::Model
 
   KEYWORD_STYLE = Lipgloss::Style.new
     .foreground(Lipgloss::Color.indexed(204))
@@ -17,31 +17,31 @@ class AltScreenModel
   property? quitting : Bool = false
   property? suspending : Bool = false
 
-  def init : Cmd
+  def init : Term2::Cmd
     Term2::Cmds.none
   end
 
-  def update(msg : Message) : {Model, Cmd}
+  def update(msg : Term2::Msg) : {Term2::Model, Term2::Cmd}
     case msg
     when Term2::KeyMsg
-      case msg.key.to_s
+      case msg.string
       when "q", "ctrl+c", "esc"
         @quitting = true
-        return {self, Term2.quit}
+        return {self, Term2::Cmds.quit}
       when "ctrl+z"
         @suspending = true
-        return {self, Cmds.suspend}
-      when " "
-        cmd = @altscreen ? Cmds.exit_alt_screen : Cmds.enter_alt_screen
+        return {self, Term2::Cmds.suspend}
+      when " ", "space"
+        cmd = @altscreen ? Term2::Cmds.exit_alt_screen : Term2::Cmds.enter_alt_screen
         @altscreen = !@altscreen
         return {self, cmd}
       end
     when Term2::ResumeMsg
       @suspending = false
-      return {self, Cmds.none}
+      return {self, Term2::Cmds.none}
     end
 
-    {self, Cmds.none}
+    {self, Term2::Cmds.none}
   end
 
   def view : String
@@ -59,5 +59,7 @@ class AltScreenModel
 end
 
 # Enable env-configured logging if desired (LOG_LEVEL, LOG_OUTPUT)
-Term2.setup_logging_from_env
-Term2.run(AltScreenModel.new)
+unless ENV["TERM2_REQUIRE_ONLY"]?
+  Term2.setup_logging_from_env
+  Term2.run(AltScreenModel.new)
+end

@@ -6,9 +6,9 @@ include Term2::Prelude
 Log.setup_from_env
 
 def sleep_println(str : String, milliseconds : Int32) : Term2::Cmd
-  -> : Term2::Message? {
+  -> : Term2::Msg? {
     sleep milliseconds.milliseconds
-    SequenceModel::LogMsg.new(str)
+    SequenceModel::LogMsg.new(str).as(Term2::Msg)
   }
 end
 
@@ -39,7 +39,7 @@ class SequenceModel
           sleep_println("1-2-2", 125),
         ),
       ),
-      -> : Term2::Message? { LogMsg.new("2") },
+      -> : Term2::Msg? { LogMsg.new("2").as(Term2::Msg) },
       Term2::Cmds.sequence(
         Term2::Cmds.batch(
           sleep_println("3-1-1", 50),
