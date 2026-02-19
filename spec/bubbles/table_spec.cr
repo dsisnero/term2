@@ -2,11 +2,11 @@ require "../spec_helper"
 require "../../src/components/table"
 
 def golden(name)
-  File.read(File.join("bubbles", "table", "testdata", "TestModel_View", "#{name}.golden"))
+  File.read(File.join("vendor", "bubbles", "table", "testdata", "TestModel_View", "#{name}.golden"))
 end
 
 def golden_alignment(name)
-  File.read(File.join("bubbles", "table", "testdata", "TestTableAlignment", "#{name}.golden"))
+  File.read(File.join("vendor", "bubbles", "table", "testdata", "TestTableAlignment", "#{name}.golden"))
 end
 
 TEST_COLS = [

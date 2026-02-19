@@ -27,18 +27,10 @@ describe "BubbleTea parity: wait with concurrent callers" do
   it "allows multiple wait calls" do
     output_io = IO::Memory.new
     model = TeaConcurrencyModel.new
-    program = Term2::Program(TeaConcurrencyModel).new(model, input: IO::Memory.new("q"), output: output_io)
+    options = Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    program = Term2::Program(TeaConcurrencyModel).new(model, input: IO::Memory.new, output: output_io, options: options)
 
-    err_chan = Channel(Exception?).new
-
-    spawn do
-      begin
-        program.run
-        err_chan.send(nil)
-      rescue ex
-        err_chan.send(ex)
-      end
-    end
+    err_chan = Channel(Exception?).new(3)
 
     waits = [] of Fiber
     3.times do
@@ -52,8 +44,10 @@ describe "BubbleTea parity: wait with concurrent callers" do
       end
     end
 
+    spawn { program.stop }
+
     # Collect errors
-    4.times do
+    3.times do
       if ex = err_chan.receive
         raise ex
       end

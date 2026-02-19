@@ -378,7 +378,7 @@ module Term2
       def set_width(w : Int32)
         @prompt_width = Lipgloss::Text.width(@prompt)
 
-        reserved_outer = active_style.base.get_horizontal_frame_size
+        reserved_outer = active_style.base.horizontal_frame_size
         reserved_inner = @prompt_width
 
         if @show_line_numbers

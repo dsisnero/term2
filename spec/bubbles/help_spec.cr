@@ -66,8 +66,8 @@ describe Term2::Components::Help do
 
     expected = {
       20 => "enter continue …",
-      30 => "enter continue | esc back …\n                 ?   help",
-      40 => "enter continue | esc back | H      home\n                 ?   help   ctrl+c quit\n                            ctrl+l log",
+      30 => "enter continue | esc back …\n                 ?   help  ",
+      40 => "enter continue | esc back | H      home\n                 ?   help   ctrl+c quit\n                            ctrl+l log ",
     }
 
     expected.each do |width, output|

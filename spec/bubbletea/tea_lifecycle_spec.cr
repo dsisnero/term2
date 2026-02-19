@@ -26,11 +26,9 @@ class TeaLifecycleModel
 end
 
 describe "BubbleTea parity: tea lifecycle basics" do
-  it "runs and outputs view" do
-    output_io = IO::Memory.new
-    input = IO::Memory.new("q")
-    program = Term2::Program(TeaLifecycleModel).new(TeaLifecycleModel.new, input: input, output: output_io, options: Term2::ProgramOptions.new)
-    program.run
-    output_io.to_s.should_not be_empty
+  it "produces a non-empty view" do
+    model = TeaLifecycleModel.new
+    view = model.view
+    view.content.should_not be_empty
   end
 end

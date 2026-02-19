@@ -1,5 +1,6 @@
 require "spec"
 require "golden"
+ENV["TERM2_DISABLE_SIGNAL_HANDLERS"] = "1"
 require "../src/term2"
 require "lipgloss"
 Lipgloss::StyleRenderer.default.color_profile = Lipgloss::ColorProfile::ANSI

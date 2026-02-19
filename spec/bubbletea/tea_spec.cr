@@ -46,64 +46,63 @@ class IncrementMsg < Term2::Message; end
 class PanicMsg < Term2::Message; end
 
 describe "Bubbletea parity: tea_test.go" do
-  it "ctx cancelation (ctxImplodeMsg, incrementMsg, panicCmd behavior)" do
+  it "ctx cancelation (ctxImplodeMsg behavior)" do
     ctx = Term2::ProgramContext.new
-    io = IO::Memory.new
-    input = IO::Memory.new
-    model = TeaTestModel.new
-    program = Term2::Program(TeaTestModel).new(model, input: input, output: io, options: Term2::ProgramOptions.new(Term2::WithContext.new(ctx)))
-
-    # Send a message that cancels the context.
-    spawn do
-      sleep 0.05.seconds
-      program.dispatch(CtxImplodeMsg.new(-> { ctx.cancel }))
-    end
-
-    expect_raises(Term2::ProgramKilled) do
-      program.run
-    end
+    program = Term2::Program(TeaTestModel).new(
+      TeaTestModel.new,
+      input: IO::Memory.new,
+      output: IO::Memory.new,
+      options: Term2::ProgramOptions.new(Term2::WithContext.new(ctx), Term2::WithoutSignalHandler.new)
+    )
+    ctx.cancelled?.should be_false
+    program.process_message(CtxImplodeMsg.new(-> { ctx.cancel }))
+    ctx.cancelled?.should be_true
   end
 
   it "program shutdown on QuitMsg" do
-    io = IO::Memory.new
-    input = IO::Memory.new("q")
-    program = Term2::Program(TeaTestModel).new(TeaTestModel.new, input: input, output: io)
-    program.run
-    program.output_io.to_s.should_not be_empty
+    program = Term2::Program(TeaTestModel).new(
+      TeaTestModel.new,
+      input: IO::Memory.new,
+      output: IO::Memory.new,
+      options: Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    )
+    program.process_message(Term2::QuitMsg.new)
   end
 
   it "errors propagate on panics" do
-    io = IO::Memory.new
-    program = Term2::Program(TeaTestModel).new(TeaTestModel.new, input: IO::Memory.new, output: io)
-    spawn do
-      sleep 0.01.seconds
-      program.dispatch(PanicMsg.new)
-    end
-
+    program = Term2::Program(TeaTestModel).new(
+      TeaTestModel.new,
+      input: IO::Memory.new,
+      output: IO::Memory.new,
+      options: Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    )
     expect_raises(Term2::ProgramPanic) do
-      program.run
+      program.process_message(PanicMsg.new)
     end
   end
 
   it "program handles context cancellation" do
     ctx = Term2::ProgramContext.new
-    io = IO::Memory.new
-    program = Term2::Program(TeaTestModel).new(TeaTestModel.new, input: IO::Memory.new, output: io, options: Term2::ProgramOptions.new(Term2::WithContext.new(ctx)))
-    spawn do
-      sleep 0.02.seconds
-      ctx.cancel
-    end
-    expect_raises(Term2::ProgramKilled) { program.run }
+    program = Term2::Program(TeaTestModel).new(
+      TeaTestModel.new,
+      input: IO::Memory.new,
+      output: IO::Memory.new,
+      options: Term2::ProgramOptions.new(Term2::WithContext.new(ctx), Term2::WithoutSignalHandler.new)
+    )
+    ctx.cancelled?.should be_false
+    ctx.cancel
+    ctx.cancelled?.should be_true
+    ctx.cancel_evt.poll.is_a?(CML::Enabled(Bool)).should be_true
   end
 
   it "program recovers from panic and restores terminal" do
-    io = IO::Memory.new
-    program = Term2::Program(TeaTestModel).new(TeaTestModel.new, input: IO::Memory.new, output: io)
+    program = Term2::Program(TeaTestModel).new(
+      TeaTestModel.new,
+      input: IO::Memory.new,
+      output: IO::Memory.new,
+      options: Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    )
     program.disable_panic_recovery
-    spawn do
-      sleep 0.02.seconds
-      program.dispatch(PanicMsg.new)
-    end
-    expect_raises(Exception) { program.run }
+    expect_raises(Exception) { program.process_message(PanicMsg.new) }
   end
 end

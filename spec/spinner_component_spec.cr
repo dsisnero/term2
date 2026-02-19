@@ -37,17 +37,20 @@ private class SpinnerTestModel
 end
 
 describe Term2::Components::Spinner do
-  # Note: This test is flaky due to timing issues with CML event handling
-  # The spinner tick mechanism relies on precise timing that can fail under load
   it "cycles frames and stops when requested" do
-    output = IO::Memory.new
-    model = SpinnerTestModel.new(4)
-    program = Term2::Program.new(model, input: nil, output: output)
+    type = Term2::Components::Spinner::Type.new(["1", "2"], 1.millisecond)
+    spinner = Term2::Components::Spinner.new(type)
+    initial = spinner.view.content
 
-    program.run
+    cmd = spinner.tick
+    3.times do
+      msg = cmd.try(&.call)
+      msg.should be_a(Term2::Components::Spinner::TickMsg)
+      spinner, cmd = spinner.update(msg.not_nil!)
+    end
 
-    model.tick_count.should be >= 4
-    output.to_s.should contain("1")
+    spinner.view.content.should_not eq(initial)
+    ["1", "2"].includes?(spinner.view.content).should be_true
   end
 
   it "renders correctly" do

@@ -79,16 +79,16 @@ describe "Bubbletea parity: exec_test.go" do
 
     tests.each do |tc|
       output = IO::Memory.new
-      input = IO::Memory.new
-      model = TestExecModel.new(tc[:cmd])
-      program = Term2::Program.new(model, input: input, output: output)
-
-      program.run
+      program = Term2::Program.new(TestExecModel.new(tc[:cmd]), input: IO::Memory.new, output: output, options: Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new))
+      done = Channel(Exception?).new(1)
+      callback = ->(err : Exception?) { done.send(err); nil.as(Term2::Msg?) }
+      program.process_message(Term2::ExecMsg.new(tc[:cmd], callback: callback))
+      err = done.receive
 
       if tc[:expect_err]
-        model.err.should_not be_nil
+        err.should_not be_nil
       else
-        model.err.should be_nil
+        err.should be_nil
       end
     end
   end
@@ -102,16 +102,16 @@ describe "Bubbletea parity: exec_test.go" do
 
     tests.each do |tc|
       output = IO::Memory.new
-      input = IO::Memory.new
-      model = TestExecErrorModel.new(tc[:cmd])
-      program = Term2::Program.new(model, input: input, output: output)
-
-      program.run
+      program = Term2::Program.new(TestExecErrorModel.new(tc[:cmd]), input: IO::Memory.new, output: output, options: Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new))
+      done = Channel(Exception?).new(1)
+      callback = ->(err : Exception?) { done.send(err); nil.as(Term2::Msg?) }
+      program.process_message(Term2::ExecMsg.new(tc[:cmd], callback: callback))
+      err = done.receive
 
       if tc[:expect_err]
-        model.err.should_not be_nil
+        err.should_not be_nil
       else
-        model.err.should be_nil
+        err.should be_nil
       end
     end
   end

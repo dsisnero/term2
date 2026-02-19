@@ -10,6 +10,9 @@ require "../lib/ultraviolet/src/ultraviolet"
 
 module Term2
   class CursedRenderer < Renderer
+    MOD_OTHER_KEYS_SET_2 = "\e[>4;2m"
+    MOD_OTHER_KEYS_RESET = "\e[>4m"
+
     @output : IO
     @running : Bool = false
     @last_render : String = ""
@@ -24,6 +27,8 @@ module Term2
     @color_profile : Lipgloss::ColorProfile = Lipgloss::ColorProfile::TrueColor
     @current_bracketed_paste_disabled : Bool? = nil
     @current_alt_screen : Bool? = nil
+    @current_report_focus : Bool? = nil
+    @current_window_title : String? = nil
     @last_view : View? = nil
     @cursor_visible : Bool? = nil
     @clear_requested : Bool = false
@@ -108,6 +113,14 @@ module Term2
     def insert_above(str : String) : Nil
       @mu.synchronize do
         # TODO: implement insert_above
+      end
+    end
+
+    def on_mouse(mouse : UVMouseEvent) : Cmd?
+      @mu.synchronize do
+        if last = @last_view
+          last.on_mouse.try &.call(mouse)
+        end
       end
     end
 
@@ -212,15 +225,32 @@ module Term2
     end
 
     private def _cleanup : Nil
-      # Reset colors
-      apply_colors(nil, nil)
+      # Reset keyboard protocols.
+      write_string(MOD_OTHER_KEYS_RESET)
+      write_string("\e[=0;1u")
 
-      # Reset cursor color and shape
-      write_string("\e]112\a") # Reset cursor color (OSC 112)
-      write_string("\e[0 q")   # Reset cursor style to default
+      # Move to bottom of screen
+      scr.move_to(0, @cell_buf.height - 1)
+
+      # Exit alt screen if active
+      if @current_alt_screen
+        write_string(Ultraviolet::Ansi::ResetModeAltScreenSaveCursor)
+        scr.fullscreen = false
+        scr.relative_cursor = true
+        scr.erase
+      else
+        # Erase screen below (only if not alt screen)
+        write_string("\e[J")
+      end
 
       # Show cursor if hidden
       apply_cursor_visibility(true)
+
+      # Disable bracketed paste mode if enabled
+      apply_bracketed_paste(true)
+
+      # Disable focus events if enabled
+      apply_focus(false)
 
       # Disable mouse tracking
       _disable_mouse_tracking
@@ -228,14 +258,18 @@ module Term2
       # Disable keyboard enhancements
       _disable_keyboard_enhancements
 
-      # Disable bracketed paste mode
-      apply_bracketed_paste(true)
+      # Clear window title
+      write_string("\e]2;\a")
+
+      # Reset cursor color and shape
+      write_string("\e]112\a") # Reset cursor color (OSC 112)
+      write_string("\e[0 q")   # Reset cursor style to default
+
+      # Reset colors
+      apply_colors(nil, nil)
 
       # Reset progress bar
       write_string("\e]9;4;0\a")
-
-      # Clear window title
-      write_string("\e]2;\a")
 
       # Flush cleanup sequences
       scr.flush
@@ -249,7 +283,7 @@ module Term2
       if view.alt_screen
         # Enter alt screen
         scr.save_cursor
-        write_string("\e[?1049h")
+        write_string(Ultraviolet::Ansi::SetModeAltScreenSaveCursor)
         scr.fullscreen = true
         scr.relative_cursor = false
         scr.erase
@@ -432,14 +466,7 @@ module Term2
         @clear_requested = false
       end
 
-      apply_bracketed_paste(view.disable_bracketed_paste_mode)
-      apply_mouse_mode(view.mouse_mode)
-      apply_keyboard_enhancements(view.keyboard_enhancements)
-      apply_colors(view.background_color, view.foreground_color)
 
-      if cursor = view.cursor
-        apply_cursor_shape(cursor.shape, cursor.blink, cursor.color)
-      end
 
       # Compute frame area (matching Go's flush logic)
       frame_area = Ultraviolet.rect(0, 0, @width, @height)
@@ -463,7 +490,7 @@ module Term2
       end
 
       # No-change optimization (matches Go)
-      if !@starting && (last_view = @last_view) && view_equals(last_view, view) && frame_area == @cell_buf.bounds
+      if !@starting && !closing && (last_view = @last_view) && view_equals(last_view, view) && frame_area == @cell_buf.bounds
         # No changes, nothing to do.
         return
       end
@@ -506,13 +533,7 @@ module Term2
         end
       end
 
-      if title = view.window_title
-        write_string("\e]2;#{title}\a")
-      end
-
-      if progress = view.progress_bar
-        apply_progress_bar(progress)
-      end
+      _write_terminal_updates(closing)
 
       scr.flush
       _flush_updates(closing)
@@ -583,9 +604,9 @@ module Term2
       return if @cursor_visible == show
       if write
         if show
-          write_string("\e[?25h")
+          write_string(Ultraviolet::Ansi::SetModeTextCursorEnable)
         else
-          write_string("\e[?25l")
+          write_string(Ultraviolet::Ansi::ResetModeTextCursorEnable)
         end
       end
       @cursor_visible = show
@@ -599,6 +620,26 @@ module Term2
         write_string("\e[?2004h")
       end
       @current_bracketed_paste_disabled = disable
+    end
+
+    private def apply_focus(report : Bool)
+      return if @current_report_focus == report
+      if report
+        write_string(Ultraviolet::Ansi::SetModeFocusEvent)
+      else
+        write_string(Ultraviolet::Ansi::ResetModeFocusEvent)
+      end
+      @current_report_focus = report
+    end
+
+    private def apply_window_title(title : String?)
+      return if @current_window_title == title
+      if title.nil? || title.empty?
+        write_string("\e]2;\a")
+      else
+        write_string("\e]2;#{title}\a")
+      end
+      @current_window_title = title
     end
 
     private def apply_mouse_mode(mode : MouseMode)
@@ -630,13 +671,20 @@ module Term2
     private def apply_keyboard_enhancements(ke : KeyboardEnhancements)
       return if ke == @current_keyboard_enhancements && @last_view
 
+      # Keep xterm modifyOtherKeys and Kitty keyboard protocol aligned with
+      # Bubble Tea v2-exp behavior.
+      write_string(MOD_OTHER_KEYS_SET_2)
       flags = 1
       flags |= 2 if ke.report_event_types
       write_string("\e[=#{flags};1u")
       @current_keyboard_enhancements = ke
     end
 
-    private def apply_progress_bar(progress : ProgressBar)
+    private def apply_progress_bar(progress : ProgressBar?)
+      if progress.nil?
+        write_string("\e]9;4;0\a")
+        return
+      end
       case progress.state
       when ProgressBarState::None
         write_string("\e]9;4;0\a")
@@ -719,7 +767,8 @@ module Term2
     end
 
     private def _enable_keyboard_enhancements : Nil
-      write_string("\e[?1001h")
+      write_string(MOD_OTHER_KEYS_SET_2)
+      write_string("\e[=1;1u")
     end
 
     # Disable keyboard enhancements
@@ -730,7 +779,8 @@ module Term2
     end
 
     private def _disable_keyboard_enhancements : Nil
-      write_string("\e[?1001l")
+      write_string(MOD_OTHER_KEYS_RESET)
+      write_string("\e[=0;1u")
     end
 
     private def reset : Nil
@@ -776,6 +826,138 @@ module Term2
       end
     end
 
+    private def _write_terminal_updates(closing : Bool) : Nil
+      view = @view
+      last_view = @last_view
+      scr = @scr.as(Ultraviolet::TerminalRenderer)
+
+      # bracketed paste mode
+      if last_view.nil? || view.disable_bracketed_paste_mode != last_view.disable_bracketed_paste_mode
+        if !view.disable_bracketed_paste_mode
+          write_string(Ultraviolet::Ansi::SetModeBracketedPaste)
+        elsif last_view
+          write_string(Ultraviolet::Ansi::ResetModeBracketedPaste)
+        end
+      end
+
+      # report focus events mode
+      if last_view.nil? || last_view.report_focus != view.report_focus
+        if view.report_focus
+          write_string(Ultraviolet::Ansi::SetModeFocusEvent)
+        elsif last_view
+          write_string(Ultraviolet::Ansi::ResetModeFocusEvent)
+        end
+      end
+
+      # mouse events mode
+      if last_view.nil? || view.mouse_mode != last_view.mouse_mode
+        case view.mouse_mode
+        when MouseMode::None
+          if last_view && last_view.mouse_mode != MouseMode::None
+            write_string(Ultraviolet::Ansi::ResetModeMouseButtonEvent +
+                         Ultraviolet::Ansi::ResetModeMouseAnyEvent +
+                         Ultraviolet::Ansi::ResetModeMouseExtSgr)
+          end
+        when MouseMode::CellMotion
+          if last_view && last_view.mouse_mode == MouseMode::AllMotion
+            write_string(Ultraviolet::Ansi::ResetModeMouseAnyEvent)
+          end
+          write_string(Ultraviolet::Ansi::SetModeMouseButtonEvent + Ultraviolet::Ansi::SetModeMouseExtSgr)
+        when MouseMode::AllMotion
+          if last_view && last_view.mouse_mode == MouseMode::CellMotion
+            write_string(Ultraviolet::Ansi::ResetModeMouseButtonEvent)
+          end
+          write_string(Ultraviolet::Ansi::SetModeMouseAnyEvent + Ultraviolet::Ansi::SetModeMouseExtSgr)
+        end
+      end
+
+      # Set window title
+      if last_view.nil? || view.window_title != last_view.window_title
+        title = view.window_title.to_s
+        if last_view || !title.empty?
+          write_string("\e]2;#{title}\a")
+        end
+      end
+
+      # kitty keyboard protocol
+      if last_view.nil? || view.keyboard_enhancements != last_view.keyboard_enhancements ||
+         view.alt_screen != last_view.alt_screen
+        write_string(MOD_OTHER_KEYS_SET_2)
+        kitty_flags = Ultraviolet::Ansi::KittyDisambiguateEscapeCodes
+        if view.keyboard_enhancements.report_event_types
+          kitty_flags |= Ultraviolet::Ansi::KittyReportEventTypes
+        end
+        write_string("\e[=#{kitty_flags};1u")
+        if !closing
+          # Request keyboard enhancements when they change
+          write_string("\e[?u")
+        end
+      end
+
+      # Set terminal colors
+      cc = view.cursor.try(&.color)
+      lcc = last_view.try(&.cursor).try(&.color)
+      lfg = last_view.try(&.foreground_color)
+      lbg = last_view.try(&.background_color)
+
+      # Cursor color
+      if cc != lcc
+        if color = cc
+          write_string("\e]12;#{color_hex(color)}\a")
+        else
+          write_string("\e]112\a")
+        end
+      end
+
+      # Foreground color
+      if view.foreground_color != lfg
+        if color = view.foreground_color
+          write_string("\e]10;#{color_hex(color)}\a")
+        else
+          write_string("\e]110\a")
+        end
+      end
+
+      # Background color
+      if view.background_color != lbg
+        if color = view.background_color
+          write_string("\e]11;#{color_hex(color)}\a")
+        else
+          write_string("\e]111\a")
+        end
+      end
+
+      # Set cursor shape and blink if set
+      ccur = view.cursor
+      lcur = last_view.try(&.cursor)
+      cc_style = ccur ? encode_cursor_style(ccur.shape, ccur.blink) : 0
+      lc_style = lcur ? encode_cursor_style(lcur.shape, lcur.blink) : 0
+      if cc_style != lc_style
+        write_string("\e[#{cc_style} q")
+      end
+
+      # Render progress bar if it's changed
+      pb = view.progress_bar
+      last_pb = last_view.try(&.progress_bar)
+      if (last_view.nil? && pb && pb.state != ProgressBarState::None) ||
+         (last_view && (last_pb == nil) != (pb == nil)) ||
+         (last_view && last_pb && pb && last_pb != pb)
+        apply_progress_bar(pb)
+      end
+    end
+
+    private def encode_cursor_style(shape : CursorShape, blink : Bool) : Int32
+      case {shape, blink}
+      when {CursorShape::Block, true}      then 1
+      when {CursorShape::Block, false}     then 2
+      when {CursorShape::Underline, true}  then 3
+      when {CursorShape::Underline, false} then 4
+      when {CursorShape::Bar, true}        then 5
+      when {CursorShape::Bar, false}       then 6
+      else                                      1 # default blinking block
+      end
+    end
+
     private def _flush_updates(closing : Bool) : Nil
       return if @buf.bytesize == 0
 
@@ -788,45 +970,52 @@ module Term2
                                  (last_alt_screen != nil && last_alt_screen != @view.alt_screen)
       should_update_cursor_vis = (@last_view.nil? || did_show_cursor != show_cursor) || should_update_alt_screen
 
-      # Build final output buffer (simplified - write directly to output)
+      # Build final output buffer matching Go logic
+      final_buf = IO::Memory.new
+
       if should_update_alt_screen
         # We always disable keyboard enhancements when switching screens
-        @output.write("\e[=0;1u".to_slice)
+        final_buf.write(MOD_OTHER_KEYS_RESET.to_slice)
+        final_buf.write("\e[=0;1u".to_slice)
         if @view.alt_screen
           # Entering alt screen mode
-          @output.write("\e[?1049h".to_slice)
+          final_buf.write(Ultraviolet::Ansi::SetModeAltScreenSaveCursor.to_slice)
         else
           # Exiting alt screen mode
-          @output.write("\e[?1049l".to_slice)
+          final_buf.write(Ultraviolet::Ansi::ResetModeAltScreenSaveCursor.to_slice)
         end
       end
 
       if @syncd_updates
         if has_updates
-          @output.write(Ultraviolet::Ansi::SetModeSynchronizedOutput.to_slice)
+          final_buf.write(Ultraviolet::Ansi::SetModeSynchronizedOutput.to_slice)
         end
         if should_update_cursor_vis && hide_cursor
-          @output.write("\e[?25l".to_slice)
+          final_buf.write(Ultraviolet::Ansi::ResetModeTextCursorEnable.to_slice)
         end
       elsif (should_update_cursor_vis && hide_cursor) || (has_updates && show_cursor && did_show_cursor)
-        @output.write("\e[?25l".to_slice)
+        final_buf.write(Ultraviolet::Ansi::ResetModeTextCursorEnable.to_slice)
       end
 
       if has_updates
-        @output.write(@buf.to_slice)
+        final_buf.write(@buf.to_slice)
       end
 
       if @syncd_updates
         if should_update_cursor_vis && show_cursor
-          @output.write("\e[?25h".to_slice)
+          final_buf.write(Ultraviolet::Ansi::SetModeTextCursorEnable.to_slice)
         end
         if has_updates
-          @output.write(Ultraviolet::Ansi::ResetModeSynchronizedOutput.to_slice)
+          final_buf.write(Ultraviolet::Ansi::ResetModeSynchronizedOutput.to_slice)
         end
       elsif (should_update_cursor_vis && show_cursor) || (has_updates && show_cursor && did_show_cursor)
-        @output.write("\e[?25h".to_slice)
+        final_buf.write(Ultraviolet::Ansi::SetModeTextCursorEnable.to_slice)
       end
 
+      # Write final buffer to output
+      @output.write(final_buf.to_slice)
+
+      # Reset internal buffer for next render
       @buf.clear
     end
   end

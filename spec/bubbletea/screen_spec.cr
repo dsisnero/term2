@@ -172,7 +172,6 @@ describe "Bubbletea parity: screen_test.go" do
     test_cases.each do |tc|
       it tc[:name] do
         io = IO::Memory.new
-        input = IO::Memory.new
         model = TestViewModel.new
 
         # Create commands for each option
@@ -185,22 +184,21 @@ describe "Bubbletea parity: screen_test.go" do
 
         program = Term2::Program(TestViewModel).new(
           model,
-          input: input,
+          input: nil,
           output: io,
           options: Term2::ProgramOptions.new(
             Term2::WithCursedRenderer.new,
             Term2::WithWindowSize.new(80, 24),
             Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
-            Term2::WithEnvironment.new(["TERM=xterm-256color"])
+            Term2::WithEnvironment.new(["TERM=xterm-256color"]),
+            Term2::WithoutSignalHandler.new
           )
         )
 
-        # Send sequence of commands
-        spawn do
-          cmds.each do |cmd|
-            if cmd
-              program.dispatch(Term2::SequenceMsg.new([cmd]))
-            end
+        # Queue startup commands before run to avoid cross-fiber timing races.
+        cmds.each do |cmd|
+          if cmd
+            program.dispatch(Term2::SequenceMsg.new([cmd]))
           end
         end
 
@@ -239,28 +237,26 @@ describe "Bubbletea parity: screen_test.go" do
     test_cases.each do |tc|
       it tc[:name] do
         io = IO::Memory.new
-        input = IO::Memory.new
         model = ScreenTestModel.new
 
         cmds = tc[:cmds] + [Term2::Cmds.quit]
 
         program = Term2::Program(ScreenTestModel).new(
           model,
-          input: input,
+          input: nil,
           output: io,
           options: Term2::ProgramOptions.new(
             Term2::WithCursedRenderer.new,
             Term2::WithWindowSize.new(80, 24),
             Term2::WithColorProfile.new(Lipgloss::ColorProfile::ANSI256),
-            Term2::WithEnvironment.new(["TERM=xterm-256color"])
+            Term2::WithEnvironment.new(["TERM=xterm-256color"]),
+            Term2::WithoutSignalHandler.new
           )
         )
 
-        spawn do
-          cmds.each do |cmd|
-            if cmd
-              program.dispatch(Term2::SequenceMsg.new([cmd]))
-            end
+        cmds.each do |cmd|
+          if cmd
+            program.dispatch(Term2::SequenceMsg.new([cmd]))
           end
         end
 

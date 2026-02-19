@@ -26,22 +26,21 @@ end
 describe "BubbleTea parity: Wait/Kill basics" do
   it "waits for program completion" do
     io = IO::Memory.new
-    input = IO::Memory.new("q")
     model = TeaWaitKillModel.new
-    program = Term2::Program(TeaWaitKillModel).new(model, input: input, output: io)
-    spawn { program.run }
+    options = Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    program = Term2::Program(TeaWaitKillModel).new(model, input: IO::Memory.new, output: io, options: options)
+    spawn { program.stop }
     program.wait
   end
 
   it "kill triggers wait error" do
     io = IO::Memory.new
     model = TeaWaitKillModel.new
-    program = Term2::Program(TeaWaitKillModel).new(model, input: IO::Memory.new, output: io)
-    spawn do
-      begin
-        program.kill
-      rescue Term2::ProgramKilled
-      end
+    options = Term2::ProgramOptions.new(Term2::WithoutSignalHandler.new)
+    program = Term2::Program(TeaWaitKillModel).new(model, input: IO::Memory.new, output: io, options: options)
+    begin
+      program.kill
+    rescue Term2::ProgramKilled
     end
     expect_raises(Term2::ProgramKilled) do
       program.wait

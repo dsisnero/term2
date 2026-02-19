@@ -22,18 +22,18 @@ describe Lipgloss::Style do
 
     it "sets padding" do
       style = Lipgloss::Style.new.padding(1, 2, 3, 4)
-      style.padding.top.should eq(1)
-      style.padding.right.should eq(2)
-      style.padding.bottom.should eq(3)
-      style.padding.left.should eq(4)
+      style.padding_top.should eq(1)
+      style.padding_right.should eq(2)
+      style.padding_bottom.should eq(3)
+      style.padding_left.should eq(4)
     end
 
     it "sets margin" do
       style = Lipgloss::Style.new.margin(1)
-      style.margin.top.should eq(1)
-      style.margin.right.should eq(1)
-      style.margin.bottom.should eq(1)
-      style.margin.left.should eq(1)
+      style.margin_top.should eq(1)
+      style.margin_right.should eq(1)
+      style.margin_bottom.should eq(1)
+      style.margin_left.should eq(1)
     end
 
     it "sets width and height" do

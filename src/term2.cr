@@ -118,6 +118,9 @@ module Term2
       @input_type = :stdin
 
       @options.apply(self)
+      # Test environments may run many short-lived programs in-process; avoid
+      # repeatedly installing global signal handlers in that mode.
+      disable_signal_handling if ENV["TERM2_DISABLE_SIGNAL_HANDLERS"]?
       CML.trace "Program.initialize", tag: "term2" if ENV["TERM2_TRACE"]?
       STDERR.puts "DEBUG: Program initialize completed" if ENV["TERM2_DEBUG"]?
       STDERR.flush
@@ -1153,12 +1156,19 @@ module Term2
 
     private def setup_signal_handlers
       return unless @signal_handling_enabled
-      Process.on_terminate { dispatch(QuitMsg.new) }
-      Process.on_terminate { dispatch(QuitMsg.new) }
-      Process.on_terminate { dispatch(QuitMsg.new) }
+      # Signal callbacks should stay minimal. Dispatching directly can touch
+      # CML primitives from signal context and lead to instability.
+      Signal::INT.trap do
+        spawn { dispatch(QuitMsg.new) }
+      end
+      Signal::TERM.trap do
+        spawn { dispatch(QuitMsg.new) }
+      end
       Signal::WINCH.trap do
-        width, height = window_size
-        dispatch(UV::WindowSizeEvent.new(width, height))
+        spawn do
+          width, height = window_size
+          dispatch(UV::WindowSizeEvent.new(width, height))
+        end
       end
     end
 
