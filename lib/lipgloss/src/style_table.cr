@@ -68,22 +68,22 @@ module Lipgloss
       end
 
       def at(row : Int32, cell : Int32) : String
-        j = 0
-        (0...@data.rows).each do |i|
-          if include_row?(i)
-            return @data.at(i, cell) if j == row
-            j += 1
+        visible_row_index = 0
+        (0...@data.rows).each do |source_row_index|
+          if include_row?(source_row_index)
+            return @data.at(source_row_index, cell) if visible_row_index == row
+            visible_row_index += 1
           end
         end
         ""
       end
 
       def rows : Int32
-        j = 0
-        (0...@data.rows).each do |i|
-          j += 1 if include_row?(i)
+        visible_row_count = 0
+        (0...@data.rows).each do |source_row_index|
+          visible_row_count += 1 if include_row?(source_row_index)
         end
-        j
+        visible_row_count
       end
 
       def columns : Int32
@@ -119,12 +119,12 @@ module Lipgloss
       getter all_rows : Array(Array(String))
       property row_heights : Array(Int32)
       property columns : Array(ResizerColumn)
-      property wrap : Bool = true
-      property border_column : Bool = true
+      property? wrap : Bool = true
+      property? border_column : Bool = true
       property y_paddings : Array(Array(Int32)) = [] of Array(Int32)
 
       def initialize(@table_width : Int32, @table_height : Int32, @headers : Array(String), rows : Array(Array(String)))
-        @all_rows = headers.any? ? rows.dup.unshift(headers) : rows.dup
+        @all_rows = !headers.empty? ? rows.dup.unshift(headers) : rows.dup
         @row_heights = Array.new(@all_rows.size, 0)
         @columns = [] of ResizerColumn
 
@@ -145,7 +145,7 @@ module Lipgloss
         end
 
         @columns.each_with_index do |col, idx|
-          widths = col.rows.map { |r| Lipgloss::Text.width(r[idx]) }
+          widths = col.rows.map { |row| Lipgloss::Text.width(row[idx]) }
           new_col = @columns[idx]
           new_col.median = widths.empty? ? col.max : StyleTable.median(widths)
           @columns[idx] = new_col
@@ -168,10 +168,10 @@ module Lipgloss
 
           shorter_idx = 0
           shorter_width = Int32::MAX
-          col_widths.each_with_index do |w, idx|
-            next if w == @columns[idx].fixed_width
-            if w < shorter_width
-              shorter_width = w
+          col_widths.each_with_index do |col_width, idx|
+            next if col_width == @columns[idx].fixed_width
+            if col_width < shorter_width
+              shorter_width = col_width
               shorter_idx = idx
             end
           end
@@ -190,13 +190,13 @@ module Lipgloss
 
             big_idx = -Int32::MAX
             big_width = -Int32::MAX
-            col_widths.each_with_index do |w, idx|
-              next if w == @columns[idx].fixed_width
+            col_widths.each_with_index do |col_width, idx|
+              next if col_width == @columns[idx].fixed_width
               if very_big_only
-                next unless w >= (@table_width // 2)
+                next unless col_width >= (@table_width // 2)
               end
-              if w > big_width
-                big_width = w
+              if col_width > big_width
+                big_width = col_width
                 big_idx = idx
               end
             end
@@ -212,9 +212,9 @@ module Lipgloss
 
             big_diff = -Int32::MAX
             big_idx = -Int32::MAX
-            col_widths.each_with_index do |w, idx|
-              next if w == @columns[idx].fixed_width
-              diff = w - @columns[idx].median
+            col_widths.each_with_index do |col_width, idx|
+              next if col_width == @columns[idx].fixed_width
+              diff = col_width - @columns[idx].median
               if diff > 0 && diff > big_diff
                 big_diff = diff
                 big_idx = idx
@@ -236,13 +236,13 @@ module Lipgloss
         row_heights = default_row_heights
         return row_heights unless @wrap
 
-        has_headers = @headers.any?
-        @all_rows.each_with_index do |row, i|
-          row.each_with_index do |cell, j|
-            next if has_headers && i == 0
-            available = col_widths[j] - x_padding_for_col(j)
-            height = detect_content_height(cell, available) + x_padding_for_cell(i, j)
-            row_heights[i] = Math.max(row_heights[i], height)
+        has_headers = !@headers.empty?
+        @all_rows.each_with_index do |row, row_index|
+          row.each_with_index do |cell, column_index|
+            next if has_headers && row_index == 0
+            available = col_widths[column_index] - x_padding_for_col(column_index)
+            height = detect_content_height(cell, available) + x_padding_for_cell(row_index, column_index)
+            row_heights[row_index] = Math.max(row_heights[row_index], height)
           end
         end
         row_heights
@@ -253,24 +253,10 @@ module Lipgloss
         height = 0
         content = content.gsub("\r\n", "\n")
         content.split('\n').each do |line|
-          height += wrap_height(line, width)
+          wrapped = Cellwrap.wrap(Lipgloss::Text.strip_ansi(line), width)
+          height += wrapped.count('\n') + 1
         end
         height
-      end
-
-      private def wrap_height(line : String, width : Int32) : Int32
-        return 1 if line.empty?
-        current = 0
-        lines = 1
-        line.each_grapheme do |g|
-          w = Lipgloss::Text.width(g.to_s)
-          if current + w > width
-            lines += 1
-            current = 0
-          end
-          current += w
-        end
-        lines
       end
 
       private def max_column_widths : Array(Int32)
@@ -285,9 +271,9 @@ module Lipgloss
 
       private def default_row_heights : Array(Int32)
         heights = Array(Int32).new(@all_rows.size, 1)
-        heights.size.times do |i|
-          if i < @row_heights.size
-            heights[i] = @row_heights[i] > 0 ? @row_heights[i] : 1
+        heights.size.times do |row_index|
+          if row_index < @row_heights.size
+            heights[row_index] = @row_heights[row_index] > 0 ? @row_heights[row_index] : 1
           end
         end
         heights
@@ -357,23 +343,24 @@ module Lipgloss
     class Table
       getter border : Border = Border.rounded
       getter border_style : Style = Style.new
+      getter base_style : Style = Style.new
 
-      property border_top : Bool = true
-      property border_bottom : Bool = true
-      property border_left : Bool = true
-      property border_right : Bool = true
-      property border_header : Bool = true
-      property border_column : Bool = true
-      property border_row : Bool = false
+      property? border_top : Bool = true
+      property? border_bottom : Bool = true
+      property? border_left : Bool = true
+      property? border_right : Bool = true
+      property? border_header : Bool = true
+      property? border_column : Bool = true
+      property? border_row : Bool = false
 
       property headers : Array(String) = [] of String
       property data : Data = StringData.new
 
       property width : Int32 = 0
       property height : Int32 = 0
-      property use_manual_height : Bool = false
+      property? use_manual_height : Bool = false
       property offset : Int32 = 0
-      property wrap : Bool = true
+      property? wrap : Bool = true
 
       property style_func : StyleFunc? = ->(_row : Int32, _col : Int32) { Style.new }
 
@@ -456,6 +443,11 @@ module Lipgloss
         self
       end
 
+      def base_style(style : Style) : self
+        @base_style = style
+        self
+      end
+
       def width(w : Int32) : self
         @width = w
         self
@@ -472,13 +464,17 @@ module Lipgloss
         self
       end
 
+      def y_offset(o : Int32) : self
+        offset(o)
+      end
+
       def wrap(v : Bool) : self
         @wrap = v
         self
       end
 
       def string : String
-        has_headers = @headers.any?
+        has_headers = !@headers.empty?
         has_rows = @data && @data.rows > 0
         return "" unless has_headers || has_rows
 
@@ -506,15 +502,15 @@ module Lipgloss
             available = Math.min(available, @data.rows)
             io << construct_rows(available)
           else
-            (@offset...@data.rows).each do |r|
-              io << construct_row(r, false)
+            (@offset...@data.rows).each do |row_index|
+              io << construct_row(row_index, false)
             end
           end
         end
 
         io << bottom
 
-        Lipgloss::Style.new
+        @base_style
           .max_height(compute_height)
           .max_width(@width)
           .render(io.to_s)
@@ -530,7 +526,7 @@ module Lipgloss
       end
 
       private def compute_height : Int32
-        has_headers = @headers.any?
+        has_headers = !@headers.empty?
         StyleTable.sum(@heights) - 1 + StyleTable.btoi(has_headers) +
           StyleTable.btoi(@border_top) + StyleTable.btoi(@border_bottom) +
           StyleTable.btoi(@border_header) + @data.rows * StyleTable.btoi(@border_row)
@@ -543,35 +539,34 @@ module Lipgloss
         resizer.border_column = @border_column
         resizer.y_paddings = Array.new(resizer.all_rows.size) { [] of Int32 }
 
-        all_rows = @headers.any? ? [@headers] + rows_matrix : rows_matrix
+        all_rows = !@headers.empty? ? [@headers] + rows_matrix : rows_matrix
         style_fn = @style_func || ->(_r : Int32, _c : Int32) { Style.new }
-        resizer.row_heights = resizer.row_heights.map { |v| v }
 
-        all_rows.each_with_index do |row, i|
-          resizer.y_paddings[i] = Array.new(row.size, 0)
-          row.each_index do |j|
-            col = resizer.columns[j]?
+        all_rows.each_with_index do |row, row_index|
+          resizer.y_paddings[row_index] = Array.new(row.size, 0)
+          row.each_index do |column_index|
+            col = resizer.columns[column_index]?
             next unless col
 
-            row_idx = @headers.any? ? i - 1 : i
-            style = style_fn.call(row_idx, j)
-            top_margin, right_margin, bottom_margin, left_margin = style.get_margin
-            top_padding, right_padding, bottom_padding, left_padding = style.get_padding
+            content_row_index = !@headers.empty? ? row_index - 1 : row_index
+            style = style_fn.call(content_row_index, column_index)
+            top_margin, right_margin, bottom_margin, left_margin = style.margin
+            top_padding, right_padding, bottom_padding, left_padding = style.padding
 
             total_h = left_margin + right_margin + left_padding + right_padding
-            content_width = Lipgloss::Text.width(row[j])
+            content_width = Lipgloss::Text.width(row[column_index])
             col.x_padding = Math.max(col.x_padding, total_h)
             col.min = Math.max(col.min, content_width)
             col.max = Math.max(col.max, content_width)
-            if (fw = style.get_width) > 0
-              col.fixed_width = Math.max(col.fixed_width, fw - total_h)
+            if (fw = style.width) > 0
+              col.fixed_width = Math.max(col.fixed_width, fw)
             end
-            resizer.columns[j] = col
+            resizer.columns[column_index] = col
 
-            resizer.row_heights[i] = Math.max(resizer.row_heights[i], style.get_height)
+            resizer.row_heights[row_index] = Math.max(resizer.row_heights[row_index], style.height)
 
             total_v = top_margin + bottom_margin + top_padding + bottom_padding
-            resizer.y_paddings[i][j] = total_v
+            resizer.y_paddings[row_index][column_index] = total_v
           end
         end
 
@@ -584,8 +579,8 @@ module Lipgloss
         if @border_left
           s << @border_style.render(@border.top_left)
         end
-        @widths.each_with_index do |w, idx|
-          s << @border_style.render(@border.top * w)
+        @widths.each_with_index do |col_width, idx|
+          s << @border_style.render(@border.top * col_width)
           if idx < @widths.size - 1 && @border_column
             s << @border_style.render(@border.middle_top)
           end
@@ -601,8 +596,8 @@ module Lipgloss
         if @border_left
           s << @border_style.render(@border.bottom_left)
         end
-        @widths.each_with_index do |w, idx|
-          s << @border_style.render(@border.bottom * w)
+        @widths.each_with_index do |col_width, idx|
+          s << @border_style.render(@border.bottom * col_width)
           if idx < @widths.size - 1 && @border_column
             s << @border_style.render(@border.middle_bottom)
           end
@@ -620,20 +615,20 @@ module Lipgloss
           s << @border_style.render(@border.left)
         end
 
-        @headers.each_with_index do |header, i|
-          cell_style = style(HEADER_ROW, i)
-          header_content = @wrap ? header : truncate_cell(header, HEADER_ROW, i)
+        @headers.each_with_index do |header, column_index|
+          cell_style = style(HEADER_ROW, column_index)
+          header_content = @wrap ? header : truncate_cell(header, HEADER_ROW, column_index)
 
-          horiz = @widths[i] - cell_style.get_horizontal_margins
-          vert = height - cell_style.get_vertical_margins
+          horiz = @widths[column_index] - cell_style.horizontal_margins
+          vert = height - cell_style.vertical_margins
           s << cell_style
             .height(vert)
             .max_height(height)
             .width(horiz)
-            .max_width(@widths[i])
-            .render(truncate_cell(header_content, HEADER_ROW, i))
+            .max_width(@widths[column_index])
+            .render(truncate_cell(header_content, HEADER_ROW, column_index))
 
-          if i < @headers.size - 1 && @border_column
+          if column_index < @headers.size - 1 && @border_column
             s << @border_style.render(@border.left)
           end
         end
@@ -644,9 +639,9 @@ module Lipgloss
           if @border_left
             s << @border_style.render(@border.middle_left)
           end
-          @headers.each_with_index do |_, i|
-            s << @border_style.render(@border.top * @widths[i])
-            if i < @headers.size - 1 && @border_column
+          @headers.each_with_index do |_, column_index|
+            s << @border_style.render(@border.top * @widths[column_index])
+            if column_index < @headers.size - 1 && @border_column
               s << @border_style.render(@border.middle)
             end
           end
@@ -680,7 +675,7 @@ module Lipgloss
 
       private def construct_row(index : Int32, is_overflow : Bool) : String
         sb = String::Builder.new
-        has_headers = @headers.any?
+        has_headers = !@headers.empty?
         height_idx = index + StyleTable.btoi(has_headers)
         height = @heights[height_idx]
         height = 1 if is_overflow
@@ -691,20 +686,20 @@ module Lipgloss
           cells << left
         end
 
-        (0...@data.columns).each do |c|
-          cell_text = is_overflow ? "…" : @data.at(index, c)
-          cell_style = style(index, c)
-          cell_text = truncate_cell(cell_text, index, c) unless @wrap
-          horiz = @widths[c] - cell_style.get_horizontal_margins
-          vert = height - cell_style.get_vertical_margins
+        (0...@data.columns).each do |column_index|
+          cell_text = is_overflow ? "…" : @data.at(index, column_index)
+          cell_style = style(index, column_index)
+          cell_text = truncate_cell(cell_text, index, column_index) unless @wrap
+          horiz = @widths[column_index] - cell_style.horizontal_margins
+          vert = height - cell_style.vertical_margins
           rendered = cell_style
             .height(vert)
             .max_height(height)
             .width(horiz)
-            .max_width(@widths[c])
+            .max_width(@widths[column_index])
             .render(cell_text)
           cells << rendered
-          if c < @data.columns - 1 && @border_column
+          if column_index < @data.columns - 1 && @border_column
             cells << ((@border.left + "\n") * height)
           end
         end
@@ -716,28 +711,29 @@ module Lipgloss
 
         cells.map!(&.rstrip('\n'))
         sb << Lipgloss.join_horizontal(Lipgloss::Position::Top, cells)
-        sb << "\n"
+        sb << "\n" if index < @data.rows - 1 || @border_bottom
 
         if @border_row && index < @data.rows - 1 && !is_overflow
-          sb << @border_style.render(@border.middle_left)
-          @widths.each_with_index do |w, i|
-            sb << @border_style.render(@border.bottom * w)
-            if i < @widths.size - 1 && @border_column
+          sb << @border_style.render(@border.middle_left) if @border_left
+          @widths.each_with_index do |col_width, column_index|
+            sb << @border_style.render(@border.bottom * col_width)
+            if column_index < @widths.size - 1 && @border_column
               sb << @border_style.render(@border.middle)
             end
           end
-          sb << @border_style.render(@border.middle_right) << "\n"
+          sb << @border_style.render(@border.middle_right) if @border_right
+          sb << "\n"
         end
 
         sb.to_s
       end
 
       private def truncate_cell(cell : String, row_idx : Int32, col_idx : Int32) : String
-        has_headers = @headers.any?
+        has_headers = !@headers.empty?
         height = @heights[row_idx + StyleTable.btoi(has_headers)]
         cell_width = @widths[col_idx]
         cell_style = style(row_idx, col_idx)
-        length = (cell_width * height) - cell_style.get_horizontal_padding - cell_style.get_horizontal_margins
+        length = (cell_width * height) - cell_style.horizontal_padding - cell_style.horizontal_margins
         StyleTable.truncate(cell, length, "…")
       end
     end
@@ -746,9 +742,9 @@ module Lipgloss
       rows = data.rows
       cols = data.columns
       matrix = Array.new(rows) { Array.new(cols, "") }
-      rows.times do |i|
-        cols.times do |j|
-          matrix[i][j] = data.at(i, j)
+      rows.times do |row_index|
+        cols.times do |column_index|
+          matrix[row_index][column_index] = data.at(row_index, column_index)
         end
       end
       matrix
@@ -780,10 +776,10 @@ module Lipgloss
       target = [width - Lipgloss::Text.width(tail), 0].max
       visible = String::Builder.new
       current = 0
-      text.each_grapheme do |g|
-        g_width = Lipgloss::Text.width(g.to_s)
+      text.each_grapheme do |grapheme|
+        g_width = Lipgloss::Text.width(grapheme.to_s)
         break if current + g_width > target
-        visible << g
+        visible << grapheme
         current += g_width
       end
       visible << tail

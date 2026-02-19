@@ -11,6 +11,10 @@ license: MIT
 dependencies:
   stumpy_core:
     github: stumpycr/stumpy_core
+  crimage:
+    github: naqvis/crimage
+  golden:
+    github: dsisnero/golden
 
 development_dependencies:
   ameba:

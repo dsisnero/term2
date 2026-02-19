@@ -14,10 +14,11 @@ module Lipgloss
     @layers : Array(Layer) = [] of Layer
 
     def initialize(@content : String)
+      add_layers
     end
 
     def initialize(@content : String, *layers : Layer)
-      add_layers(*layers) unless layers.empty?
+      add_layers(*layers)
     end
 
     def content : String
@@ -76,15 +77,19 @@ module Lipgloss
       @z
     end
 
+    def add_layers : Layer
+      area = bounds_with_offset(0, 0)
+      @width = area.dx
+      @height = area.dy
+      self
+    end
+
     def add_layers(*layers : Layer?) : Layer
       layers.each_with_index do |layer, idx|
         raise "layer at index #{idx} is nil" if layer.nil?
         @layers << layer
       end
-      area = bounds_with_offset(0, 0)
-      @width = area.dx
-      @height = area.dy
-      self
+      add_layers
     end
 
     def get_layer(id : String) : Layer?
@@ -161,10 +166,21 @@ module Lipgloss
       end
     end
 
+    def initialize
+      @root = Layer.new("")
+      flatten
+    end
+
     def initialize(*layers : Layer)
       @root = Layer.new("")
-      @root.add_layers(*layers) unless layers.empty?
+      @root.add_layers(*layers)
       flatten
+    end
+
+    def add_layers : Compositor
+      @root.add_layers
+      flatten
+      self
     end
 
     def add_layers(*layers : Layer) : Compositor
@@ -248,12 +264,16 @@ module Lipgloss
     end
   end
 
+  def self.new_layer(content : String) : Layer
+    Layer.new(content)
+  end
+
   def self.new_layer(content : String, *layers : Layer) : Layer
     Layer.new(content, *layers)
   end
 
-  def self.new_layer(content : String) : Layer
-    Layer.new(content)
+  def self.new_compositor : Compositor
+    Compositor.new
   end
 
   def self.new_compositor(*layers : Layer) : Compositor

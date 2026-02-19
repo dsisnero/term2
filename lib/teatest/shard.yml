@@ -1,0 +1,16 @@
+name: teatest
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+crystal: ">= 1.19.1"
+
+license: MIT
+
+dependencies:
+  term2:
+    github: dsisnero/term2
+    branch: v2-exp
+  golden:
+    github: dsisnero/golden

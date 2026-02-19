@@ -1,5 +1,7 @@
 # Agent Instructions
 
+This project is a port of golang https://github.com/charmbracelet/x/tree/main/mosaic.  As such, the golang src available under vendor/x/mosaic is the source of truth for both tests and src. Any questions on implementation, consult the golang code.
+
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
 ## Quick Reference

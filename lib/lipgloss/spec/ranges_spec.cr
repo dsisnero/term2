@@ -18,8 +18,8 @@ describe "Lipgloss parity: StyleRanges" do
       {name: "ansi and emoji", input: "\e[90m\ue615\e[39m \e[3mDownloads", ranges: [Lipgloss::Range.new(2, 5, Lipgloss::Style.new.foreground(Lipgloss::Color.indexed(2)))], expected: "\e[90m\ue615\e[39m \e[3m\e[32mDow\e[0m\e[90m\e[39m\e[3mnloads"},
     ]
 
-    tests.each do |t|
-      Lipgloss.style_ranges(t[:input], t[:ranges]).should eq(t[:expected]), t[:name]
+    tests.each do |test_case|
+      Lipgloss.style_ranges(test_case[:input], test_case[:ranges]).should eq(test_case[:expected]), test_case[:name]
     end
 
     Lipgloss::StyleRenderer.default.color_profile = prev_profile

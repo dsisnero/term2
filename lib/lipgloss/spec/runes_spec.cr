@@ -13,8 +13,8 @@ describe "Lipgloss parity: StyleRunes" do
       {name: "你好 0,1", input: "你好", indices: [0, 1], expected: "\e[7m你好\e[0m"},
     ]
 
-    cases.each do |c|
-      Lipgloss.style_runes(c[:input], c[:indices], matched, unmatched).should eq(c[:expected]), c[:name]
+    cases.each do |test_case|
+      Lipgloss.style_runes(test_case[:input], test_case[:indices], matched, unmatched).should eq(test_case[:expected]), test_case[:name]
     end
   end
 end

@@ -106,36 +106,16 @@ module Lipgloss
       new("▄", "▀", "▐", "▌", "▗", "▖", "▝", "▘", "▐", "▌", "┼", "▄", "▀")
     end
 
-    @[Deprecated("Use `top_size` instead")]
-    def get_top_size : Int32
-      @top.empty? ? 0 : 1
-    end
-
     def top_size : Int32
       @top.empty? ? 0 : 1
-    end
-
-    @[Deprecated("Use `bottom_size` instead")]
-    def get_bottom_size : Int32
-      @bottom.empty? ? 0 : 1
     end
 
     def bottom_size : Int32
       @bottom.empty? ? 0 : 1
     end
 
-    @[Deprecated("Use `left_size` instead")]
-    def get_left_size : Int32
-      @left.empty? ? 0 : 1
-    end
-
     def left_size : Int32
       @left.empty? ? 0 : 1
-    end
-
-    @[Deprecated("Use `right_size` instead")]
-    def get_right_size : Int32
-      @right.empty? ? 0 : 1
     end
 
     def right_size : Int32
@@ -349,9 +329,9 @@ module Lipgloss
       end
 
       steps = [0, 95, 135, 175, 215, 255]
-      rc = steps.min_by { |s| (s - r).abs }
-      gc = steps.min_by { |s| (s - g).abs }
-      bc = steps.min_by { |s| (s - b).abs }
+      rc = steps.min_by { |step| (step - r).abs }
+      gc = steps.min_by { |step| (step - g).abs }
+      bc = steps.min_by { |step| (step - b).abs }
       ri = steps.index!(rc)
       gi = steps.index!(gc)
       bi = steps.index!(bc)
@@ -566,6 +546,10 @@ module Lipgloss
       return true if (0x1DC0..0x1DFF).includes?(cp)
       return true if (0x20D0..0x20FF).includes?(cp)
       return true if (0xFE20..0xFE2F).includes?(cp)
+      return true if (0x0610..0x061A).includes?(cp)
+      return true if (0x064B..0x065F).includes?(cp)
+      return true if cp == 0x0670
+      return true if (0x06D6..0x06ED).includes?(cp)
 
       return true if cp == 0x0E31
       return true if (0x0E34..0x0E3A).includes?(cp)
@@ -620,8 +604,16 @@ module Lipgloss
   struct NoColor
   end
 
+  enum UnderlineStyle
+    None
+    Double
+    Curly
+    Dotted
+    Dashed
+  end
+
   # Style is the core styling primitive - a complete Lipgloss port
-  class Style
+  struct Style
     WRAP_CACHE_MAX = 256
 
     @@wrap_cache = Hash(Tuple(String, Int32), String).new
@@ -674,6 +666,9 @@ module Lipgloss
       MaxHeight
       TabWidth
       Transform
+      PaddingChar
+      Hyperlink
+      UnderlineStyle
     end
 
     @props : Props = Props::None
@@ -740,6 +735,10 @@ module Lipgloss
     # Other
     @tab_width : Int32 = TAB_WIDTH_DEFAULT
     @transform : Proc(String, String)? = nil
+    @padding_char : Char = ' '
+    @hyperlink_url : String? = nil
+    @hyperlink_params : String = ""
+    @underline_style : UnderlineStyle = UnderlineStyle::None
 
     # StyleRenderer for lipgloss-like color/profile behavior
     @style_renderer : StyleRenderer = StyleRenderer.default
@@ -754,7 +753,7 @@ module Lipgloss
 
     def renderer(r : StyleRenderer) : Style
       @style_renderer = r
-      Lipgloss.has_dark_background = r.has_dark_background
+      Lipgloss.has_dark_background = r.has_dark_background?
       self
     end
 
@@ -1117,9 +1116,28 @@ module Lipgloss
       self
     end
 
+    def padding_char(char : Char) : Style
+      @padding_char = char
+      @props |= Props::PaddingChar
+      self
+    end
+
+    def underline_style(style : UnderlineStyle) : Style
+      @underline_style = style
+      @props |= Props::UnderlineStyle
+      self
+    end
+
+    def hyperlink(url : String, params : String = "") : Style
+      @hyperlink_url = url
+      @hyperlink_params = params
+      @props |= Props::Hyperlink
+      self
+    end
+
     # SetString sets the underlying string value for the style
     @[Deprecated("Use `string=` instead")]
-    def set_string(*strs : String) : Style
+    def string(*strs : String) : Style
       self.string = strs.join(" ")
     end
 
@@ -1203,7 +1221,7 @@ module Lipgloss
     end
 
     def color_whitespace? : Bool
-      is_set?(Props::ColorWhitespace) ? get_bool(Props::ColorWhitespace) : true
+      set?(Props::ColorWhitespace) ? get_bool(Props::ColorWhitespace) : true
     end
 
     def foreground_color : Color?
@@ -1240,59 +1258,13 @@ module Lipgloss
       end
     end
 
-    # Aliases for backwards compatibility
-    @[Deprecated("Use `bold?` instead")]
-    def get_bold : Bool
-      bold?
-    end
-
-    @[Deprecated("Use `italic?` instead")]
-    def get_italic : Bool
-      italic?
-    end
-
-    @[Deprecated("Use `underline?` instead")]
-    def get_underline : Bool
-      underline?
-    end
-
-    def get_strikethrough : Bool
-      strikethrough?
-    end
-
-    def get_reverse : Bool
-      reverse?
-    end
-
-    def get_blink : Bool
-      blink?
-    end
-
-    def get_faint : Bool
-      faint?
-    end
-
-    def get_underline_spaces : Bool
-      underline_spaces?
-    end
-
-    @[Deprecated("Use `strikethrough_spaces?` instead")]
-    def get_strikethrough_spaces : Bool
-      strikethrough_spaces?
-    end
-
-    @[Deprecated("Use `color_whitespace?` instead")]
-    def get_color_whitespace : Bool
-      color_whitespace?
-    end
-
     @[Deprecated("Use `foreground_color` instead")]
-    def get_foreground : Color?
+    def foreground : Color?
       foreground_color
     end
 
     @[Deprecated("Use `background_color` instead")]
-    def get_background : Color?
+    def background : Color?
       background_color
     end
 
@@ -1325,176 +1297,172 @@ module Lipgloss
       @align_vertical
     end
 
-    def padding : Edges
-      Edges.new(@padding_top, @padding_right, @padding_bottom, @padding_left)
-    end
-
-    def margin : Edges
-      Edges.new(@margin_top, @margin_right, @margin_bottom, @margin_left)
-    end
-
     # Backwards compatibility aliases
-    def get_width : Int32
+    def width : Int32
       width_value
     end
 
-    def get_height : Int32
+    def height : Int32
       height_value
     end
 
-    def get_max_width : Int32
+    def max_width : Int32
       max_width_value
     end
 
-    def get_max_height : Int32
+    def max_height : Int32
       max_height_value
     end
 
-    def get_align : Position
+    def align : Position
       align_value
     end
 
-    def get_align_horizontal : Position
+    def align_horizontal : Position
       align_horizontal_value
     end
 
-    def get_align_vertical : Position
+    def align_vertical : Position
       align_vertical_value
     end
 
-    def get_padding : Tuple(Int32, Int32, Int32, Int32)
+    def padding : Tuple(Int32, Int32, Int32, Int32)
       {@padding_top, @padding_right, @padding_bottom, @padding_left}
     end
 
-    def get_padding_top : Int32
+    def padding_top : Int32
       @padding_top
     end
 
-    def get_padding_right : Int32
+    def padding_right : Int32
       @padding_right
     end
 
-    def get_padding_bottom : Int32
+    def padding_bottom : Int32
       @padding_bottom
     end
 
-    def get_padding_left : Int32
+    def padding_left : Int32
       @padding_left
     end
 
-    def get_horizontal_padding : Int32
+    def horizontal_padding : Int32
       @padding_left + @padding_right
     end
 
-    def get_vertical_padding : Int32
+    def vertical_padding : Int32
       @padding_top + @padding_bottom
     end
 
-    def get_margin : Tuple(Int32, Int32, Int32, Int32)
+    def margin : Tuple(Int32, Int32, Int32, Int32)
       {@margin_top, @margin_right, @margin_bottom, @margin_left}
     end
 
-    def get_margin_top : Int32
+    def margin_top : Int32
       @margin_top
     end
 
-    def get_margin_right : Int32
+    def margin_right : Int32
       @margin_right
     end
 
-    def get_margin_bottom : Int32
+    def margin_bottom : Int32
       @margin_bottom
     end
 
-    def get_margin_left : Int32
+    def margin_left : Int32
       @margin_left
     end
 
-    def get_horizontal_margins : Int32
+    def horizontal_margins : Int32
       @margin_left + @margin_right
     end
 
-    def get_vertical_margins : Int32
+    def vertical_margins : Int32
       @margin_top + @margin_bottom
     end
 
-    def get_border : Tuple(Border, Bool, Bool, Bool, Bool)
+    def border : Tuple(Border, Bool, Bool, Bool, Bool)
       {
         @border_style,
-        is_set?(Props::BorderTop) ? get_bool(Props::BorderTop) : false,
-        is_set?(Props::BorderRight) ? get_bool(Props::BorderRight) : false,
-        is_set?(Props::BorderBottom) ? get_bool(Props::BorderBottom) : false,
-        is_set?(Props::BorderLeft) ? get_bool(Props::BorderLeft) : false,
+        set?(Props::BorderTop) ? get_bool(Props::BorderTop) : false,
+        set?(Props::BorderRight) ? get_bool(Props::BorderRight) : false,
+        set?(Props::BorderBottom) ? get_bool(Props::BorderBottom) : false,
+        set?(Props::BorderLeft) ? get_bool(Props::BorderLeft) : false,
       }
     end
 
-    def get_border_style : Border
+    def border_style : Border
       @border_style
     end
 
-    def get_border_top : Bool
-      is_set?(Props::BorderTop) ? get_bool(Props::BorderTop) : implicit_borders?
+    def border_top? : Bool
+      set?(Props::BorderTop) ? get_bool(Props::BorderTop) : implicit_borders?
     end
 
-    def get_border_right : Bool
-      is_set?(Props::BorderRight) ? get_bool(Props::BorderRight) : implicit_borders?
+    def border_right? : Bool
+      set?(Props::BorderRight) ? get_bool(Props::BorderRight) : implicit_borders?
     end
 
-    def get_border_bottom : Bool
-      is_set?(Props::BorderBottom) ? get_bool(Props::BorderBottom) : implicit_borders?
+    def border_bottom? : Bool
+      set?(Props::BorderBottom) ? get_bool(Props::BorderBottom) : implicit_borders?
     end
 
-    def get_border_left : Bool
-      is_set?(Props::BorderLeft) ? get_bool(Props::BorderLeft) : implicit_borders?
+    def border_left? : Bool
+      set?(Props::BorderLeft) ? get_bool(Props::BorderLeft) : implicit_borders?
     end
 
-    def get_border_top_size : Int32
-      get_border_top ? @border_style.top_size : 0
+    def border_top_size : Int32
+      border_top? ? @border_style.top_size : 0
     end
 
-    def get_border_right_size : Int32
-      get_border_right ? @border_style.right_size : 0
+    def border_right_size : Int32
+      border_right? ? @border_style.right_size : 0
     end
 
-    def get_border_bottom_size : Int32
-      get_border_bottom ? @border_style.bottom_size : 0
+    def border_bottom_size : Int32
+      border_bottom? ? @border_style.bottom_size : 0
     end
 
-    def get_border_left_size : Int32
-      get_border_left ? @border_style.left_size : 0
+    def border_left_size : Int32
+      border_left? ? @border_style.left_size : 0
     end
 
-    def get_horizontal_border_size : Int32
-      get_border_left_size + get_border_right_size
+    def horizontal_border_size : Int32
+      border_left_size + border_right_size
     end
 
-    def get_vertical_border_size : Int32
-      get_border_top_size + get_border_bottom_size
+    def vertical_border_size : Int32
+      border_top_size + border_bottom_size
     end
 
-    def get_inline : Bool
+    def inline? : Bool
       get_bool(Props::Inline)
     end
 
-    def get_tab_width : Int32
+    def tab_width : Int32
       @tab_width
     end
 
-    def get_transform : Proc(String, String)?
+    def padding_char : Char
+      @padding_char
+    end
+
+    def transform : Proc(String, String)?
       @transform
     end
 
     # Frame size calculations
-    def get_horizontal_frame_size : Int32
-      get_horizontal_margins + get_horizontal_padding + get_horizontal_border_size
+    def horizontal_frame_size : Int32
+      horizontal_margins + horizontal_padding + horizontal_border_size
     end
 
-    def get_vertical_frame_size : Int32
-      get_vertical_margins + get_vertical_padding + get_vertical_border_size
+    def vertical_frame_size : Int32
+      vertical_margins + vertical_padding + vertical_border_size
     end
 
-    def get_frame_size : Tuple(Int32, Int32)
-      {get_horizontal_frame_size, get_vertical_frame_size}
+    def frame_size : Tuple(Int32, Int32)
+      {horizontal_frame_size, vertical_frame_size}
     end
 
     # Value returns the raw, unformatted string value
@@ -1710,9 +1678,25 @@ module Lipgloss
       unset(Props::TabWidth)
     end
 
+    def unset_padding_char : Style
+      @padding_char = ' '
+      unset(Props::PaddingChar)
+    end
+
     def unset_transform : Style
       @transform = nil
       unset(Props::Transform)
+    end
+
+    def unset_hyperlink : Style
+      @hyperlink_url = nil
+      @hyperlink_params = ""
+      unset(Props::Hyperlink)
+    end
+
+    def unset_underline_style : Style
+      @underline_style = UnderlineStyle::None
+      unset(Props::UnderlineStyle)
     end
 
     def unset_string : Style
@@ -1727,92 +1711,92 @@ module Lipgloss
     # Margins, padding, and underlying string values are not inherited.
     def inherit(other : Style) : Style
       # Text attributes
-      inherit_bool(Props::Bold, other) unless is_set?(Props::Bold)
-      inherit_bool(Props::Italic, other) unless is_set?(Props::Italic)
-      inherit_bool(Props::Underline, other) unless is_set?(Props::Underline)
-      inherit_bool(Props::Strikethrough, other) unless is_set?(Props::Strikethrough)
-      inherit_bool(Props::Reverse, other) unless is_set?(Props::Reverse)
-      inherit_bool(Props::Blink, other) unless is_set?(Props::Blink)
-      inherit_bool(Props::Faint, other) unless is_set?(Props::Faint)
-      inherit_bool(Props::UnderlineSpaces, other) unless is_set?(Props::UnderlineSpaces)
-      inherit_bool(Props::StrikethroughSpaces, other) unless is_set?(Props::StrikethroughSpaces)
-      inherit_bool(Props::ColorWhitespace, other) unless is_set?(Props::ColorWhitespace)
+      inherit_bool(Props::Bold, other) unless set?(Props::Bold)
+      inherit_bool(Props::Italic, other) unless set?(Props::Italic)
+      inherit_bool(Props::Underline, other) unless set?(Props::Underline)
+      inherit_bool(Props::Strikethrough, other) unless set?(Props::Strikethrough)
+      inherit_bool(Props::Reverse, other) unless set?(Props::Reverse)
+      inherit_bool(Props::Blink, other) unless set?(Props::Blink)
+      inherit_bool(Props::Faint, other) unless set?(Props::Faint)
+      inherit_bool(Props::UnderlineSpaces, other) unless set?(Props::UnderlineSpaces)
+      inherit_bool(Props::StrikethroughSpaces, other) unless set?(Props::StrikethroughSpaces)
+      inherit_bool(Props::ColorWhitespace, other) unless set?(Props::ColorWhitespace)
 
       # Colors
-      if !is_set?(Props::Foreground) && other.is_set?(Props::Foreground)
+      if !set?(Props::Foreground) && other.set?(Props::Foreground)
         @fg_color = other.@fg_color
         @props |= Props::Foreground
       end
 
-      if !is_set?(Props::Background) && other.is_set?(Props::Background)
+      if !set?(Props::Background) && other.set?(Props::Background)
         @bg_color = other.@bg_color
         @props |= Props::Background
         # Background also sets margin background if not already set
-        if !is_set?(Props::MarginBackground) && !other.is_set?(Props::MarginBackground)
+        if !set?(Props::MarginBackground) && !other.set?(Props::MarginBackground)
           @margin_bg_color = other.@bg_color
           @props |= Props::MarginBackground
         end
       end
 
       # Dimensions (but not margins/padding)
-      if !is_set?(Props::Width) && other.is_set?(Props::Width)
+      if !set?(Props::Width) && other.set?(Props::Width)
         @width = other.@width
         @props |= Props::Width
       end
 
-      if !is_set?(Props::Height) && other.is_set?(Props::Height)
+      if !set?(Props::Height) && other.set?(Props::Height)
         @height = other.@height
         @props |= Props::Height
       end
 
       # Alignment
-      if !is_set?(Props::AlignHorizontal) && other.is_set?(Props::AlignHorizontal)
+      if !set?(Props::AlignHorizontal) && other.set?(Props::AlignHorizontal)
         @align_horizontal = other.@align_horizontal
         @props |= Props::AlignHorizontal
       end
 
-      if !is_set?(Props::AlignVertical) && other.is_set?(Props::AlignVertical)
+      if !set?(Props::AlignVertical) && other.set?(Props::AlignVertical)
         @align_vertical = other.@align_vertical
         @props |= Props::AlignVertical
       end
 
       # Border style (but not border visibility)
-      if !is_set?(Props::BorderStyle) && other.is_set?(Props::BorderStyle)
+      if !set?(Props::BorderStyle) && other.set?(Props::BorderStyle)
         @border_style = other.@border_style
         @props |= Props::BorderStyle
       end
 
       # Border colors
-      inherit_border_color(Props::BorderTopForeground, other, other.@border_top_fg_color) { |c| @border_top_fg_color = c }
-      inherit_border_color(Props::BorderRightForeground, other, other.@border_right_fg_color) { |c| @border_right_fg_color = c }
-      inherit_border_color(Props::BorderBottomForeground, other, other.@border_bottom_fg_color) { |c| @border_bottom_fg_color = c }
-      inherit_border_color(Props::BorderLeftForeground, other, other.@border_left_fg_color) { |c| @border_left_fg_color = c }
-      inherit_border_color(Props::BorderTopBackground, other, other.@border_top_bg_color) { |c| @border_top_bg_color = c }
-      inherit_border_color(Props::BorderRightBackground, other, other.@border_right_bg_color) { |c| @border_right_bg_color = c }
-      inherit_border_color(Props::BorderBottomBackground, other, other.@border_bottom_bg_color) { |c| @border_bottom_bg_color = c }
-      inherit_border_color(Props::BorderLeftBackground, other, other.@border_left_bg_color) { |c| @border_left_bg_color = c }
+      inherit_border_color(Props::BorderTopForeground, other, other.@border_top_fg_color) { |color_value| @border_top_fg_color = color_value }
+      inherit_border_color(Props::BorderRightForeground, other, other.@border_right_fg_color) { |color_value| @border_right_fg_color = color_value }
+      inherit_border_color(Props::BorderBottomForeground, other, other.@border_bottom_fg_color) { |color_value| @border_bottom_fg_color = color_value }
+      inherit_border_color(Props::BorderLeftForeground, other, other.@border_left_fg_color) { |color_value| @border_left_fg_color = color_value }
+      inherit_border_color(Props::BorderTopBackground, other, other.@border_top_bg_color) { |color_value| @border_top_bg_color = color_value }
+      inherit_border_color(Props::BorderRightBackground, other, other.@border_right_bg_color) { |color_value| @border_right_bg_color = color_value }
+      inherit_border_color(Props::BorderBottomBackground, other, other.@border_bottom_bg_color) { |color_value| @border_bottom_bg_color = color_value }
+      inherit_border_color(Props::BorderLeftBackground, other, other.@border_left_bg_color) { |color_value| @border_left_bg_color = color_value }
 
       # Other
-      if !is_set?(Props::Inline) && other.is_set?(Props::Inline)
+      if !set?(Props::Inline) && other.set?(Props::Inline)
         inherit_bool(Props::Inline, other)
       end
 
-      if !is_set?(Props::MaxWidth) && other.is_set?(Props::MaxWidth)
+      if !set?(Props::MaxWidth) && other.set?(Props::MaxWidth)
         @max_width = other.@max_width
         @props |= Props::MaxWidth
       end
 
-      if !is_set?(Props::MaxHeight) && other.is_set?(Props::MaxHeight)
+      if !set?(Props::MaxHeight) && other.set?(Props::MaxHeight)
         @max_height = other.@max_height
         @props |= Props::MaxHeight
       end
 
-      if !is_set?(Props::TabWidth) && other.is_set?(Props::TabWidth)
+      if !set?(Props::TabWidth) && other.set?(Props::TabWidth)
         @tab_width = other.@tab_width
         @props |= Props::TabWidth
       end
 
-      if !is_set?(Props::Transform) && other.is_set?(Props::Transform)
+      if !set?(Props::Transform) && other.set?(Props::Transform)
         @transform = other.@transform
         @props |= Props::Transform
       end
@@ -1823,9 +1807,7 @@ module Lipgloss
     # ========== COPY ==========
 
     def copy : Style
-      new_style = Style.new
-      copy_to(new_style)
-      new_style
+      self
     end
 
     # Merge another style into this one
@@ -1839,10 +1821,6 @@ module Lipgloss
     # Merge another style's set properties into this style (mutates)
     protected def merge_from(other : Style) : Nil
       # Merge text attributes (bold, italic, etc.) - copy attr bits for set props
-      attr_props = Props::Bold | Props::Faint | Props::Italic | Props::Underline |
-                   Props::Blink | Props::Reverse | Props::Strikethrough
-      other_attr_props = Props.new(other.@props.value & attr_props.value)
-
       # For each attribute prop that's set in other, copy both the prop flag and attr bit
       {% for prop in [:Bold, :Faint, :Italic, :Underline, :Blink, :Reverse, :Strikethrough] %}
         if other.@props.{{ prop.id.underscore }}?
@@ -2073,8 +2051,10 @@ module Lipgloss
       str =
         if strs.empty?
           @value
-        else
+        elsif @value.empty?
           strs.join(" ")
+        else
+          "#{@value} #{strs.join(" ")}"
         end
       render_string(str)
     end
@@ -2105,21 +2085,20 @@ module Lipgloss
       fg = resolve_color(@fg_color)
       bg = resolve_color(@bg_color)
 
-      width_val = is_set?(Props::Width) ? @width : 0
-      height_val = is_set?(Props::Height) ? @height : 0
+      width_val = set?(Props::Width) ? @width : 0
+      height_val = set?(Props::Height) ? @height : 0
 
       top_padding = @padding_top
       right_padding = @padding_right
       bottom_padding = @padding_bottom
       left_padding = @padding_left
 
-      color_whitespace = color_whitespace?
       inline_val = get_bool(Props::Inline)
       max_width_val = @max_width
       max_height_val = @max_height
 
-      underline_spaces = is_set?(Props::UnderlineSpaces) ? get_bool(Props::UnderlineSpaces) : underline_val
-      strikethrough_spaces = is_set?(Props::StrikethroughSpaces) ? get_bool(Props::StrikethroughSpaces) : strikethrough_val
+      underline_spaces = set?(Props::UnderlineSpaces) ? get_bool(Props::UnderlineSpaces) : underline_val
+      strikethrough_spaces = set?(Props::StrikethroughSpaces) ? get_bool(Props::StrikethroughSpaces) : strikethrough_val
 
       # Convert tabs
       str = maybe_convert_tabs(str)
@@ -2132,9 +2111,21 @@ module Lipgloss
         str = str.gsub("\n", "")
       end
 
+      border_width = 0
+      border_height = 0
+      if !inline_val && set?(Props::BorderStyle)
+        border_width += 1 if border_left?
+        border_width += 1 if border_right?
+        border_height += 1 if border_top?
+        border_height += 1 if border_bottom?
+      end
+
+      content_width_val = width_val > 0 ? Math.max(width_val - border_width, 0) : 0
+      content_height_val = height_val > 0 ? Math.max(height_val - border_height, 0) : 0
+
       # Word wrap if width is set
-      if !inline_val && width_val > 0
-        wrap_at = width_val - left_padding - right_padding
+      if !inline_val && content_width_val > 0
+        wrap_at = content_width_val - left_padding - right_padding
         str = self.class.word_wrap_cached(str, wrap_at) if wrap_at > 0
       end
 
@@ -2152,6 +2143,7 @@ module Lipgloss
       if bg
         base_codes.concat(bg.background_codes)
       end
+      base_code_strings = base_codes.map(&.to_s)
 
       # Lip Gloss applies underline/strikethrough on a per-rune basis when
       # space styling is enabled, which also affects escape sequences.
@@ -2165,34 +2157,37 @@ module Lipgloss
         lines = str.split('\n')
         str = lines.map do |line|
           String.build do |io|
-            line.each_char do |ch|
-              codes = base_codes.dup
+            line.each_char do |char|
+              codes = base_code_strings.dup
 
-              if ch.whitespace?
-                codes << 4 if underline_spaces
-                codes << 9 if strikethrough_spaces
+              if char.whitespace?
+                codes << "4" if underline_spaces
+                codes << "9" if strikethrough_spaces
               else
                 if underline_val
-                  codes << 4
-                  codes << 4
+                  codes << "4"
+                  codes << (underline_style_code || "4")
                 end
-                codes << 9 if strikethrough_val
+                codes << "9" if strikethrough_val
               end
 
               if codes.empty?
-                io << ch
+                io << char
               else
-                io << "\e[#{codes.join(';')}m" << ch << "\e[0m"
+                io << "\e[#{codes.join(';')}m" << char << "\e[0m"
               end
             end
           end
         end.join('\n')
       else
-        codes = base_codes.dup
-        codes << 4 if underline_val
-        codes << 9 if strikethrough_val
+        codes = base_code_strings.dup
+        if underline_val
+          codes << "4"
+          codes << (underline_style_code || "4")
+        end
+        codes << "9" if strikethrough_val
 
-        if codes.any?
+        if !codes.empty?
           lines = str.split('\n')
           str = lines.map do |line|
             if line.empty?
@@ -2208,32 +2203,33 @@ module Lipgloss
       if !inline_val
         if left_padding > 0 || right_padding > 0
           lines = str.split('\n')
-          left_str = " " * left_padding
-          right_str = " " * right_padding
-          str = lines.map { |l| "#{left_str}#{l}#{right_str}" }.join('\n')
+          pad_char = @padding_char.to_s
+          left_str = pad_char * left_padding
+          right_str = pad_char * right_padding
+          str = lines.map { |line| "#{left_str}#{line}#{right_str}" }.join('\n')
         end
 
         if top_padding > 0
-          width_for_pad = str.split('\n').max_of? { |l| Text.width(l) } || 0
-          empty_line = " " * width_for_pad
+          width_for_pad = str.split('\n').max_of? { |line| Text.width(line) } || 0
+          empty_line = @padding_char.to_s * width_for_pad
           str = (Array.new(top_padding, empty_line).join('\n')) + "\n" + str
         end
 
         if bottom_padding > 0
-          width_for_pad = str.split('\n').max_of? { |l| Text.width(l) } || 0
-          empty_line = " " * width_for_pad
+          width_for_pad = str.split('\n').max_of? { |line| Text.width(line) } || 0
+          empty_line = @padding_char.to_s * width_for_pad
           str = str + "\n" + (Array.new(bottom_padding, empty_line).join('\n'))
         end
       end
 
       # Apply height
-      if height_val > 0
-        str = align_text_vertical(str, @align_vertical, height_val)
+      if content_height_val > 0
+        str = align_text_vertical(str, @align_vertical, content_height_val)
       end
 
       # Apply width/alignment
-      if width_val > 0 || str.includes?('\n')
-        str = align_text_horizontal(str, @align_horizontal, width_val)
+      if content_width_val > 0 || str.includes?('\n')
+        str = align_text_horizontal(str, @align_horizontal, content_width_val)
       end
 
       # Apply border
@@ -2249,7 +2245,7 @@ module Lipgloss
       # Truncate to MaxWidth
       if max_width_val > 0
         lines = str.split('\n')
-        str = lines.map { |l| truncate_ansi(l, max_width_val) }.join('\n')
+        str = lines.map { |line| truncate_ansi(line, max_width_val) }.join('\n')
       end
 
       # Truncate to MaxHeight
@@ -2258,6 +2254,15 @@ module Lipgloss
         if lines.size > max_height_val
           str = lines[0, max_height_val].join('\n')
         end
+      end
+
+      if set?(Props::Hyperlink) && (url = @hyperlink_url)
+        open = if @hyperlink_params.empty?
+                 "\e]8;;#{url}\a"
+               else
+                 "\e]8;#{@hyperlink_params};#{url}\a"
+               end
+        str = "#{open}#{str}\e]8;;\a"
       end
 
       str
@@ -2279,34 +2284,55 @@ module Lipgloss
       (@attrs & (1u32 << prop.value.trailing_zeros_count)) != 0
     end
 
-    def is_set?(prop : Props) : Bool
+    def set?(prop : Props) : Bool
       (@props & prop) != Props::None
     end
 
     private def unset(prop : Props) : Style
       @props &= ~prop
+      bit = prop.value.trailing_zeros_count
+      if bit < 32
+        @attrs &= ~(1u32 << bit)
+      end
       self
     end
 
     private def inherit_bool(prop : Props, other : Style)
-      if other.is_set?(prop)
+      if other.set?(prop)
         set_bool(prop, other.get_bool(prop))
       end
     end
 
     private def inherit_border_color(prop : Props, other : Style, color : Color | AdaptiveColor | CompleteColor | CompleteAdaptiveColor | NoColor | Nil, &block : (Color | AdaptiveColor | CompleteColor | CompleteAdaptiveColor | NoColor | Nil) ->)
-      if !is_set?(prop) && other.is_set?(prop)
+      if !set?(prop) && other.set?(prop)
         block.call(color)
         @props |= prop
       end
     end
 
+    private def underline_style_code : String?
+      return nil unless set?(Props::UnderlineStyle)
+
+      case @underline_style
+      when UnderlineStyle::Double
+        "4:2"
+      when UnderlineStyle::Curly
+        "4:3"
+      when UnderlineStyle::Dotted
+        "4:4"
+      when UnderlineStyle::Dashed
+        "4:5"
+      else
+        nil
+      end
+    end
+
     private def implicit_borders? : Bool
-      is_set?(Props::BorderStyle) &&
-        !is_set?(Props::BorderTop) &&
-        !is_set?(Props::BorderRight) &&
-        !is_set?(Props::BorderBottom) &&
-        !is_set?(Props::BorderLeft)
+      set?(Props::BorderStyle) &&
+        !set?(Props::BorderTop) &&
+        !set?(Props::BorderRight) &&
+        !set?(Props::BorderBottom) &&
+        !set?(Props::BorderLeft)
     end
 
     private def resolve_color(c : Color | AdaptiveColor | CompleteColor | CompleteAdaptiveColor | NoColor | Nil) : Color?
@@ -2436,7 +2462,7 @@ module Lipgloss
       lines = str.split('\n')
 
       # Calculate actual width needed
-      actual_width = width > 0 ? width : (lines.max_of? { |l| Text.width(l) } || 0)
+      actual_width = width > 0 ? width : (lines.max_of? { |line| Text.width(line) } || 0)
 
       lines.map do |line|
         line_width = Text.width(line)
@@ -2479,17 +2505,17 @@ module Lipgloss
     end
 
     private def apply_border(str : String) : String
-      return str unless is_set?(Props::BorderStyle)
+      return str unless set?(Props::BorderStyle)
 
-      has_top = get_border_top
-      has_right = get_border_right
-      has_bottom = get_border_bottom
-      has_left = get_border_left
+      has_top = border_top?
+      has_right = border_right?
+      has_bottom = border_bottom?
+      has_left = border_left?
 
       return str if !has_top && !has_right && !has_bottom && !has_left
 
       lines = str.split('\n')
-      width = lines.max_of? { |l| Text.width(l) } || 0
+      width = lines.max_of? { |line| Text.width(line) } || 0
 
       border = @border_style
 
@@ -2557,12 +2583,12 @@ module Lipgloss
       if @margin_left > 0 || @margin_right > 0
         left_margin = style_margin_spaces(" " * @margin_left)
         right_margin = style_margin_spaces(" " * @margin_right)
-        lines = lines.map { |l| "#{left_margin}#{l}#{right_margin}" }
+        lines = lines.map { |line| "#{left_margin}#{line}#{right_margin}" }
       end
 
       # Apply vertical margins
       if @margin_top > 0 || @margin_bottom > 0
-        width = lines.max_of? { |l| Text.width(l) } || 0
+        width = lines.max_of? { |line| Text.width(line) } || 0
         empty_line = style_margin_spaces(" " * width)
         if @margin_top > 0
           @margin_top.times { lines.unshift(empty_line) }
@@ -2617,12 +2643,12 @@ module Lipgloss
     return "" if blocks.empty?
 
     block_lines = blocks.map(&.split('\n'))
-    block_widths = block_lines.map { |lines| lines.max_of? { |l| Text.width(l) } || 0 }
+    block_widths = block_lines.map { |lines| lines.max_of? { |line| Text.width(line) } || 0 }
     max_height = block_lines.max_of?(&.size) || 0
 
     # Pad each block
-    padded_blocks = block_lines.map_with_index do |lines, i|
-      width = block_widths[i]
+    padded_blocks = block_lines.map_with_index do |lines, block_index|
+      width = block_widths[block_index]
       height_diff = max_height - lines.size
       empty_line = " " * width
 
@@ -2646,8 +2672,8 @@ module Lipgloss
     end
 
     # Join horizontally
-    result = (0...max_height).map do |i|
-      padded_blocks.map { |block| block[i]? || "" }.join
+    result = (0...max_height).map do |row_index|
+      padded_blocks.map { |block| block[row_index]? || "" }.join
     end
 
     result.join('\n')
@@ -2662,11 +2688,11 @@ module Lipgloss
     ratio = pos.clamp(0.0, 1.0)
 
     block_lines = blocks.map(&.split('\n'))
-    block_widths = block_lines.map { |lines| lines.max_of? { |l| Text.width(l) } || 0 }
+    block_widths = block_lines.map { |lines| lines.max_of? { |line| Text.width(line) } || 0 }
     max_height = block_lines.max_of?(&.size) || 0
 
-    padded_blocks = block_lines.map_with_index do |lines, i|
-      width = block_widths[i]
+    padded_blocks = block_lines.map_with_index do |lines, block_index|
+      width = block_widths[block_index]
       height_diff = max_height - lines.size
       top = (height_diff * ratio).round.to_i.clamp(0, height_diff)
       bottom = height_diff - top
@@ -2679,8 +2705,8 @@ module Lipgloss
       end
     end
 
-    result = (0...max_height).map do |i|
-      padded_blocks.map { |block| block[i]? || "" }.join
+    result = (0...max_height).map do |row_index|
+      padded_blocks.map { |block| block[row_index]? || "" }.join
     end
 
     result.join('\n')
@@ -2706,8 +2732,8 @@ module Lipgloss
   def self.join_vertical(pos : Position, blocks : Array(String)) : String
     return "" if blocks.empty?
 
-    max_width = blocks.max_of? do |b|
-      b.split('\n').max_of? { |l| Text.width(l) } || 0
+    max_width = blocks.max_of? do |block|
+      block.split('\n').max_of? { |line| Text.width(line) } || 0
     end || 0
 
     aligned = blocks.map do |block|
@@ -2737,8 +2763,8 @@ module Lipgloss
     return "" if blocks.empty?
     ratio = pos.clamp(0.0, 1.0)
 
-    max_width = blocks.max_of? do |b|
-      b.split('\n').max_of? { |l| Text.width(l) } || 0
+    max_width = blocks.max_of? do |block|
+      block.split('\n').max_of? { |line| Text.width(line) } || 0
     end || 0
 
     aligned = blocks.map do |block|
@@ -2758,69 +2784,135 @@ module Lipgloss
   end
 
   # Place content within a box of given dimensions
-  def self.place(width : Int32, height : Int32, h_pos : Position, v_pos : Position, content : String) : String
-    lines = content.split('\n')
-    content_width = lines.max_of? { |l| Text.width(l) } || 0
-    content_height = lines.size
+  alias WhitespaceOption = Proc(Whitespace, Nil)
 
-    # Vertical placement
-    v_gap = height - content_height
-    if v_gap > 0
-      empty_line = " " * width
-      case v_pos
-      when Position::Bottom
-        lines = Array.new(v_gap, empty_line) + lines
-      when Position::Center
-        top = v_gap // 2
-        bottom = v_gap - top
-        lines = Array.new(top, empty_line) + lines + Array.new(bottom, empty_line)
-      else # Top
-        lines = lines + Array.new(v_gap, empty_line)
-      end
+  class Whitespace
+    property chars : String
+    property style_proc : Proc(String, String)
+
+    def initialize
+      @chars = " "
+      @style_proc = ->(value : String) { value }
     end
 
-    # Horizontal placement
-    result = lines.map do |line|
-      h_gap = width - Text.width(line)
-      if h_gap <= 0
-        line
+    def render(width : Int32) : String
+      return "" if width <= 0
+
+      chars = @chars.empty? ? " " : @chars
+      graphemes = chars.each_grapheme.map(&.to_s).to_a
+      graphemes = [" "] if graphemes.empty?
+
+      rendered = String.build do |io|
+        current = 0
+        index = 0
+        while current < width
+          glyph = graphemes[index]
+          glyph_width = Text.width(glyph)
+          glyph_width = 1 if glyph_width <= 0
+          break if current + glyph_width > width
+          io << glyph
+          current += glyph_width
+          index = (index + 1) % graphemes.size
+        end
+
+        short = width - current
+        io << (" " * short) if short > 0
+      end
+
+      @style_proc.call(rendered)
+    end
+  end
+
+  def self.with_whitespace_style(style : Style) : WhitespaceOption
+    ->(whitespace : Whitespace) { whitespace.style_proc = ->(value : String) { style.render(value) } }
+  end
+
+  def self.with_whitespace_chars(chars : String) : WhitespaceOption
+    ->(whitespace : Whitespace) { whitespace.chars = chars }
+  end
+
+  private def self.new_whitespace(opts : Array(WhitespaceOption)) : Whitespace
+    whitespace = Whitespace.new
+    opts.each(&.call(whitespace))
+    whitespace
+  end
+
+  private def self.position_value(pos : Position) : Float64
+    case pos
+    when Position::Left, Position::Top
+      0.0
+    when Position::Center
+      0.5
+    else
+      1.0
+    end
+  end
+
+  def self.place(width : Int32, height : Int32, h_pos : Position, v_pos : Position, content : String, *opts : WhitespaceOption) : String
+    place_vertical(height, v_pos, place_horizontal(width, h_pos, content, *opts), *opts)
+  end
+
+  def self.place_horizontal(width : Int32, pos : Position, content : String, *opts : WhitespaceOption) : String
+    lines = content.split('\n')
+    content_width = lines.max_of? { |line| Text.width(line) } || 0
+    gap = width - content_width
+    return content if gap <= 0
+
+    whitespace = new_whitespace(opts.to_a)
+    lines.map do |line|
+      short = Math.max(0, content_width - Text.width(line))
+      case pos
+      when Position::Left
+        line + whitespace.render(gap + short)
+      when Position::Right
+        whitespace.render(gap + short) + line
       else
-        case h_pos
-        when Position::Right
-          " " * h_gap + line
-        when Position::Center
-          left = h_gap // 2
-          right = h_gap - left
-          " " * left + line + " " * right
-        else # Left
-          line + " " * h_gap
+        total_gap = gap + short
+        split = (total_gap.to_f * position_value(pos)).round.to_i
+        left = total_gap - split
+        right = total_gap - left
+        whitespace.render(left) + line + whitespace.render(right)
+      end
+    end.join('\n')
+  end
+
+  def self.place_vertical(height : Int32, pos : Position, content : String, *opts : WhitespaceOption) : String
+    content_height = content.count('\n') + 1
+    gap = height - content_height
+    return content if gap <= 0
+
+    lines = content.split('\n')
+    width = lines.max_of? { |line| Text.width(line) } || 0
+    whitespace = new_whitespace(opts.to_a)
+    empty_line = whitespace.render(width)
+
+    case pos
+    when Position::Top
+      content + "\n" + Array.new(gap, empty_line).join('\n')
+    when Position::Bottom
+      Array.new(gap, empty_line).join('\n') + "\n" + content
+    else
+      split = (gap.to_f * position_value(pos)).round.to_i
+      top = gap - split
+      bottom = gap - top
+      String.build do |io|
+        if top > 0
+          io << Array.new(top, empty_line).join('\n')
+          io << '\n'
+        end
+        io << content
+        if bottom > 0
+          io << '\n'
+          io << Array.new(bottom, empty_line).join('\n')
         end
       end
     end
-
-    # Crop if needed
-    if result.size > height
-      result = result[0, height]
-    end
-
-    result.join('\n')
-  end
-
-  def self.place_horizontal(width : Int32, pos : Position, content : String) : String
-    height = content.split('\n').size
-    place(width, height, pos, Position::Top, content)
-  end
-
-  def self.place_vertical(height : Int32, pos : Position, content : String) : String
-    lines = content.split('\n')
-    width = lines.max_of? { |l| Text.width(l) } || 0
-    place(width, height, Position::Left, pos, content)
   end
 
   # Measure width of rendered string (max line width)
   def self.width(str : String) : Int32
     return 0 if str.empty?
-    str.split('\n').max_of? { |l| Text.width(l) } || 0
+    str.split('\n').max_of? { |line| Text.width(line) } || 0
   end
 
   # Measure height of rendered string (line count)
@@ -2831,8 +2923,8 @@ module Lipgloss
   # Get both width and height
   def self.size(str : String) : Tuple(Int32, Int32)
     lines = str.split('\n')
-    w = lines.max_of? { |l| Text.width(l) } || 0
-    {w, lines.size}
+    max_line_width = lines.max_of? { |line| Text.width(line) } || 0
+    {max_line_width, lines.size}
   end
 
   # Create a new style (convenience)

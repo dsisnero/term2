@@ -12,7 +12,7 @@ module Lipgloss
     @@default : StyleRenderer = StyleRenderer.new
 
     property color_profile : ColorProfile = ColorProfile::TrueColor
-    property has_dark_background : Bool = true
+    property? has_dark_background : Bool = true
 
     def self.default : StyleRenderer
       @@default

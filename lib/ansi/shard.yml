@@ -1,0 +1,24 @@
+name: ansi
+version: 0.1.0
+
+authors:
+  - your-name-here <your-email-here>
+
+crystal: ">= 1.19.1"
+
+license: MIT
+
+dependencies:
+  colorful:
+    github: dsisnero/colorful
+
+  uniwidth:
+    github: naqvis/uni_char_width
+  stumpy_png:
+    github: stumpycr/stumpy_png
+    version: "~> 5.0"
+
+development_dependencies:
+  ameba:
+    github: crystal-ameba/ameba
+    version: ~> 1.0

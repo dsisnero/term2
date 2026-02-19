@@ -1,4 +1,5 @@
 require "stumpy_core"
+require "crimage"
 
 module Mosaic
   VERSION = "0.1.0"
@@ -386,6 +387,68 @@ module Mosaic
     (r.to_f64 * 0.299 + g.to_f64 * 0.587 + b.to_f64 * 0.114).to_u8
   end
 
+  # New creates and returns a renderer.
+  # Added for API compatibility with Go's mosaic.New().
+  def self.new : Renderer
+    Renderer.new
+  end
+
+  # to_canvas converts a CrImage image into a StumpyCore canvas.
+  def self.to_canvas(image : CrImage::Image) : StumpyCore::Canvas
+    bounds = image.bounds
+    canvas = StumpyCore::Canvas.new(bounds.width, bounds.height)
+
+    bounds.min.y.upto(bounds.max.y - 1) do |y|
+      bounds.min.x.upto(bounds.max.x - 1) do |x|
+        rgba = image.at(x, y).to_rgba8
+        canvas[x - bounds.min.x, y - bounds.min.y] = StumpyCore::RGBA.new(rgba.r, rgba.g, rgba.b, rgba.a)
+      end
+    end
+
+    canvas
+  end
+
+  # decode reads an image from path and converts it into a canvas.
+  def self.decode(path : String) : StumpyCore::Canvas
+    to_canvas(CrImage.read(path))
+  end
+
+  # decode reads an image from IO and converts it into a canvas.
+  def self.decode(io : IO) : StumpyCore::Canvas
+    to_canvas(CrImage.read(io))
+  end
+
+  # decode reads an image from bytes and converts it into a canvas.
+  def self.decode(bytes : Bytes) : StumpyCore::Canvas
+    decode(IO::Memory.new(bytes))
+  end
+
+  # Render renders an image with width/height overrides.
+  # Added for API compatibility with Go's mosaic.Render(img, width, height).
+  def self.render(canvas : StumpyCore::Canvas, width : Int, height : Int) : String
+    new.width(width).height(height).render(canvas)
+  end
+
+  # Render renders a CrImage image with width/height overrides.
+  def self.render(image : CrImage::Image, width : Int, height : Int) : String
+    render(to_canvas(image), width, height)
+  end
+
+  # Render decodes an image from path and renders it with width/height overrides.
+  def self.render(path : String, width : Int, height : Int) : String
+    render(decode(path), width, height)
+  end
+
+  # Render decodes an image from IO and renders it with width/height overrides.
+  def self.render(io : IO, width : Int, height : Int) : String
+    render(decode(io), width, height)
+  end
+
+  # Render decodes an image from bytes and renders it with width/height overrides.
+  def self.render(bytes : Bytes, width : Int, height : Int) : String
+    render(decode(bytes), width, height)
+  end
+
   # PixelBlock represents a 2x2 pixel block from the image.
   class PixelBlock
     property pixels : Array(Array(StumpyCore::RGBA))
@@ -438,53 +501,61 @@ module Mosaic
 
     # Scale sets the scale level on [Renderer].
     def scale(scale : Int) : self
-      @scale = scale.to_i32
-      self
+      copy = dup
+      copy.scale = scale.to_i32
+      copy
     end
 
     # IgnoreBlockSymbols set UseFgBgOnly on [Renderer].
     def ignore_block_symbols(fg_only : Bool) : self
-      @use_fg_bg_only = fg_only
-      self
+      copy = dup
+      copy.use_fg_bg_only = fg_only
+      copy
     end
 
     # Dither sets the dither level on [Renderer].
     def dither(dither : Bool) : self
-      @dither = dither
-      self
+      copy = dup
+      copy.dither = dither
+      copy
     end
 
     # Threshold sets the threshold level on [Renderer].
     # It expects a value between 0-255, anything else will be ignored.
     def threshold(threshold : Int) : self
+      copy = dup
       if threshold >= 0 && threshold <= U8_MAX_VALUE
-        @threshold_level = threshold.to_u8
+        copy.threshold_level = threshold.to_u8
       end
-      self
+      copy
     end
 
     # InvertColors whether to invert the colors of the mosaic image.
     def invert_colors(invert : Bool) : self
-      @invert_colors = invert
-      self
+      copy = dup
+      copy.invert_colors = invert
+      copy
     end
 
     # Width sets the maximum width the image can have. Defaults to the image width.
     def width(width : Int) : self
-      @output_width = width.to_i32
-      self
+      copy = dup
+      copy.output_width = width.to_i32
+      copy
     end
 
     # Height sets the maximum height the image can have. Defaults to the image height.
     def height(height : Int) : self
-      @output_height = height.to_i32
-      self
+      copy = dup
+      copy.output_height = height.to_i32
+      copy
     end
 
     # Symbol sets the mosaic symbol type.
     def symbol(symbol : Symbol) : self
-      @symbols = symbol
-      self
+      copy = dup
+      copy.symbols = symbol
+      copy
     end
 
     # Render renders the image to a string.
@@ -557,6 +628,26 @@ module Mosaic
       end
 
       output.to_s
+    end
+
+    # Render renders a CrImage image.
+    def render(image : CrImage::Image) : String
+      render(Mosaic.to_canvas(image))
+    end
+
+    # Render decodes and renders an image from path.
+    def render(path : String) : String
+      render(Mosaic.decode(path))
+    end
+
+    # Render decodes and renders an image from IO.
+    def render(io : IO) : String
+      render(Mosaic.decode(io))
+    end
+
+    # Render decodes and renders an image from bytes.
+    def render(bytes : Bytes) : String
+      render(Mosaic.decode(bytes))
     end
 
     # average_colors calculates the average color from a slice of colors.
@@ -665,66 +756,92 @@ module Mosaic
             x_frac1 = 0.0
           end
 
-          # Sample four pixels and convert to premultiplied 16-bit values
+          # Sample four pixels and convert to premultiplied 16-bit values using Go's exact formula
           c00 = canvas[sx0, sy0]
           c10 = canvas[sx1, sy0]
           c01 = canvas[sx0, sy1]
           c11 = canvas[sx1, sy1]
 
-          pr00, pg00, pb00, pa00 = Mosaic.premultiplied_16bit(c00)
-          pr10, pg10, pb10, pa10 = Mosaic.premultiplied_16bit(c10)
-          pr01, pg01, pb01, pa01 = Mosaic.premultiplied_16bit(c01)
-          pr11, pg11, pb11, pa11 = Mosaic.premultiplied_16bit(c11)
+          # Convert 8-bit values (0-255) to premultiplied 16-bit (0-65535)
+          # Following Go's NRGBA formula: r_premul = (r8 * a16) / 255 where a16 = a8 * 257
+          pr00, pg00, pb00, pa00 = nrgba_premultiplied_16bit(c00)
+          pr10, pg10, pb10, pa10 = nrgba_premultiplied_16bit(c10)
+          pr01, pg01, pb01, pa01 = nrgba_premultiplied_16bit(c01)
+          pr11, pg11, pb11, pa11 = nrgba_premultiplied_16bit(c11)
 
-          # Convert to Float for interpolation
-          r00 = pr00.to_f
-          g00 = pg00.to_f
-          b00 = pb00.to_f
-          a00 = pa00.to_f
+          # Convert to Float for interpolation (matching Go's float64)
+          r00 = pr00.to_f64
+          g00 = pg00.to_f64
+          b00 = pb00.to_f64
+          a00 = pa00.to_f64
 
-          r10 = pr10.to_f
-          g10 = pg10.to_f
-          b10 = pb10.to_f
-          a10 = pa10.to_f
+          r10 = pr10.to_f64
+          g10 = pg10.to_f64
+          b10 = pb10.to_f64
+          a10 = pa10.to_f64
 
-          r01 = pr01.to_f
-          g01 = pg01.to_f
-          b01 = pb01.to_f
-          a01 = pa01.to_f
+          r01 = pr01.to_f64
+          g01 = pg01.to_f64
+          b01 = pb01.to_f64
+          a01 = pa01.to_f64
 
-          r11 = pr11.to_f
-          g11 = pg11.to_f
-          b11 = pb11.to_f
-          a11 = pa11.to_f
+          r11 = pr11.to_f64
+          g11 = pg11.to_f64
+          b11 = pb11.to_f64
+          a11 = pa11.to_f64
 
-          # Horizontal interpolation
+          # Horizontal interpolation (matching Go's order)
+          # s10r = xFrac1*s00r + xFrac0*s10r
           r_h0 = x_frac1 * r00 + x_frac0 * r10
           g_h0 = x_frac1 * g00 + x_frac0 * g10
           b_h0 = x_frac1 * b00 + x_frac0 * b10
           a_h0 = x_frac1 * a00 + x_frac0 * a10
 
+          # s11r = xFrac1*s01r + xFrac0*s11r
           r_h1 = x_frac1 * r01 + x_frac0 * r11
           g_h1 = x_frac1 * g01 + x_frac0 * g11
           b_h1 = x_frac1 * b01 + x_frac0 * b11
           a_h1 = x_frac1 * a01 + x_frac0 * a11
 
-          # Vertical interpolation
+          # Vertical interpolation: s11r = yFrac1*s10r + yFrac0*s11r
           r = y_frac1 * r_h0 + y_frac0 * r_h1
           g = y_frac1 * g_h0 + y_frac0 * g_h1
           b = y_frac1 * b_h0 + y_frac0 * b_h1
           a = y_frac1 * a_h0 + y_frac0 * a_h1
 
-          # Convert back to UInt16 with truncation (matching Go's conversion)
-          r = r.clamp(0.0, 65535.0).to_u16
-          g = g.clamp(0.0, 65535.0).to_u16
-          b = b.clamp(0.0, 65535.0).to_u16
-          a = a.clamp(0.0, 65535.0).to_u16
+          # Truncate to uint32 matching Go's uint32(s11r) behavior, then quantize to 8-bit
+          # because x/image/draw writes into image.RGBA (8-bit premultiplied destination).
+          pr = (r.to_u32 >> 8).to_u8
+          pg = (g.to_u32 >> 8).to_u8
+          pb = (b.to_u32 >> 8).to_u8
+          pa = (a.to_u32 >> 8).to_u8
 
-          scaled[x_index, y_index] = StumpyCore::RGBA.new(r, g, b, a)
+          scaled[x_index, y_index] = StumpyCore::RGBA.new(pr, pg, pb, pa)
         end
       end
 
       scaled
+    end
+
+    # nrgba_premultiplied_16bit converts 8-bit NRGBA to premultiplied 16-bit values
+    # matching Go's formula: r_premul = (r8 * a16) / 255 where a16 = a8 * 257
+    private def nrgba_premultiplied_16bit(color : StumpyCore::RGBA) : Tuple(UInt16, UInt16, UInt16, UInt16)
+      # Extract components and convert to 8-bit (0-255), matching Go's high-byte shift.
+      r8 = color.r <= 255 ? color.r.to_u64 : (color.r >> 8).to_u64
+      g8 = color.g <= 255 ? color.g.to_u64 : (color.g >> 8).to_u64
+      b8 = color.b <= 255 ? color.b.to_u64 : (color.b >> 8).to_u64
+      a8 = color.a <= 255 ? color.a.to_u64 : (color.a >> 8).to_u64
+
+      # Scale alpha to 16-bit: a16 = a8 * 257
+      a16 = a8 * 257
+
+      # Premultiply: (component * a16) / 255
+      # Using integer arithmetic matching Go (use UInt64 for safety)
+      r = (r8 * a16) // 255
+      g = (g8 * a16) // 255
+      b = (b8 * a16) // 255
+
+      {r.to_u16, g.to_u16, b.to_u16, a16.to_u16}
     end
 
     private def apply_dithering(canvas : StumpyCore::Canvas) : StumpyCore::Canvas
@@ -740,14 +857,15 @@ module Mosaic
 
       height.times do |y|
         width.times do |x|
-          # Original color
+          # Original color - convert from 16-bit to 8-bit (0-255)
           pixel = canvas[x, y]
+          r8, g8, b8, a8 = Mosaic.shift_color(pixel)
 
           # Add accumulated error
-          r = pixel.r.to_f64 + error_r[x][y]
-          g = pixel.g.to_f64 + error_g[x][y]
-          b = pixel.b.to_f64 + error_b[x][y]
-          a = pixel.a.to_f64 + error_a[x][y]
+          r = r8.to_f64 + error_r[x][y]
+          g = g8.to_f64 + error_g[x][y]
+          b = b8.to_f64 + error_b[x][y]
+          a = a8.to_f64 + error_a[x][y]
 
           # Clamp to 0..255
           r = r.clamp(0.0, 255.0)
@@ -820,21 +938,19 @@ module Mosaic
       canvas.width.times do |x|
         canvas.height.times do |y|
           pixel = canvas[x, y]
-          # Extract high bytes (8-bit representation)
-          hr = pixel.r >> 8
-          hg = pixel.g >> 8
-          hb = pixel.b >> 8
-          ha = pixel.a >> 8
+          # Extract 8-bit components (handles both 0-255 and 0-65535)
+          r8, g8, b8, a8 = Mosaic.shift_color(pixel)
           # Invert RGB, keep alpha
-          inverted_hr = 255_u16 - hr
-          inverted_hg = 255_u16 - hg
-          inverted_hb = 255_u16 - hb
-          # Reconstruct 16-bit values (high byte repeated in low byte)
-          r = (inverted_hr << 8) | inverted_hr
-          g = (inverted_hg << 8) | inverted_hg
-          b = (inverted_hb << 8) | inverted_hb
-          a = (ha << 8) | ha
-          inverted[x, y] = StumpyCore::RGBA.new(r.to_u16, g.to_u16, b.to_u16, a.to_u16)
+          inverted_r = 255_u8 - r8
+          inverted_g = 255_u8 - g8
+          inverted_b = 255_u8 - b8
+          # Store as 16-bit values (0-255 in low byte)
+          inverted[x, y] = StumpyCore::RGBA.new(
+            inverted_r.to_u16,
+            inverted_g.to_u16,
+            inverted_b.to_u16,
+            a8.to_u16
+          )
         end
       end
       inverted

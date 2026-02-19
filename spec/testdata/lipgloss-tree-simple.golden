@@ -1,0 +1,9 @@
+.
+├── macOS
+├── Linux
+│   ├── NixOS
+│   ├── Arch Linux (btw)
+│   └── Void Linux
+└── BSD
+    ├── FreeBSD
+    └── OpenBSD

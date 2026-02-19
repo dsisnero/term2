@@ -1,5 +1,5 @@
 name: lipgloss
-version: 0.1.0
+version: 2.0.0-exp
 
 authors:
   - Dominic Sisneros <dsisnero@gmail.com>
@@ -11,6 +11,16 @@ dependencies:
     github: naqvis/uni_text_seg
   uniwidth:
     github: naqvis/uni_char_width
+  ansi:
+    github: dsisnero/ansi
+  ultraviolet:
+    github: dsisnero/ultraviolet
+  golden:
+    github: dsisnero/golden
+  colorful:
+    github: dsisnero/colorful
+  similar:
+    github: dsisnero/similar.cr
 
 targets:
   lipgloss:

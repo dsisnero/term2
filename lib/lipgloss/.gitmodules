@@ -1,0 +1,4 @@
+[submodule "vendor/lipgloss"]
+	path = vendor/lipgloss
+	url = https://github.com/charmbracelet/lipgloss.git
+	branch = v2-exp

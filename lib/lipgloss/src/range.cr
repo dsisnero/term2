@@ -44,8 +44,8 @@ module Lipgloss
 
     col = 0
     String.build do |io|
-      str.each_grapheme do |g|
-        gs = g.to_s
+      str.each_grapheme do |grapheme|
+        gs = grapheme.to_s
         w = UnicodeCharWidth.width(gs)
         break if col >= end_col
         if col + w > start_col && col < end_col
@@ -81,9 +81,9 @@ module Lipgloss
 
         # Read next grapheme (no ANSI within).
         slice = bytes[idx..]
-        g = next_grapheme(slice)
-        break if g.nil?
-        grapheme, grapheme_bytes = g
+        grapheme = next_grapheme(slice)
+        break if grapheme.nil?
+        grapheme, grapheme_bytes = grapheme
         w = UnicodeCharWidth.width(grapheme)
 
         if !started && col >= start_col
@@ -133,9 +133,9 @@ module Lipgloss
         next
       end
 
-      g = next_grapheme(bytes[idx..])
-      break if g.nil?
-      grapheme, grapheme_bytes = g
+      grapheme = next_grapheme(bytes[idx..])
+      break if grapheme.nil?
+      grapheme, grapheme_bytes = grapheme
       w = UnicodeCharWidth.width(grapheme)
       idx += grapheme_bytes
       col += w
@@ -166,8 +166,8 @@ module Lipgloss
     # Decode a grapheme from the byte slice.
     s = String.new(bytes)
     first = nil
-    s.each_grapheme do |g|
-      first = g.to_s
+    s.each_grapheme do |grapheme|
+      first = grapheme.to_s
       break
     end
     return unless first
@@ -182,7 +182,7 @@ module Lipgloss
     group = String::Builder.new
     current_matches : Bool? = nil
 
-    str.each_char_with_index do |ch, i|
+    str.each_char_with_index do |char, i|
       matches = targets.includes?(i)
       if current_matches.nil?
         current_matches = matches
@@ -194,7 +194,7 @@ module Lipgloss
         current_matches = matches
       end
 
-      group << ch
+      group << char
     end
 
     unless current_matches.nil?

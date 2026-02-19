@@ -1,7 +1,7 @@
 module Lipgloss
   # Lightweight renderer to satisfy lipgloss renderer API expectations.
   class Renderer
-    property has_dark_background : Bool = true
+    property? has_dark_background : Bool = true
     @color_profile : ColorProfile = ColorProfile::TrueColor
 
     def color_profile : ColorProfile

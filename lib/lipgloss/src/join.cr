@@ -1,7 +1,7 @@
 require "./style"
 
 module Lipgloss
-  class Style
+  struct Style
     # JoinHorizontal is a utility function for horizontally joining two
     # potentially multi-lined strings along a vertical axis.
     #
@@ -34,7 +34,7 @@ module Lipgloss
       blocks = strs.map(&.split('\n'))
 
       # Calculate dimensions
-      max_widths = blocks.map { |lines| lines.max_of { |l| Text.width(l) } rescue 0 }
+      max_widths = blocks.map { |lines| lines.max_of { |line| Text.width(line) } rescue 0 }
       max_height = blocks.max_of(&.size) rescue 0
 
       # Normalize blocks to max_height by padding vertically
@@ -60,19 +60,16 @@ module Lipgloss
 
       # Render joined blocks
       String.build do |io|
-        max_height.times do |i|
-          blocks.each_with_index do |lines, j|
-            line = lines[i]
+        max_height.times do |row_index|
+          blocks.each_with_index do |lines, block_index|
+            line = lines[row_index]
             io << line
 
-            # Pad horizontal to block width so the next block aligns correctly
-            if j < blocks.size - 1
-              w = Text.width(line)
-              pad = max_widths[j] - w
-              io << " " * pad if pad > 0
-            end
+            line_width = Text.width(line)
+            pad = max_widths[block_index] - line_width
+            io << " " * pad if pad > 0
           end
-          io << '\n' unless i == max_height - 1
+          io << '\n' unless row_index == max_height - 1
         end
       end
     end
@@ -86,7 +83,7 @@ module Lipgloss
       return strs[0] if strs.size == 1
 
       blocks = strs.map(&.split('\n'))
-      max_widths = blocks.map { |lines| lines.max_of { |l| Text.width(l) } rescue 0 }
+      max_widths = blocks.map { |lines| lines.max_of { |line| Text.width(line) } rescue 0 }
       max_height = blocks.max_of(&.size) rescue 0
       ratio = pos.clamp(0.0, 1.0)
 
@@ -101,17 +98,15 @@ module Lipgloss
       end
 
       String.build do |io|
-        max_height.times do |i|
-          blocks.each_with_index do |lines, j|
-            line = lines[i]
+        max_height.times do |row_index|
+          blocks.each_with_index do |lines, block_index|
+            line = lines[row_index]
             io << line
-            if j < blocks.size - 1
-              w = Text.width(line)
-              pad = max_widths[j] - w
-              io << " " * pad if pad > 0
-            end
+            line_width = Text.width(line)
+            pad = max_widths[block_index] - line_width
+            io << " " * pad if pad > 0
           end
-          io << '\n' unless i == max_height - 1
+          io << '\n' unless row_index == max_height - 1
         end
       end
     end
@@ -147,13 +142,13 @@ module Lipgloss
       blocks = strs.map(&.split('\n'))
 
       # Calculate the widest line across all blocks
-      max_width = blocks.max_of { |lines| lines.max_of { |l| Text.width(l) } rescue 0 } rescue 0
+      max_width = blocks.max_of { |lines| lines.max_of { |line| Text.width(line) } rescue 0 } rescue 0
 
       String.build do |io|
-        blocks.each_with_index do |lines, i|
-          lines.each_with_index do |line, j|
-            w = Text.width(line)
-            gap = max_width - w
+        blocks.each_with_index do |lines, block_index|
+          lines.each_with_index do |line, line_index|
+            line_width = Text.width(line)
+            gap = max_width - line_width
 
             if gap > 0
               case pos
@@ -178,8 +173,8 @@ module Lipgloss
             end
 
             # Add newline unless it's the very last line of the very last block
-            is_last_block = (i == blocks.size - 1)
-            is_last_line = (j == lines.size - 1)
+            is_last_block = (block_index == blocks.size - 1)
+            is_last_line = (line_index == lines.size - 1)
 
             unless is_last_block && is_last_line
               io << '\n'
@@ -198,14 +193,14 @@ module Lipgloss
       return strs[0] if strs.size == 1
 
       blocks = strs.map(&.split('\n'))
-      max_width = blocks.max_of { |lines| lines.max_of { |l| Text.width(l) } rescue 0 } rescue 0
+      max_width = blocks.max_of { |lines| lines.max_of { |line| Text.width(line) } rescue 0 } rescue 0
       ratio = pos.clamp(0.0, 1.0)
 
       String.build do |io|
-        blocks.each_with_index do |lines, i|
-          lines.each_with_index do |line, j|
-            w = Text.width(line)
-            gap = max_width - w
+        blocks.each_with_index do |lines, block_index|
+          lines.each_with_index do |line, line_index|
+            line_width = Text.width(line)
+            gap = max_width - line_width
             left = (gap * ratio).round.to_i
             left = left.clamp(0, gap)
             right = gap - left
@@ -214,8 +209,8 @@ module Lipgloss
             io << line
             io << " " * right
 
-            is_last_block = (i == blocks.size - 1)
-            is_last_line = (j == lines.size - 1)
+            is_last_block = (block_index == blocks.size - 1)
+            is_last_line = (line_index == lines.size - 1)
             io << '\n' unless is_last_block && is_last_line
           end
         end

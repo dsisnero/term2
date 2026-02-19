@@ -1,0 +1,11 @@
+/docs/
+/lib/
+/bin/
+/temp/
+/.shards/
+*.dwarf
+/.crystal-cache/
+
+# Libraries don't need dependency lock
+# Dependencies will be locked in applications that use them
+/shard.lock
